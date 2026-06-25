@@ -117,15 +117,49 @@ copy 模式需重新运行安装脚本。
 
 ### 卸载
 
+#### 一键卸载（所有平台）
+
 ```bash
-# 删除 skills 链接
-rm ~/.claude/skills/goal-pipeline
-rm ~/.claude/skills/guazi-flow-goal
+bash install.sh --uninstall
+```
 
-# 删除仓库
+自动检测所有已安装的 agent 平台，逐一删除 `goal-pipeline` 和 `guazi-flow-goal` skills。仓库和状态目录默认保留。
+
+#### 彻底卸载（含仓库和状态）
+
+```bash
+bash install.sh --uninstall --purge
+```
+
+`--purge` 会额外删除：
+- `~/.goal-pipeline-repo/`（代码仓库）
+- `~/.goal-state/`（状态目录，含历史 goal）
+
+#### 卸载特定平台
+
+```bash
+bash install.sh --uninstall --agent cursor
+```
+
+#### 逐平台手动卸载
+
+| 平台 | 命令 |
+|------|------|
+| Claude Code | `rm ~/.claude/skills/goal-pipeline ~/.claude/skills/guazi-flow-goal` |
+| Cursor | `rm ~/.cursor/skills/goal-pipeline ~/.cursor/skills/guazi-flow-goal` |
+| Codex | `rm ~/.codex/skills/goal-pipeline ~/.codex/skills/guazi-flow-goal` |
+| Pi | `rm ~/.pi/skills/goal-pipeline ~/.pi/skills/guazi-flow-goal` |
+| Windsurf | `rm ~/.windsurf/skills/goal-pipeline ~/.windsurf/skills/guazi-flow-goal` |
+| Qoder | `rm ~/.qoder/skills/goal-pipeline ~/.qoder/skills/guazi-flow-goal` |
+| Hermes | `rm ~/.hermes/skills/goal-pipeline ~/.hermes/skills/guazi-flow-goal` |
+| Continue | `rm ~/.continue/skills/goal-pipeline ~/.continue/skills/guazi-flow-goal` |
+| Roo | `rm ~/.roo/skills/goal-pipeline ~/.roo/skills/guazi-flow-goal` |
+| Generic | `rm ~/.agents/skills/goal-pipeline ~/.agents/skills/guazi-flow-goal` |
+
+手动删除仓库和状态：
+
+```bash
 rm -rf ~/.goal-pipeline-repo
-
-# 删除状态（可选，会丢失历史 goal）
 rm -rf ~/.goal-state
 ```
 
@@ -138,6 +172,8 @@ rm -rf ~/.goal-state
 | `--ssh` | SSH 克隆 |
 | `--agent X` | 强制指定平台（跳过自动检测） |
 | `--no-guazi` | 仅安装 goal-pipeline |
+| `--uninstall` | 卸载 skills（自动检测所有平台） |
+| `--purge` | 配合 `--uninstall`，同时删除仓库和状态目录 |
 
 ### 支持平台
 

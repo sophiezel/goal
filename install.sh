@@ -16,6 +16,8 @@ MODE="--symlink"
 USE_SSH=false
 FORCE_AGENT=""
 NO_GUAZI=false
+UNINSTALL=false
+PURGE=false
 
 # === 参数解析 ===
 while [ $# -gt 0 ]; do
@@ -25,6 +27,8 @@ while [ $# -gt 0 ]; do
     --ssh)     USE_SSH=true; shift ;;
     --agent)   FORCE_AGENT="$2"; shift 2 ;;
     --no-guazi) NO_GUAZI=true; shift ;;
+    --uninstall) UNINSTALL=true; shift ;;
+    --purge)    PURGE=true; shift ;;
     --help|-h)
       cat <<'USAGE'
 goal-pipeline installer
@@ -39,12 +43,17 @@ Options:
                If omitted, installs to ALL detected agents
                Supported: claude_code, cursor, codex, pi, windsurf, qoder, hermes, continue, roo, generic
   --no-guazi  Install goal-pipeline only, skip guazi-flow-goal skill
+  --uninstall Remove skills from all detected agents (use with --agent to target one)
+  --purge     With --uninstall: also remove repo and state directory
   -h, --help   Show this help
 
 Examples:
   curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | bash
   bash install.sh --ssh --agent cursor
   bash install.sh --no-guazi --copy
+  bash install.sh --uninstall            # Remove skills from all agents
+  bash install.sh --uninstall --purge   # Also remove repo + state
+  bash install.sh --uninstall --agent qoder  # Remove from Qoder only
 USAGE
       exit 0
       ;;
@@ -125,11 +134,60 @@ get_skills_dir() {
 # === 主流程 ===
 AGENTS=$(detect_all_agents)
 
+# === Uninstall mode ===
+if [ "$UNINSTALL" = true ]; then
+  echo "=========================================="
+  echo "  goal-pipeline uninstaller"
+  echo "=========================================="
+  echo ""
+  echo "  Target agents: $(echo $AGENTS | tr ' ' ', ')"
+  echo ""
+
+  SKILLS=("goal-pipeline" "guazi-flow-goal")
+  echo "🗑️  Removing skills..."
+  for AGENT in $AGENTS; do
+    SKILLS_DIR=$(get_skills_dir "$AGENT")
+    echo "  → $AGENT: $SKILLS_DIR"
+    for skill in "${SKILLS[@]}"; do
+      target="$SKILLS_DIR/$skill"
+      if [ -L "$target" ] || [ -d "$target" ]; then
+        rm -rf "$target"
+        echo "    ✅ Removed: $skill"
+      else
+        echo "    ⏭️  Not found: $skill"
+      fi
+    done
+  done
+
+  if [ "$PURGE" = true ]; then
+    echo ""
+    echo "🗑️  Purging repo and state..."
+    if [ -d "$REPO_DIR" ]; then
+      rm -rf "$REPO_DIR"
+      echo "  ✅ Removed repo: $REPO_DIR"
+    fi
+    if [ -d "$GOAL_STATE_HOME" ]; then
+      rm -rf "$GOAL_STATE_HOME"
+      echo "  ✅ Removed state: $GOAL_STATE_HOME"
+    fi
+  else
+    echo ""
+    echo "  ℹ️  Repo ($REPO_DIR) and state ($GOAL_STATE_HOME) preserved."
+    echo "     Use --purge to also remove them."
+  fi
+
+  echo ""
+  echo "=========================================="
+  echo "  🎉 Uninstall complete!"
+  echo "=========================================="
+  exit 0
+fi
+
 echo "=========================================="
 echo "  goal-pipeline installer"
 echo "=========================================="
 echo ""
-echo "  Detected agents: $(echo $AGENTS | tr ' ' ', '))"
+echo "  Detected agents: $(echo $AGENTS | tr ' ' ', ')"
 echo "  State dir:       $GOAL_STATE_HOME"
 echo "  Install mode:    $MODE"
 if [ "$USE_SSH" = true ]; then
@@ -255,7 +313,7 @@ echo "=========================================="
 echo ""
 echo "  State:      $GOAL_STATE_HOME"
 echo "  Repo:       $REPO_DIR"
-echo "  Agents:     $(echo $AGENTS | tr ' ' ', '))"
+echo "  Agents:     $(echo $AGENTS | tr ' ' ', ')"
 echo "  Skills dirs:"
 for AGENT in $AGENTS; do
   echo "    $(get_skills_dir "$AGENT")"
