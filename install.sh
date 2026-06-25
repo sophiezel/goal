@@ -1,6 +1,6 @@
 #!/bin/bash
 # install.sh - goal-pipeline 一键安装脚本
-# 支持: Claude Code / Cursor / Codex / Pi / Windsurf / Generic
+# 支持: Claude Code / Cursor / Codex / Pi / Windsurf / Qoder / Hermes / Continue / Roo / Generic
 # 用法:
 #   curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | bash
 #   bash install.sh [选项]
@@ -37,7 +37,7 @@ Options:
   --ssh        Clone via SSH (requires configured SSH key)
   --agent X    Force agent platform (skip auto-detection)
                If omitted, installs to ALL detected agents
-               Supported: claude_code, cursor, codex, pi, windsurf, generic
+               Supported: claude_code, cursor, codex, pi, windsurf, qoder, hermes, continue, roo, generic
   --no-guazi  Install goal-pipeline only, skip guazi-flow-goal skill
   -h, --help   Show this help
 
@@ -81,6 +81,22 @@ detect_all_agents() {
   if [ -d "$HOME/.windsurf" ] || [ -n "${WINDSURF_HOME:-}" ]; then
     agents+=("windsurf")
   fi
+  # Qoder
+  if [ -d "$HOME/.qoder" ]; then
+    agents+=("qoder")
+  fi
+  # Hermes
+  if [ -d "$HOME/.hermes" ]; then
+    agents+=("hermes")
+  fi
+  # Continue
+  if [ -d "$HOME/.continue" ]; then
+    agents+=("continue")
+  fi
+  # Roo (Roo Code / Roo Cline)
+  if [ -d "$HOME/.roo" ]; then
+    agents+=("roo")
+  fi
 
   if [ ${#agents[@]} -eq 0 ]; then
     echo "generic"
@@ -98,6 +114,10 @@ get_skills_dir() {
     claude_code) echo "$HOME/.claude/skills" ;;
     cursor)      echo "$HOME/.cursor/skills" ;;
     windsurf)    echo "$HOME/.windsurf/skills" ;;
+    qoder)       echo "$HOME/.qoder/skills" ;;
+    hermes)      echo "$HOME/.hermes/skills" ;;
+    continue)    echo "$HOME/.continue/skills" ;;
+    roo)         echo "$HOME/.roo/skills" ;;
     *)           echo "$HOME/.agents/skills" ;;
   esac
 }

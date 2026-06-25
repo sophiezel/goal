@@ -150,6 +150,10 @@ rm -rf ~/.goal-state
 | Codex | `~/.codex/skills/` | `.codex/` |
 | Pi | `~/.pi/skills/` | `.pi/` 或 `$PI_HOME` |
 | Windsurf | `~/.windsurf/skills/` | `.windsurf/` |
+| Qoder | `~/.qoder/skills/` | `.qoder/` |
+| Hermes | `~/.hermes/skills/` | `.hermes/` |
+| Continue | `~/.continue/skills/` | `.continue/` |
+| Roo | `~/.roo/skills/` | `.roo/` |
 | Generic | `~/.agents/skills/` | fallback |
 
 ## 使用
