@@ -1,6 +1,6 @@
 ---
 name: guazi-flow-goal
-description: guazi-flow-goal 统一入口。加载 goal-pipeline 管线引擎，检测 guazi-flow-* 可用性，在 plan/implement/review/complete 各阶段 MUST 调度 guazi-flow 增强。用户通过 `/guazi-flow-goal <目标>` 触发。包含生命周期管理（status/pause/resume/clear/list）。guazi-flow 不可用时 goal-pipeline 独立运行。
+description: guazi-flow-goal 统一入口。加载 goal-pipeline 管线引擎，检测 guazi-flow-* 可用性，在 plan/implement/review/complete 各阶段 MUST 调度 guazi-flow 增强。Use when project has guazi-flow-* skills installed and user wants structured docs/evidence/contract-driven execution; otherwise use /goal-pipeline directly. 用户通过 `/guazi-flow-goal <目标>` 触发。包含生命周期管理（status/pause/resume/clear/list）。guazi-flow 不可用时 goal-pipeline 独立运行。
 ---
 
 # Guazi Flow Goal（统一入口）
@@ -55,6 +55,8 @@ else:
 | complete 开始前 | `guazi-flow-complete/SKILL.md` |
 
 **不加载 → Agent 不知道 guazi-flow 具体指令 → 产物不符合规范。**
+
+**Do NOT Load**: guazi-flow-review/SKILL.md 在 plan/implement 阶段（仅 review 阶段加载）；guazi-flow-complete/SKILL.md 在 plan/implement/review 阶段。
 
 ---
 
@@ -124,24 +126,23 @@ Step 6: Gate Check（全部满足才进入 Phase 2）
 
 ## 生命周期管理
 
-| 命令 | 操作 |
-|------|------|
-| `/goal-pipeline-status` (别名 `/guazi-flow-goal-status`) | 读取 state.json + verify.sh，输出中文摘要 |
-| `/goal-pipeline-pause` (别名 `/guazi-flow-goal-pause`) | status = paused, 释放 .lock |
-| `/goal-pipeline-resume` (别名 `/guazi-flow-goal-resume`) | check-consistency → status = active |
-| `/goal-pipeline-clear` (别名 `/guazi-flow-goal-clear`) | 归档 state.json → archive/，保留 evidence/ |
-| `/goal-pipeline-list` (别名 `/guazi-flow-goal-list`) | 遍历 archive/*/goal_*.json，输出历史列表 |
+生命周期管理命令与 goal-pipeline 完全一致（详见 `goal-pipeline/SKILL.md`）。本 skill 提供别名：
+
+| 别名 | 对应命令 |
+|------|----------|
+| `/guazi-flow-goal-status` | `/goal-pipeline-status` |
+| `/guazi-flow-goal-pause` | `/goal-pipeline-pause` |
+| `/guazi-flow-goal-resume` | `/goal-pipeline-resume` |
+| `/guazi-flow-goal-clear` | `/goal-pipeline-clear` |
+| `/guazi-flow-goal-list` | `/goal-pipeline-list` |
 
 ### status 输出格式
 
 ```
-🎯 当前目标: 给项目加用户认证
-📊 状态: 活跃
+🎯 目标: 给项目加用户认证 | 📊 状态: 活跃
 📍 管线: plan(✓) → implement(✓) → review( ) → complete( )
-📈 进度: 50% (第 2/4 步)
-📁 任务: docs/guazi-flow/user-auth/
-🔍 审核: deepseek-v4-flash | 分离置信度: high
-📊 消耗: 2 轮 / 最大 50 轮
+📈 进度: 50% (2/4) | 📁 任务: docs/guazi-flow/user-auth/
+🔍 审核: deepseek-v4-flash | 📊 消耗: 2/50 轮
 ```
 
 ### 路径解析

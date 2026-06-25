@@ -1,6 +1,6 @@
 ---
 name: goal-pipeline
-description: 持久化目标执行管线——与 Claude Code /goal 对齐的 5 阶段管线引擎。使用 `/goal-pipeline <目标>` 启动，Agent 持续执行直到完成或阻塞。包含：目标澄清访谈、5 阶段管线（plan→implement→smoke→review↩→complete）、独立模型审核、自动修复循环、token 预算控制、跨 session 持久化（~/.goal-state/）。所有平台通用，不依赖任何外部 skill。
+description: 持久化目标执行管线——与 Claude Code /goal 对齐的 5 阶段管线引擎。使用 `/goal-pipeline <目标>` 启动，Agent 持续执行直到完成或阻塞。Use when user wants autonomous multi-stage goal execution with cross-session recovery, independent model review, and token budget control. 包含：目标澄清访谈、5 阶段管线（plan→implement→smoke→review↩→complete）、独立模型审核、自动修复循环、token 预算控制、跨 session 持久化（~/.goal-state/）。所有平台通用，不依赖任何外部 skill。
 ---
 
 # Goal Pipeline
@@ -249,25 +249,15 @@ project_id = sha256(项目根绝对路径)[:12]，branch = git 分支名或 "def
 
 ## 原生 Goal 集成
 
-当平台支持原生 /goal 能力时（`platform.native_goal = true`），goal-pipeline 利用平台原生能力作为执行引擎：
+当 `platform.native_goal = true` 时（Claude Code / Codex / Pi），goal-pipeline 利用平台原生 /goal 能力作为执行引擎，state.json 作为双保险。
 
-```
-平台原生 /goal 能力            goal-pipeline 职责
-──────────────────────────    ──────────────────────────
-跨 session 持久化              state.json 持久化（双保险）
-auto-continue 循环             agent 持续执行模型
-pause/resume（平台级）         pause/resume（应用级 + state.json 记录）
-/goal status（平台 UI）        /goal-pipeline-status（详细摘要）
-```
+| 平台 | 原生能力 | 集成方式 |
+|------|---------|----------|
+| Claude Code | `.claude/` 检测 | `/goal` 创建原生 goal，pause/resume 双向同步 |
+| Pi | `propose_goal_draft` | 原生 goal 内执行管线 |
+| Codex | `/goal` | 原生 goal 内执行管线 |
 
-**集成规则：**
-
-- **Claude Code**：检测到 `.claude/` 时，通过 `/goal` 创建原生 goal，在原生 goal 上下文中执行管线阶段。平台的 pause/resume 和 goal-pipeline 的 pause/resume 双向同步。
-- **Pi**：检测到 Pi 环境时，使用 `propose_goal_draft` 创建原生 goal，管线在原生 goal 内执行。
-- **Codex**：检测到 Codex 时，使用 `/goal` 创建原生 goal。
-- **通用规则**：原生 goal 提供持久化和恢复能力，goal-pipeline 提供管线逻辑和审核分离。state.json 作为双保险——即使平台 goal 丢失，state.json 仍可恢复。
-
-**当 `platform.native_goal = false` 时**：goal-pipeline 完全自主管理，不依赖任何平台机制。
+**当 `native_goal = false` 时**：goal-pipeline 完全自主管理，不依赖任何平台机制。
 
 ## 生命周期管理
 
@@ -286,22 +276,14 @@ pause/resume（平台级）         pause/resume（应用级 + state.json 记录
 ### status 输出格式
 
 ```
-当前目标: 给项目加用户认证
-状态: 活跃
-管线: plan(v) -> implement(v) -> review( ) -> complete( )
-进度: 50% (第 2/4 步)
-审核: deepseek-v4-flash | 分离置信度: high
-消耗: 2 轮 / 最大 50 轮
+目标: 给项目加用户认证 | 状态: 活跃
+管线: plan(✓) → implement(✓) → review( ) → complete( )
+进度: 50% (2/4) | 审核: deepseek-v4-flash | 消耗: 2/50 轮
 ```
 
-### pause 行为
+### pause / clear 行为
 
-- 写入 `pause_reason` + `paused_at` 到 state.json
-- 释放 .lock
-- 输出恢复指令提示：`运行 /goal-pipeline-resume 继续`
-
-### clear 行为
-
-- state.json 归档到 `~/.goal-state/archive/<pid>/goal_<id>.json`
-- evidence/ 保留（用户可能需要查看历史）
-- 释放 .lock
+| 操作 | 行为 |
+|------|------|
+| pause | 写入 pause_reason + paused_at → 释放 .lock → 输出恢复提示 |
+| clear | 归档 state.json → archive/<pid>/goal_<id>.json → 保留 evidence/ → 释放 .lock |
