@@ -1,6 +1,6 @@
 ---
 name: guazi-flow-goal-bridge
-description: guazi-flow-goal 集成桥接层——goal-pipeline 管线与 guazi-flow-* 系列之间的契约定义和集成规则。加载 goal-pipeline 管线后，按此契约在 plan/implement/review/complete 各阶段按需调用 guazi-flow-* skills。guazi-flow 不可用时 goal-pipeline 独立运行。
+description: guazi-flow-goal 集成桥接层——goal-pipeline 管线与 guazi-flow-* 系列之间的契约定义和集成规则。WHEN guazi-flow-goal 或 goal-pipeline 需要与 guazi-flow-* 协作时加载。加载 goal-pipeline 管线后，按此契约在 plan/implement/review/complete 各阶段按需调用 guazi-flow-* skills。guazi-flow 不可用时 goal-pipeline 独立运行。
 ---
 
 # Guazi Flow Goal Bridge（集成桥接层）
@@ -65,3 +65,13 @@ Goal 状态文件 `~/.goal-state/projects/<pid>/<branch>/<task>/state.json`
 ```
 
 guazi-flow 不可用时上述字段全部为空，goal-pipeline 完全独立运行。
+
+## 边缘场景
+
+| 场景 | 行为 |
+|------|------|
+| goal-pipeline 未加载 | 拒绝执行，提示先加载 goal-pipeline |
+| 版本不兼容（bridge 与 core） | 警告 + 降级为纯 goal-pipeline |
+| state.json 扩展字段缺失 | 视为 guazi_flow_available=false，纯管线模式 |
+| guazi-flow-review 与独立审核 issue 冲突 | 以独立审核为准，guazi-flow issue 标记为 `discarded` |
+| 桥接层加载失败 | goal-pipeline 正常运行，扩展字段为空 |

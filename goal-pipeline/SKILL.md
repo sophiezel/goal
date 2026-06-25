@@ -93,6 +93,8 @@ Step 3: 分流
 
 ### 修复子循环——五种场景分类处理（与 Claude Code /goal 对齐）
 
+**MANDATORY**: 读取 `skill_dir/references/auto-continue-policy.md`（停止条件和空转检测）
+
 ```
 review not_pass:
   │
@@ -130,51 +132,20 @@ review not_pass:
 
 ## 进度可见化规范
 
-每个阶段开始和结束时，Agent 必须输出一行摘要。
-
-### 正常流程
+每个阶段开始和结束时，Agent 必须输出一行摘要：
 
 ```
 [1/5] plan:      🔄 目标规划中...
 [1/5] plan:      ✅ plan 卡片已生成
-
-[2/5] implement: 🔄 执行中...
 [2/5] implement: ✅ 5 files changed
-
-[3/5] smoke:     🔄 runtime-smoke 验证项目启动...
 [3/5] smoke:     ✅ pnpm run dev → localhost:8000 (35s)
-
 [4/5] review:    🔄 独立模型审核中...
                  审核模型: deepseek-v4-flash (独立于执行模型)
-[4/5] review:    ✅ 通过 (1 轮)
-                 独立审核: pass
-                 分离置信度: high (跨provider)
-
-[5/5] complete:  🔄 收口中...
+[4/5] review:    ✅ 通过 (1 轮) | 分离置信度: high (跨provider)
 [5/5] complete:  ✅ 目标完成
 ```
 
-### review 进行中（含 issue 变化追踪）
-
-```
-[4/5] review: ❌ 未通过 (第 2 轮)
-  变动:
-    ✅ 已解决: authService 返回缺少 user 字段
-    🔁 持续: refreshToken 实现不符合契约 (第 2 轮)
-    🆕 新增: Login.tsx 表单校验遗漏 (warning)
-  当前: 1 blocker + 1 warning
-  修复中...
-```
-
-### review 阻塞
-
-```
-[4/5] review: ❌ 未通过 (第 4 轮)
-  变动:
-    🔁 持续: refreshToken 实现不符合契约 (3 轮, 3 种策略已耗尽)
-  ⚠️ 同一 issue 已尝试 3 种策略仍未解决。
-  请选择: [A] 人工修复 [B] 简化契约 [C] 跳过此问题 [D] 放弃
-```
+review 未通过时输出 issue 变动追踪（✅已解决 / 🔁持续 / 🆕新增），blocked 时输出决策选项 [A/B/C/D]。
 
 ### 每阶段必须输出的信息
 
@@ -237,20 +208,28 @@ review not_pass:
 
 审核 token 单独统计（API 直调精确值），执行 token 估算（无 API usage 时按字符数/4）。
 
+## 错误处理与边缘场景
+
+| 场景 | 行为 |
+|------|------|
+| state.json 损坏 | 从 evidence + git log 重建 state，标记 `recovered: true` |
+| git 操作失败 | 记录 failure_code，blocked，输出手动修复建议 |
+| 非 JS 项目 | runtime-smoke 自动跳过（无法推导 dev 命令）|
+| budget ≥100% | 暂停，用户可 extend 或 /goal-pipeline-clear |
+| 审核通道全不可用 | 输出告警 + 安装建议，implement 前仍不可用则 blocked |
+
 ## 前置依赖
 
-加载以下 references（记 skill 资源目录为 `skill_dir`）:
+references 加载触发已内嵌在上述工作流步骤中（标有 MANDATORY）。完整列表：
 
-- `skill_dir/references/goal-state-schema.md` — 状态模型和持久化
-- `skill_dir/references/separation-strategies.md` — 审核模型通道策略
-- `skill_dir/references/interview-protocol.md` — 目标澄清访谈
-- `skill_dir/references/auto-continue-policy.md` — 停止条件和空转检测
-- `skill_dir/references/crash-recovery.md` — 崩溃恢复
-- `skill_dir/references/consistency-check.md` — 状态一致性
+`goal-state-schema.md`（状态持久化）· `separation-strategies.md`（review 阶段）· `interview-protocol.md`（plan 阶段）· `auto-continue-policy.md`（修复子循环）· `crash-recovery.md`（崩溃恢复）· `consistency-check.md`（resume 时）
 
-脚本: `skill_dir/scripts/verify.sh` / `verify-review.sh` / `detect-review-channels` / `detect-platform` / `check-consistency`
+脚本: `skill_dir/scripts/` — verify.sh / verify-review.sh / detect-review-channels / detect-platform / check-consistency
 
 ## 状态持久化
+
+**MANDATORY**: 读取 `skill_dir/references/goal-state-schema.md`（状态模型和持久化）
+**MANDATORY**: 崩溃恢复时读取 `skill_dir/references/crash-recovery.md`
 
 `~/.goal-state/projects/<project_id>/<branch>/<task>/state.json`
 
@@ -260,15 +239,13 @@ project_id = sha256(项目根绝对路径)[:12]，branch = git 分支名或 "def
 
 ## 与 Claude Code /goal 对齐
 
-| | Claude Code /goal | Goal |
-|---|---|---|
-| 审核者 | Haiku 每轮评估 | 独立模型 review 阶段评估 + not_pass → 修复子循环 |
-| 审核反馈 | 传给 Agent 下一轮 | issues+guidance → Agent 针对性修复 → re-review |
-| 自动修复 | 无限（持续到 pass 或 budget 耗尽） | 同一 blocker 3 轮无新策略 → 暂停 |
-| Budget | Token 预算 | Token 预算 + 80/95/100 三级提示 |
-| 暂停/恢复 | 用户 pause/resume | blocked → 用户决策 → resume |
+| 维度 | Claude Code /goal | Goal Pipeline |
+|------|-------------------|---------------|
+| 审核 | 每轮 Haiku | review 阶段独立模型 + 修复子循环 |
+| 自动修复 | 无限 | 同一 blocker 3 轮无新策略 → blocked |
+| Budget | Token 预算 | + 80/95/100 三级提示 |
 | 持久化 | Session-scoped | 磁盘 state.json（跨 session） |
-| 与外部 skill | 无 | 外部 skill 按需增强（通过桥接层，不影响独立运行） |
+| 扩展 | 无 | 桥接层按需增强 |
 
 ## 原生 Goal 集成
 
@@ -302,7 +279,7 @@ pause/resume（平台级）         pause/resume（应用级 + state.json 记录
 | `/goal-pipeline` | 恢复当前 active goal | /goal (no args) |
 | `/goal-pipeline-status` | 读取 state.json + verify.sh，输出摘要 | /goal status |
 | `/goal-pipeline-pause` | status = paused, 释放 .lock, 输出断点 | 暂停 |
-| `/goal-pipeline-resume` | check-consistency → status = active | 继续 |
+| `/goal-pipeline-resume` | **MANDATORY**: 读 `references/consistency-check.md` → check-consistency → status = active | 继续 |
 | `/goal-pipeline-clear` | 归档 state.json → archive/，保留 evidence/ | /goal clear |
 | `/goal-pipeline-list` | 遍历 archive/，输出历史列表 | /goal list |
 

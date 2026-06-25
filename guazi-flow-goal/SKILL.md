@@ -59,6 +59,8 @@ else:
 
 ## Phase 1: Goal Engineering
 
+**Before dispatching, ask yourself**: guazi_flow_available? profile? 有无 active goal?
+
 ```
 Step 1: 环境初始化
   ├─ 运行 detect-platform → 确定平台
@@ -67,41 +69,25 @@ Step 1: 环境初始化
       ├─ 有 → goal_already_active, 提示用户 [继续/清除/查看]
       └─ 无 → 继续
 
-Step 2: 意图采集
-  ├─ 解析用户输入: 提取动作/对象/期望结果
-  └─ 保留原始文本作为 objective 基础
+Step 2-3: 意图采集 + 自动推断 (interview-protocol.md)
+  ├─ 解析用户输入 → 保留原始文本作为 objective
+  ├─ 调 guazi-flow-doctor（如果可用）→ 检测 profile/profile_detail
+  ├─ scope: git status + 关键词匹配 | constraints: AGENTS.md + profile
+  └─ 缺口检测 + 定向追问 (最多 5 题，每题附带默认选项)
 
-Step 3: 自动推断 (interview-protocol.md Step 2)
-  ├─ 调 guazi-flow-doctor（如果 guazi_flow_available）→ 检测 profile/profile_detail
-  ├─ scope: git status + 关键词匹配
-  ├─ constraints: AGENTS.md + profile
-  └─ verification: package.json scripts.test 推断
-
-Step 4: 缺口检测 + 定向追问 (最多 5 题)
-  ├─ 对照 Goal Schema 检查 P0/P1 缺失字段
-  ├─ 每个问题附带默认选项
-  └─ 不过度访谈
-
-Step 5: 生成 Goal 结构
+Step 4: 生成 + 确认 Goal 结构
   ├─ 组装: 目标描述 + 验收标准 + 范围 + 约束 + 验证方式
-  └─ 展示给用户确认
+  ├─ 展示给用户确认 → 确认/编辑/重新讨论/放弃
+  └─ 确认 → 继续 Step 5
 
-Step 6: 用户确认
-  ├─ 确认 → 继续 Step 7
-  ├─ 编辑 → 返回 Step 5
-  ├─ 重新讨论 → 返回 Step 2
-  └─ 放弃 → 退出
-
-Step 7: 初始化 state
-  ├─ 确保 ~/.goal-state/ 目录存在
-  ├─ 首次部署脚本到 ~/.goal-state/scripts/
+Step 5: 初始化 state
+  ├─ 确保 ~/.goal-state/ 目录存在 + 首次部署脚本
   ├─ 计算 project_id = sha256(项目根绝对路径)[:12]
   ├─ 解析 branch = git rev-parse --abbrev-ref HEAD or "default"
-  ├─ 调 guazi-flow-doctor (环境诊断，如果 guazi_flow_available)
   ├─ 创建 ~/.goal-state/projects/<pid>/<branch>/<task>/state.json
   └─ 检测并迁移旧路径 .guazi-flow/goal/ 产物（若存在）
 
-Step 8: Gate Check（以下条件全部满足才进入 Phase 2）
+Step 6: Gate Check（全部满足才进入 Phase 2）
   ├─ [✓] state.json 已创建且 schema 校验通过
   ├─ [✓] 用户已确认 Goal 内容
   ├─ [✓] guazi-flow-* SKILL.md 可加载（或 guazi_flow_available = false）
@@ -184,6 +170,8 @@ Step 8: Gate Check（以下条件全部满足才进入 Phase 2）
 |------|------|
 | goal_already_active | 展示当前 goal 状态，提供 [继续/清除/查看] 选项 |
 | profile 检测失败 | 询问用户手动指定技术栈 |
+| guazi-flow-core 版本不兼容 | 警告 + 降级为纯 goal-pipeline |
+| state.json 与 docs/guazi-flow/ 不一致 | 运行 check-consistency 修复或归档重建 |
 | guazi-flow-plan 失败 | 输出错误，暂停，让用户修复后重试 |
 | 审核通道全部不可用 | 输出告警 + 安装建议，implement 前仍不可用则暂停 |
 | 用户中途取消 | 不创建 state.json，不残留 |
