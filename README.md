@@ -84,20 +84,26 @@ curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | ba
   goal-pipeline installer
 ==========================================
 
-  Detected agent:  claude_code       ← 自动检测平台
-  Skills dir:      ~/.claude/skills/
+  Detected agents: pi, codex, claude_code, cursor   ← 检测到多个平台
   State dir:       ~/.goal-state
   Install mode:    --symlink
   Clone method:    HTTPS
 
 📦 Cloning repository...
 📋 Deploying skills...
-  ✅ goal-pipeline → symlink
-  ✅ guazi-flow-goal → symlink
+  → pi:          ~/.pi/skills/
+    ✅ goal-pipeline → symlink
+    ✅ guazi-flow-goal → symlink
+  → cursor:      ~/.cursor/skills/
+    ✅ goal-pipeline → symlink
+    ✅ guazi-flow-goal → symlink
+  ...
 📁 Initializing state directory...
   ✅ config.json created
   ✅ Scripts deployed to ~/.goal-state/scripts/
 ```
+
+> 只安装到特定平台：`bash install.sh --agent cursor`
 
 ### 更新
 

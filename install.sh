@@ -36,6 +36,7 @@ Options:
   --copy       Copy files (for platforms that don't support symlinks)
   --ssh        Clone via SSH (requires configured SSH key)
   --agent X    Force agent platform (skip auto-detection)
+               If omitted, installs to ALL detected agents
                Supported: claude_code, cursor, codex, pi, windsurf, generic
   --no-guazi  Install goal-pipeline only, skip guazi-flow-goal skill
   -h, --help   Show this help
@@ -52,34 +53,40 @@ USAGE
 done
 
 # === 平台检测 ===
-detect_agent() {
+detect_all_agents() {
   if [ -n "$FORCE_AGENT" ]; then
     echo "$FORCE_AGENT"
     return
   fi
 
+  local agents=()
+
   # Pi
   if [ -n "${PI_HOME:-}" ] || [ -d "$HOME/.pi" ] || [ -n "${PI_AGENT:-}" ]; then
-    echo "pi"; return
+    agents+=("pi")
   fi
   # Codex
   if [ -n "${CODEX_HOME:-}" ] || [ -d "$HOME/.codex" ]; then
-    echo "codex"; return
+    agents+=("codex")
   fi
   # Claude Code
   if [ -d "$HOME/.claude" ] || [ -n "${CLAUDE_CODE_SESSION_ID:-}" ]; then
-    echo "claude_code"; return
+    agents+=("claude_code")
   fi
   # Cursor
   if [ -d "$HOME/.cursor" ]; then
-    echo "cursor"; return
+    agents+=("cursor")
   fi
   # Windsurf
   if [ -d "$HOME/.windsurf" ] || [ -n "${WINDSURF_HOME:-}" ]; then
-    echo "windsurf"; return
+    agents+=("windsurf")
   fi
 
-  echo "generic"
+  if [ ${#agents[@]} -eq 0 ]; then
+    echo "generic"
+  else
+    echo "${agents[@]}"
+  fi
 }
 
 # === Skills 目录映射 ===
@@ -96,15 +103,13 @@ get_skills_dir() {
 }
 
 # === 主流程 ===
-AGENT=$(detect_agent)
-SKILLS_DIR=$(get_skills_dir "$AGENT")
+AGENTS=$(detect_all_agents)
 
 echo "=========================================="
 echo "  goal-pipeline installer"
 echo "=========================================="
 echo ""
-echo "  Detected agent:  $AGENT"
-echo "  Skills dir:      $SKILLS_DIR"
+echo "  Detected agents: $(echo $AGENTS | tr ' ' ', '))"
 echo "  State dir:       $GOAL_STATE_HOME"
 echo "  Install mode:    $MODE"
 if [ "$USE_SSH" = true ]; then
@@ -129,10 +134,7 @@ else
   cd "$REPO_DIR" && git pull
 fi
 
-# === Step 2: Ensure skills directory exists ===
-mkdir -p "$SKILLS_DIR"
-
-# === Step 3: Deploy skills ===
+# === Step 2: Deploy skills to all detected agents ===
 SKILLS=("goal-pipeline")
 if [ "$NO_GUAZI" = false ]; then
   SKILLS+=("guazi-flow-goal")
@@ -141,30 +143,36 @@ fi
 echo ""
 echo "📋 Deploying skills..."
 
-for skill in "${SKILLS[@]}"; do
-  target="$SKILLS_DIR/$skill"
-  source="$REPO_DIR/$skill"
+for AGENT in $AGENTS; do
+  SKILLS_DIR=$(get_skills_dir "$AGENT")
+  mkdir -p "$SKILLS_DIR"
+  echo "  → $AGENT: $SKILLS_DIR"
 
-  if [ ! -d "$source" ]; then
-    echo "  ⚠️  $source not found, skipping"
-    continue
-  fi
+  for skill in "${SKILLS[@]}"; do
+    target="$SKILLS_DIR/$skill"
+    source="$REPO_DIR/$skill"
 
-  # Remove existing deployment
-  if [ -L "$target" ]; then
-    rm "$target"
-  elif [ -d "$target" ]; then
-    echo "  🗑️  Removing existing: $target"
-    rm -rf "$target"
-  fi
+    if [ ! -d "$source" ]; then
+      echo "    ⚠️  $source not found, skipping"
+      continue
+    fi
 
-  if [ "$MODE" = "--symlink" ]; then
-    ln -sfn "$source" "$target"
-    echo "  ✅ $skill → symlink"
-  else
-    cp -r "$source" "$target"
-    echo "  ✅ $skill → copied"
-  fi
+    # Remove existing deployment
+    if [ -L "$target" ]; then
+      rm "$target"
+    elif [ -d "$target" ]; then
+      echo "    🗑️  Removing existing: $target"
+      rm -rf "$target"
+    fi
+
+    if [ "$MODE" = "--symlink" ]; then
+      ln -sfn "$source" "$target"
+      echo "    ✅ $skill → symlink"
+    else
+      cp -r "$source" "$target"
+      echo "    ✅ $skill → copied"
+    fi
+  done
 done
 
 # === Step 4: Migrate old paths (before skeleton creation) ===
@@ -225,10 +233,13 @@ echo "=========================================="
 echo "  🎉 Installation complete!"
 echo "=========================================="
 echo ""
-echo "  Skills:     $SKILLS_DIR"
 echo "  State:      $GOAL_STATE_HOME"
 echo "  Repo:       $REPO_DIR"
-echo "  Agent:      $AGENT"
+echo "  Agents:     $(echo $AGENTS | tr ' ' ', '))"
+echo "  Skills dirs:"
+for AGENT in $AGENTS; do
+  echo "    $(get_skills_dir "$AGENT")"
+done
 echo ""
 if [ "$MODE" = "--symlink" ]; then
   echo "  Update:     cd $REPO_DIR && git pull"
