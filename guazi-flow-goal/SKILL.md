@@ -16,6 +16,7 @@ description: guazi-flow-goal 统一入口。加载 goal-pipeline 管线引擎，
 - **NEVER 在 `~/.goal-state/` 中写入 guazi-flow 项目配置**——`.guazi-flow/config.local.json` 只存 JIRA_TOKEN/repos 等 guazi-flow 自身字段，goal 产物不混入
 - **NEVER 在 guazi-flow 不可用时强制加载 guazi-flow-* skills**——降级为纯 goal-pipeline 运行，不阻断管线
 - **NEVER 修改 goal-pipeline 的 state.json 基础字段**——guazi-flow 扩展字段（guazi_flow_*）只能追加，不覆盖管线字段
+- **NEVER 在 guazi-flow-plan 产出前修改项目代码**——plan 未完成时改代码会导致 write_set 不匹配，implement 阶段无法正确驱动
 
 ## 必读 references
 
@@ -103,13 +104,15 @@ Step 6: Gate Check（全部满足才进入 Phase 2）
 
 管线流程详见 `goal-pipeline/SKILL.md`。本层在每个阶段注入 GATE 检查和 guazi-flow-* 调度：
 
-| 阶段 | GATE（guazi_flow_available=true 时） | guazi-flow 调度 | 降级 |
-|------|--------------------------------------|----------------|------|
-| plan | 加载 guazi-flow-plan/SKILL.md | MUST：产出 docs/guazi-flow/<task>/index.md + unit.md | goal-pipeline 通用 plan |
-| implement | 加载 guazi-flow-implement/SKILL.md | MUST：profile/contract/write_set 驱动 | goal-pipeline 通用 implement |
-| runtime_smoke | 无 GATE | 始终用 goal-pipeline 通用脚本 | — |
-| review | 加载 guazi-flow-review/SKILL.md | Step 1.5 注入：guazi-flow-review → issues_gf[] | 仅 goal-pipeline 独立审核 |
-| complete | 加载 guazi-flow-complete/SKILL.md | MUST：guazi-flow 收口检查 | goal-pipeline 通用 complete |
+| 阶段 | GATE（guazi_flow_available=true 时） | guazi-flow 调度 | 降级 | 自由度 |
+|------|--------------------------------------|----------------|------|--------|
+| plan | 加载 guazi-flow-plan/SKILL.md | MUST：产出 docs/guazi-flow/<task>/index.md + unit.md | goal-pipeline 通用 plan | 中——结构化产出，内容自主 |
+| implement | 加载 guazi-flow-implement/SKILL.md | MUST：profile/contract/write_set 驱动 | goal-pipeline 通用 implement | 高——实现方式自主 |
+| runtime_smoke | 无 GATE | 始终用 goal-pipeline 通用脚本 | — | 低——固定脚本 |
+| review | 加载 guazi-flow-review/SKILL.md | Step 1.5 注入：guazi-flow-review → issues_gf[] | 仅 goal-pipeline 独立审核 | 低——按流程执行 |
+| complete | 加载 guazi-flow-complete/SKILL.md | MUST：guazi-flow 收口检查 | goal-pipeline 通用 complete | 低——门禁驱动 |
+
+**Before review not_pass → 修复子循环, ask**: 这是同一根因的持续，还是新症状？根因未变 → 换策略；新症状 → 评估方向是否正确。
 
 **条件触发阶段**（不可用时跳过，不提供通用替代）：
 
