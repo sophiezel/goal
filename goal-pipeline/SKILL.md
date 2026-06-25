@@ -13,6 +13,15 @@ Goal 是一个持久化的工程目标。Agent 接到 goal 后持续执行，不
 
 与 Claude Code /goal 对齐：独立审核者、自动修复循环、budget 控制、暂停/恢复。
 
+## NEVER
+
+- **NEVER 跳过 Step 1 确定性检查直接调审核模型**——确定性检查零成本（无模型调用），且能发现 secret 泄漏、scope 越界等审核模型容易漏掉的问题
+- **NEVER 在同一 blocker 上无限重试**——同一 issue 已尝试 3 种策略仍未解决必须 blocked，避免 token 浪费
+- **NEVER 让审核模型与执行模型使用同一 provider**——分离置信度降为 medium，审核独立性受损
+- **NEVER 在 review 通过前将 goal.status 设为 complete**——complete 需要所有门禁（review + smoke + evidence + verify.sh）全部通过
+- **NEVER 在 state.json 中存储明文 API key**——key 存入 `~/.goal-state/config.json`，state.json 仅存审核结论
+- **NEVER 在管线执行中途把控制权还给用户**——除非命中 blocked 条件或 budget 耗尽，Agent 必须持续执行
+
 ## 执行模型
 
 ```
@@ -39,6 +48,9 @@ Phase 2: Pipeline Execution（Agent 持续执行）
 
 ### plan 阶段
 
+**MANDATORY**: 开始前读取 `skill_dir/references/interview-protocol.md`（三步收敛访谈协议）
+**Do NOT Load**: separation-strategies.md（plan 阶段不需要审核通道）
+
 - 从用户输入解析目标、推断范围、确定验收标准
 - 产出 plan 卡片（纯文本）
 - 环境预检：审核通道探测（并行探测 + 跨 provider 优先排序）
@@ -56,6 +68,8 @@ Agent 在确定的范围内修改代码，产出候选 diff。
 - 无法推导 dev 命令 → skipped
 
 ### review 阶段——三步审核流程
+
+**MANDATORY**: 开始前读取 `skill_dir/references/separation-strategies.md`（审核模型通道策略）
 
 ```
 implement complete

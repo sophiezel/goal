@@ -7,6 +7,20 @@ description: guazi-flow-goal 集成桥接层——goal-pipeline 管线与 guazi-
 
 guazi-flow-goal-bridge 是 goal-pipeline 内核与 guazi-flow-* 系列之间的桥接契约。goal-pipeline 管线独立运行于所有平台，guazi-flow-* 在可用时按此层定义的规则在各阶段被调用。
 
+## NEVER
+
+- **NEVER 在桥接层定义管线逻辑**——管线逻辑（5 阶段、修复子循环、budget）由 goal-pipeline 独占，桥接层只定义映射规则
+- **NEVER 修改 goal-pipeline 的 state.json 基础字段**——guazi-flow 扩展字段（guazi_flow_*）只能追加，不覆盖 pipeline/platform/review_config 等管线字段
+- **NEVER 在桥接层引入新的持久化路径**——所有数据通过 `~/.goal-state/` 统一管理，不在项目中创建额外目录
+- **NEVER 让 guazi-flow-review 替代 goal-pipeline 独立审核**——两者都运行，issues 合并去重，guazi-flow-review 仅作为 Step 1.5 注入
+
+## 核心桥接规则
+
+1. **review 注入点**：Step 1.5（在 Step 1 确定性检查之后、Step 2 独立审核之前）。注入的 issues 合并到 Step 2 结果中。
+2. **task_dir 映射**：guazi-flow 集成时 `task_dir = docs/guazi-flow/<task>/`，goal-pipeline 通用模式时 `task_dir = <项目根>/`。
+3. **扩展字段**：`guazi_flow_task` / `guazi_flow_profile` / `guazi_flow_stages`——仅在使用 guazi-flow 集成时存在，不可用时全部为空。
+4. **降级规则**：guazi-flow 不可用时，所有扩展字段置空，管线行为与纯 goal-pipeline 完全一致。
+
 ## goal ↔ guazi-flow 关系
 
 ```
@@ -28,7 +42,8 @@ goal-pipeline（通用管线）          guazi-flow-* 系列（可选增强）
 
 ## 集成规则
 
-详见 `guazi-flow-goal-bridge/references/guazi-flow-integration.md`。
+**MANDATORY**: 使用桥接层前必须读取 `references/guazi-flow-integration.md`（完整调度规则和条件触发逻辑）
+**MANDATORY**: 修改 state.json 前必须读取 `references/goal-state-schema.md`（guazi-flow 扩展字段定义和写入边界）
 
 ## guazi-flow 扩展字段
 

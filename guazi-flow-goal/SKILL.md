@@ -9,6 +9,14 @@ description: guazi-flow-goal 统一入口。加载 goal-pipeline 管线引擎，
 
 **本 skill 合并了原 guazi-flow-goal（入口）、guazi-flow-goal-auto（执行引擎）、guazi-flow-goal-manage（生命周期）的全部职责。**
 
+## NEVER
+
+- **NEVER 在 GATE 检查失败后继续执行 guazi-flow 调度**——GATE 不可读必须设 `guazi_flow_available = false` 并降级为纯 goal-pipeline
+- **NEVER 跳过 Lazy Loading 直接执行阶段**——不加载阶段 SKILL.md → 产物不符合 guazi-flow schema → review 必定 not_pass
+- **NEVER 在 `~/.goal-state/` 中写入 guazi-flow 项目配置**——`.guazi-flow/config.local.json` 只存 JIRA_TOKEN/repos 等 guazi-flow 自身字段，goal 产物不混入
+- **NEVER 在 guazi-flow 不可用时强制加载 guazi-flow-* skills**——降级为纯 goal-pipeline 运行，不阻断管线
+- **NEVER 修改 goal-pipeline 的 state.json 基础字段**——guazi-flow 扩展字段（guazi_flow_*）只能追加，不覆盖管线字段
+
 ## 必读 references
 
 ### 启动时加载（MANDATORY）
@@ -104,81 +112,28 @@ Step 8: Gate Check（以下条件全部满足才进入 Phase 2）
 
 ## Phase 2: Pipeline Execution
 
-```
-while goal.status == active:
-  │
-  ├─ plan:
-  │   ┌─ GATE: 加载 guazi-flow-plan/SKILL.md（如果 guazi_flow_available）
-  │   │        不可读 → guazi_flow_available = false
-  │   ├─ guazi_flow_available → guazi-flow-plan（MUST）
-  │   │   产出: docs/guazi-flow/<task>/index.md + unit.md
-  │   │   state.json.guazi_flow_task = "docs/guazi-flow/<task>"
-  │   └─ else → goal-pipeline 通用 plan（访谈 + plan 卡片）
-  │   输出: "[1/5] plan: ✅ guazi-flow-plan 生成 N 个 unit"
-  │
-  ├─ implement:
-  │   ┌─ GATE: 加载 guazi-flow-implement/SKILL.md（如果 guazi_flow_available）
-  │   ├─ guazi_flow_available → guazi-flow-implement（MUST）
-  │   │   profile/contract/write_set 驱动实现
-  │   └─ else → goal-pipeline 通用 implement
-  │   输出: "[2/5] implement: ✅ X files changed"
-  │
-  ├─ runtime_smoke:
-  │   └─ goal-pipeline/scripts/runtime-smoke.sh（始终执行）
-  │       pass → evidence/runtime-smoke.md → 继续
-  │       not_pass → blocked
-  │       无法推导 → skipped
-  │   输出: "[3/5] smoke: ✅ pnpm dev → localhost:8000 (35s)"
-  │
-  ├─ review:
-  │   ┌─ GATE: 加载 guazi-flow-review/SKILL.md（如果 guazi_flow_available）
-  │   按 goal-pipeline 定义的三步审核流程执行，桥接层注入 guazi-flow-review:
-  │   Step 1: verify-review.sh（确定性检查）
-  │   Step 1.5: guazi-flow-review（桥接层注入）→ issues_gf[]
-  │   Step 2: goal-pipeline 独立审核（始终执行）→ issues_goal[]
-  │   合并: issues = 去重(issues_gf ∪ issues_goal)
-  │   Step 3: pass → complete / not_pass → 修复子循环
-  │   输出: "[4/5] review: ✅ 通过 (N 轮)"
-  │
-  ├─ [e2e]: 用户选择 + h5 → guazi-flow-e2e（条件触发）
-  ├─ [validate]: 显式开启 → guazi-flow-validate（条件触发）
-  │
-  └─ complete:
-      ┌─ GATE: 加载 guazi-flow-complete/SKILL.md（如果 guazi_flow_available）
-      ├─ guazi_flow_available → guazi-flow-complete（MUST）
-      └─ else → goal-pipeline 通用 complete
-      输出: "[5/5] complete: ✅ 目标完成"
-  ↓
-  [postmerge]: policy=required → guazi-flow-postmerge（条件触发）
-```
+管线流程详见 `goal-pipeline/SKILL.md`。本层在每个阶段注入 GATE 检查和 guazi-flow-* 调度：
+
+| 阶段 | GATE（guazi_flow_available=true 时） | guazi-flow 调度 | 降级 |
+|------|--------------------------------------|----------------|------|
+| plan | 加载 guazi-flow-plan/SKILL.md | MUST：产出 docs/guazi-flow/<task>/index.md + unit.md | goal-pipeline 通用 plan |
+| implement | 加载 guazi-flow-implement/SKILL.md | MUST：profile/contract/write_set 驱动 | goal-pipeline 通用 implement |
+| runtime_smoke | 无 GATE | 始终用 goal-pipeline 通用脚本 | — |
+| review | 加载 guazi-flow-review/SKILL.md | Step 1.5 注入：guazi-flow-review → issues_gf[] | 仅 goal-pipeline 独立审核 |
+| complete | 加载 guazi-flow-complete/SKILL.md | MUST：guazi-flow 收口检查 | goal-pipeline 通用 complete |
+
+**条件触发阶段**（不可用时跳过，不提供通用替代）：
+
+| 阶段 | 触发条件 |
+|------|----------|
+| postmerge | resolved_rule_context.postmerge_policy = required |
+| validate | 用户显式开启 / validate_policy = required |
+| e2e | 用户明确选择 + h5 profile |
 
 管线细节（阶段流程、修复循环、进度输出）由 `goal-pipeline/SKILL.md` 定义。本层只负责 guazi-flow-* 调度。
 
 ---
 
-## guazi-flow-* 调度规则
-
-### 第一类：管线核心阶段——guazi-flow 可用则 MUST 使用
-
-| 阶段 | guazi-flow 版本 | goal-pipeline 降级版本 |
-|------|----------------|-------------|
-| plan | guazi-flow-plan | goal-pipeline 通用 plan |
-| implement | guazi-flow-implement | goal-pipeline 通用 implement |
-| review | guazi-flow-review + goal-pipeline 独立审核（**两者都运行**） | 仅 goal-pipeline 独立审核 |
-| complete | guazi-flow-complete | goal-pipeline 通用 complete |
-| runtime_smoke | 始终用 goal-pipeline 通用脚本 | — |
-
-### 第二类：条件触发阶段——按 guazi-flow 自身规则决定
-
-| 阶段 | 触发条件 | guazi-flow 版本 |
-|------|---------|---------------|
-| postmerge | resolved_rule_context.postmerge_policy = required | guazi-flow-postmerge |
-| validate | 用户显式开启 / validate_policy = required | guazi-flow-validate |
-| e2e | Goal Engineering 阶段用户明确选择 + h5 profile | guazi-flow-e2e |
-
-不可用时跳过，不提供 goal-pipeline 通用替代。
-
----
 
 ## 生命周期管理
 
