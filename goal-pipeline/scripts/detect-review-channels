@@ -1,0 +1,262 @@
+#!/usr/bin/env python3
+"""detect-review-channels — 并行探测审核通道，按独立性排序，输出最优。
+Usage: python3 detect-review-channels [--json] [--exec-provider X] [--exec-model Y]
+"""
+import json, os, subprocess, sys, shutil
+
+# ============================================================
+# 1. 执行模型信息（优先从参数，其次从环境变量推断）
+# ============================================================
+EXEC_PROVIDER = sys.argv[sys.argv.index("--exec-provider") + 1] if "--exec-provider" in sys.argv else os.environ.get("GUAZI_EXEC_PROVIDER", "")
+EXEC_MODEL = sys.argv[sys.argv.index("--exec-model") + 1] if "--exec-model" in sys.argv else os.environ.get("GUAZI_EXEC_MODEL", "")
+
+# ============================================================
+# 2. Provider 元信息
+# ============================================================
+PROVIDERS = {
+    "openai": {
+        "env_var": "OPENAI_API_KEY",
+        "base_url": "https://api.openai.com/v1",
+        "flash_model": "gpt-4o-mini",
+        "cost_per_1m_input": 0.15,
+    },
+    "anthropic": {
+        "env_var": "ANTHROPIC_API_KEY",
+        "base_url": "https://api.anthropic.com/v1",
+        "flash_model": "claude-haiku-4-5",
+        "cost_per_1m_input": 0.80,
+    },
+    "deepseek": {
+        "env_var": "DEEPSEEK_API_KEY",
+        "base_url": "https://api.deepseek.com/v1",
+        "flash_model": "deepseek-v4-flash",
+        "cost_per_1m_input": 0.14,
+    },
+    "gemini": {
+        "env_var": "GEMINI_API_KEY",
+        "base_url": "https://generativelanguage.googleapis.com/v1beta",
+        "flash_model": "gemini-2.0-flash",
+        "cost_per_1m_input": 0.0,
+    },
+    "groq": {
+        "env_var": "GROQ_API_KEY",
+        "base_url": "https://api.groq.com/openai/v1",
+        "flash_model": "llama-3.3-70b-versatile",
+        "cost_per_1m_input": 0.0,
+    },
+}
+
+# ============================================================
+# 3. 探测函数
+# ============================================================
+
+def probe_global_config():
+    """读取 ~/.guazi-flow-goal/config.json 中的 api_keys。"""
+    config_path = os.path.expanduser("~/.guazi-flow-goal/config.json")
+    candidates = []
+    try:
+        with open(config_path) as f:
+            cfg = json.load(f)
+        api_keys = cfg.get("api_keys", {})
+        for var_name, key_val in api_keys.items():
+            if key_val and var_name in [p["env_var"] for p in PROVIDERS.values()]:
+                # Map var name back to provider
+                for pid, pinfo in PROVIDERS.items():
+                    if pinfo["env_var"] == var_name:
+                        candidates.append({
+                            "provider": pid,
+                            "model": pinfo["flash_model"],
+                            "source": "global_config",
+                            "same_provider_as_exec": (pid == EXEC_PROVIDER),
+                            "cost_per_1m_input": pinfo["cost_per_1m_input"],
+                            "available": True,
+                            "detail": f"~/.guazi-flow-goal/config.json: {var_name}",
+                        })
+                        break
+        # Check user override
+        rm = cfg.get("review_model", "auto")
+        if rm and rm != "auto" and "/" in rm:
+            prov, model = rm.split("/", 1)
+            candidates.append({
+                "provider": prov,
+                "model": model,
+                "source": "global_config",
+                "same_provider_as_exec": (prov == EXEC_PROVIDER),
+                "cost_per_1m_input": PROVIDERS.get(prov, {}).get("cost_per_1m_input", 999),
+                "available": True,
+                "detail": f"user configured: {rm}",
+            })
+    except (FileNotFoundError, json.JSONDecodeError):
+        pass
+    return candidates
+
+
+def probe_env_vars():
+    """探测标准环境变量，返回候选列表。"""
+    candidates = []
+    for pid, pinfo in PROVIDERS.items():
+        key = os.environ.get(pinfo["env_var"], "")
+        if key:
+            candidates.append({
+                "provider": pid,
+                "model": pinfo["flash_model"],
+                "source": "env_var",
+                "same_provider_as_exec": (pid == EXEC_PROVIDER),
+                "cost_per_1m_input": pinfo["cost_per_1m_input"],
+                "available": True,
+                "detail": f"${pinfo['env_var']} set",
+            })
+    return candidates
+
+
+def probe_ollama():
+    """探测本地 ollama。"""
+    if not shutil.which("ollama"):
+        return []
+    try:
+        r = subprocess.run(["ollama", "list"], capture_output=True, text=True, timeout=5)
+        if r.returncode != 0:
+            return []
+        models = []
+        for line in r.stdout.strip().split("\n")[1:]:  # skip header
+            parts = line.split()
+            if parts:
+                models.append(parts[0])
+        candidates = []
+        for m in models:
+            candidates.append({
+                "provider": "ollama",
+                "model": m,
+                "source": "ollama_list",
+                "same_provider_as_exec": (EXEC_PROVIDER == "ollama"),
+                "cost_per_1m_input": 0.0,
+                "available": True,
+                "detail": f"ollama: {m}",
+            })
+        return candidates
+    except (subprocess.TimeoutExpired, FileNotFoundError):
+        return []
+
+
+def probe_agent_introspection():
+    """从执行 provider 构造同 provider 候选。
+    这是最保守的来源——仅在 agent 知道自己的 provider 时才产生候选。"""
+    if not EXEC_PROVIDER or EXEC_PROVIDER not in PROVIDERS:
+        return []
+    pinfo = PROVIDERS[EXEC_PROVIDER]
+    # 同 provider 切换需要 API key
+    key = os.environ.get(pinfo["env_var"], "")
+    if not key:
+        # 有些平台（如 Pi）key 不在环境变量而在 auth 配置中
+        # 标记为 potentially_available，让调用方自行验证
+        return [{
+            "provider": EXEC_PROVIDER,
+            "model": pinfo["flash_model"],
+            "source": "agent_introspection",
+            "same_provider_as_exec": True,
+            "cost_per_1m_input": pinfo["cost_per_1m_input"],
+            "available": "unknown",  # 需要平台验证
+            "detail": f"same provider flash: {pinfo['flash_model']} (needs verification)",
+        }]
+    return [{
+        "provider": EXEC_PROVIDER,
+        "model": pinfo["flash_model"],
+        "source": "agent_introspection",
+        "same_provider_as_exec": True,
+        "cost_per_1m_input": pinfo["cost_per_1m_input"],
+        "available": True,
+        "detail": f"same provider flash: {pinfo['flash_model']}",
+    }]
+
+
+
+def rank_candidates(candidates):
+    """按独立性降序，同组内按成本升序。"""
+    # 过滤
+    available = [c for c in candidates if c.get("available") in (True,)]
+    
+    # 排除同 model 自审
+    filtered = [c for c in available 
+                if not (c["provider"] == EXEC_PROVIDER and c["model"] == EXEC_MODEL)]
+    
+    # 分组
+    cross = [c for c in filtered if not c["same_provider_as_exec"]]
+    same = [c for c in filtered if c["same_provider_as_exec"]]
+    
+    # 组内按成本排序
+    cross.sort(key=lambda c: c["cost_per_1m_input"])
+    same.sort(key=lambda c: c["cost_per_1m_input"])
+    
+    ranked = cross + same
+    
+    # 标记首选
+    if ranked:
+        ranked[0]["selected"] = True
+        ranked[0]["separation_confidence"] = "high" if not ranked[0]["same_provider_as_exec"] else "medium"
+    
+    return ranked
+
+
+def get_ram_gb():
+    """获取系统 RAM（GB）。"""
+    try:
+        r = subprocess.run(["sysctl", "-n", "hw.memsize"], capture_output=True, text=True, timeout=3)
+        return int(r.stdout.strip()) // (1024**3)
+    except:
+        try:
+            r = subprocess.run(["free", "-b"], capture_output=True, text=True, timeout=3)
+            for line in r.stdout.split("\n"):
+                if "Mem:" in line:
+                    return int(line.split()[1]) // (1024**3)
+        except:
+            return -1
+
+
+# ============================================================
+# 5. 主逻辑
+# ============================================================
+
+def main():
+    if not EXEC_PROVIDER:
+        print("WARNING: exec_provider unknown — only env vars / ollama probed", file=sys.stderr)
+        # Continue with env var probing
+    if not EXEC_MODEL:
+        pass  # proceed without exec model (can't detect same-model self-review)
+
+    # 并行收集
+    candidates = []
+    candidates.extend(probe_global_config())       # 全局配置（最高优先）
+    candidates.extend(probe_env_vars())             # 标准环境变量
+    candidates.extend(probe_agent_introspection())  # Agent 自省
+    candidates.extend(probe_ollama())               # 本地模型
+
+    # 去重: 同 provider + 同 model → 保留第一个（保留更多来源信息，但只选第一个）
+    seen = set()
+    deduped = []
+    for c in candidates:
+        key = (c["provider"], c["model"])
+        if key not in seen:
+            seen.add(key)
+            deduped.append(c)
+    candidates = deduped
+
+    # 排序
+    ranked = rank_candidates(candidates)
+
+    selected = ranked[0] if ranked else None
+
+    result = {
+        "exec_provider": EXEC_PROVIDER,
+        "exec_model": EXEC_MODEL,
+        "candidates": candidates,
+        "ranked": ranked,
+        "selected": selected,
+        "has_candidates": len(ranked) > 0,
+        "ram_gb": get_ram_gb(),
+    }
+
+    print(json.dumps(result, indent=2, ensure_ascii=False))
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,196 @@
+#!/bin/bash
+# check-consistency - Goal/guazi-flow 状态一致性交叉校验
+# 对比: state.json / index.md / evidence / git
+# 依赖: bash + git
+
+set -uo pipefail
+
+TASK_DIR="${1:-.}"
+GIT_ROOT=$(git -C "$TASK_DIR" rev-parse --show-toplevel 2>/dev/null || echo ".")
+
+# === New path resolution ===
+GUAZI_GOAL_HOME="${GUAZI_GOAL_HOME:-$HOME/.guazi-flow-goal}"
+PROJECT_ID=$(echo -n "$(cd "$GIT_ROOT" && pwd)" | python3 -c "import sys,hashlib; print(hashlib.sha256(sys.stdin.read().encode()).hexdigest()[:12])" 2>/dev/null || echo "unknown")
+BRANCH=$(git -C "$GIT_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "default")
+TASK_SLUG=$(basename "$TASK_DIR")
+
+STATE_FILE="$GUAZI_GOAL_HOME/projects/$PROJECT_ID/$BRANCH/$TASK_SLUG/state.json"
+LOCK_FILE="$GUAZI_GOAL_HOME/projects/$PROJECT_ID/$BRANCH/$TASK_SLUG/.lock"
+INDEX_FILE="$TASK_DIR/index.md"
+EVIDENCE_DIR="$TASK_DIR/evidence"
+
+issues=()
+
+# === Helper: extract YAML frontmatter value ===
+parse_fm() {
+  local file="$1" key="$2"
+  sed -n '/^---$/,/^---$/p' "$file" | grep "^${key}:" | head -1 | sed "s/^${key}: *//"
+}
+
+# nested key (e.g., "flow.current_stage")
+parse_fm_nested() {
+  local file="$1" top="$2" sub="$3"
+  local in_block=false
+  while IFS= read -r line; do
+    if [ "$in_block" = false ]; then
+      if echo "$line" | grep -q "^${top}:"; then in_block=true; fi
+    else
+      if [ -z "$line" ] || echo "$line" | grep -q "^  "; then
+        if echo "$line" | grep -q "^  ${sub}:"; then
+          echo "$line" | sed "s/^  ${sub}: *//"; return
+        fi
+      else
+        return
+      fi
+    fi
+  done < <(sed -n '/^---$/,/^---$/p' "$file" | sed '1d;$d')
+}
+
+# === Rule 1: state.json vs index.md ===
+check_state_vs_index() {
+  # Also check old path for migration
+  local old_state="$GIT_ROOT/.guazi-flow/goal/state.json"
+  if [ -f "$old_state" ] && [ ! -f "$STATE_FILE" ]; then
+    issues+=('{"rule":"state_vs_index","issue":"state.json at old path, needs migration","action":"migrate_state"}')
+    # Use old path for further checks
+    STATE_FILE="$old_state"
+  fi
+
+  if [ ! -f "$STATE_FILE" ]; then
+    issues+=('{"rule":"state_vs_index","issue":"state.json missing","action":"create_state"}')
+    return
+  fi
+  if [ ! -f "$INDEX_FILE" ]; then
+    issues+=('{"rule":"state_vs_index","issue":"index.md missing","action":"run_plan"}')
+    return
+  fi
+  
+  local goal_status fm_stage
+  goal_status=$(python3 -c "import json; print(json.load(open('$STATE_FILE')).get('status','unknown'))" 2>/dev/null || echo "unknown")
+  fm_stage=$(parse_fm_nested "$INDEX_FILE" "flow" "current_stage")
+  [ -z "$fm_stage" ] && fm_stage=$(parse_fm "$INDEX_FILE" "current_stage")
+  
+  if [ "$goal_status" = "complete" ] && [ "$fm_stage" != "complete" ]; then
+    issues+=('{"rule":"state_vs_index","issue":"goal complete but index not complete","action":"repair_state"}')
+  fi
+}
+
+# === Rule 2: Evidence freshness ===
+check_evidence_freshness() {
+  if [ ! -d "$EVIDENCE_DIR" ]; then
+    return
+  fi
+  
+  local git_head
+  git_head=$(git -C "$GIT_ROOT" rev-parse HEAD 2>/dev/null | cut -c1-16)
+  
+  for ev_file in "$EVIDENCE_DIR"/*.md; do
+    [ -f "$ev_file" ] || continue
+    local stage_name ev_git_head ev_result
+    stage_name=$(basename "$ev_file" .md)
+    ev_result=$(parse_fm "$ev_file" "result")
+    ev_git_head=$(parse_fm "$ev_file" "git_head")
+    
+    if [ "$ev_result" = "pass" ] && [ -n "$ev_git_head" ] && [ "$ev_git_head" != "$git_head" ]; then
+      issues+=("{\"rule\":\"evidence_freshness\",\"stage\":\"$stage_name\",\"expected\":\"$git_head\",\"actual\":\"$ev_git_head\",\"action\":\"restage\"}")
+    fi
+  done
+}
+
+# === Rule 3: Evidence progression ===
+check_evidence_progression() {
+  local fm_stage
+  fm_stage=$(parse_fm_nested "$INDEX_FILE" "flow" "current_stage" 2>/dev/null || echo "")
+  [ -z "$fm_stage" ] && fm_stage=$(parse_fm "$INDEX_FILE" "current_stage" 2>/dev/null || echo "")
+  
+  local stages=("plan" "implement" "review" "complete")
+  local found_current=false
+  
+  for stage in "${stages[@]}"; do
+    if [ "$stage" = "$fm_stage" ]; then
+      found_current=true
+    fi
+    
+    if [ "$found_current" = false ]; then
+      local ev_file="$EVIDENCE_DIR/${stage}.md"
+      if [ ! -f "$ev_file" ]; then
+        issues+=("{\"rule\":\"evidence_progression\",\"stage\":\"$stage\",\"issue\":\"evidence missing for completed stage\",\"action\":\"restage\"}")
+      else
+        local ev_result
+        ev_result=$(parse_fm "$ev_file" "result")
+        if [ "$ev_result" != "pass" ]; then
+          issues+=("{\"rule\":\"evidence_progression\",\"stage\":\"$stage\",\"issue\":\"evidence not_pass for stage before current\",\"action\":\"restage\"}")
+        fi
+      fi
+    fi
+  done
+  
+  if [ "$fm_stage" = "complete" ]; then
+    local comp_file="$EVIDENCE_DIR/complete.md"
+    if [ ! -f "$comp_file" ]; then
+      issues+=('{"rule":"evidence_progression","stage":"complete","issue":"complete.md missing","action":"restage"}')
+    else
+      local comp_result
+      comp_result=$(parse_fm "$comp_file" "result")
+      if [ "$comp_result" != "pass" ]; then
+        issues+=('{"rule":"evidence_progression","stage":"complete","issue":"complete.md not_pass","action":"restage"}')
+      fi
+    fi
+  fi
+}
+
+# === Rule 4: Lock staleness (new path + old path fallback) ===
+check_lock() {
+  local lock_file="$LOCK_FILE"
+  # Fallback to old path
+  [ -f "$lock_file" ] || lock_file="$GIT_ROOT/.guazi-flow/goal/.lock"
+  [ -f "$lock_file" ] || return
+  
+  local lock_pid
+  lock_pid=$(head -1 "$lock_file" 2>/dev/null || echo "0")
+  
+  if ! kill -0 "$lock_pid" 2>/dev/null; then
+    issues+=('{"rule":"lock_staleness","issue":"lock pid not alive","action":"takeover_lock"}')
+  fi
+}
+
+# === Rule 5: Global config check ===
+check_global_config() {
+  local config_file="$GUAZI_GOAL_HOME/config.json"
+  if [ ! -f "$config_file" ]; then
+    issues+=('{"rule":"global_config","issue":"~/.guazi-flow-goal/config.json missing","action":"create_config_skeleton"}')
+  elif ! python3 -c "import json; json.load(open('$config_file'))" 2>/dev/null; then
+    issues+=('{"rule":"global_config","issue":"config.json is invalid JSON","action":"repair_config"}')
+  fi
+}
+
+# === Main ===
+main() {
+  check_state_vs_index
+  check_evidence_freshness
+  check_evidence_progression
+  check_lock
+  check_global_config
+  
+  local consistent="true"
+  local action="continue"
+  
+  if [ ${#issues[@]} -gt 0 ]; then
+    consistent="false"
+    action=$(echo "${issues[0]}" | python3 -c "import sys,json; print(json.load(sys.stdin).get('action','continue'))" 2>/dev/null || echo "continue")
+  fi
+  
+  # Output
+  local issues_json="[]"
+  if [ ${#issues[@]} -gt 0 ]; then
+    issues_json=$(printf '%s\n' "${issues[@]}" | python3 -c 'import sys,json; print(json.dumps([json.loads(l.strip()) for l in sys.stdin if l.strip()]))' 2>/dev/null || echo '[]')
+  fi
+  
+  printf '{"consistent":%s,"issues_count":%d,"issues":%s,"recommended_action":"%s"}\n' \
+    "$consistent" \
+    "${#issues[@]}" \
+    "$issues_json" \
+    "$action"
+}
+
+main

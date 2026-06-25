@@ -1,0 +1,116 @@
+#!/bin/bash
+# detect-platform - 检测当前运行的 coding agent 平台
+# 输出 JSON 符合 platform-detection.md 中定义的 schema:
+# {"agent":"...","version":"...","capabilities":{"agent_mode_continuous":true,...}}
+
+set -euo pipefail
+
+# Find project root (walk up from CWD to find .git)
+find_git_root() {
+  local dir="$PWD"
+  while [ "$dir" != "/" ]; do
+    if [ -d "$dir/.git" ] || [ -f "$dir/.git" ]; then
+      echo "$dir"
+      return
+    fi
+    dir=$(dirname "$dir")
+  done
+  echo "$PWD"
+}
+
+GIT_ROOT=$(find_git_root)
+
+detect() {
+  # Collect all signals first, then decide (avoids CWD-relative false positives)
+  local sig_pi=false sig_codex=false sig_claude=false sig_cursor=false sig_windsurf=false
+  local pi_version="unknown" codex_version="unknown"
+  
+  # Pi signals
+  if [ -n "${PI_CODING_AGENT:-}" ] || [ -n "${PI_HOME:-}" ] || [ -n "${PI_AGENT:-}" ]; then
+    sig_pi=true
+  fi
+  if [ -d "$GIT_ROOT/.pi" ] || [ -d "$HOME/.pi/agent" ]; then
+    sig_pi=true
+  fi
+  # Pi identification via agent tool availability
+  if command -v pi &>/dev/null; then
+    pi_version=$(pi --version 2>/dev/null | head -1 || echo "unknown")
+    sig_pi=true
+  fi
+  
+  # Codex signals
+  if [ -n "${CODEX_HOME:-}" ] || command -v codex &>/dev/null; then
+    sig_codex=true
+    codex_version=$(codex --version 2>/dev/null | head -1 || echo "unknown")
+  fi
+  if [ -d "$GIT_ROOT/.codex" ]; then
+    sig_codex=true
+  fi
+  
+  # Claude Code signals
+  if [ -n "${CLAUDE_CODE_SESSION_ID:-}" ] || command -v claude &>/dev/null; then
+    sig_claude=true
+  fi
+  if [ -d "$GIT_ROOT/.claude" ]; then
+    sig_claude=true
+  fi
+  
+  # Cursor signals
+  if [ -n "${CURSOR_SESSION:-}" ] || [ -n "${CURSOR_IPC:-}" ]; then
+    sig_cursor=true
+  fi
+  if [ -d "$GIT_ROOT/.cursor" ]; then
+    sig_cursor=true
+  fi
+  
+  # Windsurf signals
+  if [ -n "${WINDSURF_HOME:-}" ]; then
+    sig_windsurf=true
+  fi
+  if [ -d "$GIT_ROOT/.windsurf" ]; then
+    sig_windsurf=true
+  fi
+  
+  # Priority order: Pi > Codex > Claude Code > Cursor > Windsurf > Generic
+  if [ "$sig_pi" = true ]; then
+    cat <<EOF
+{"agent":"pi","version":"$pi_version","capabilities":{"agent_mode_continuous":true,"native_goal":true,"sub_agent":true,"model_switch":true,"api_call":true}}
+EOF
+    return
+  fi
+  
+  if [ "$sig_codex" = true ]; then
+    cat <<EOF
+{"agent":"codex","version":"$codex_version","capabilities":{"agent_mode_continuous":true,"native_goal":true,"sub_agent":false,"model_switch":false,"api_call":true}}
+EOF
+    return
+  fi
+  
+  if [ "$sig_claude" = true ]; then
+    cat <<EOF
+{"agent":"claude_code","version":"unknown","capabilities":{"agent_mode_continuous":true,"native_goal":true,"sub_agent":false,"model_switch":false,"api_call":true}}
+EOF
+    return
+  fi
+  
+  if [ "$sig_cursor" = true ]; then
+    cat <<EOF
+{"agent":"cursor","version":"unknown","capabilities":{"agent_mode_continuous":true,"native_goal":false,"sub_agent":false,"model_switch":false,"api_call":true}}
+EOF
+    return
+  fi
+  
+  if [ "$sig_windsurf" = true ]; then
+    cat <<EOF
+{"agent":"windsurf","version":"unknown","capabilities":{"agent_mode_continuous":true,"native_goal":false,"sub_agent":false,"model_switch":false,"api_call":true}}
+EOF
+    return
+  fi
+  
+  # Generic fallback
+  cat <<EOF
+{"agent":"generic","version":"unknown","capabilities":{"agent_mode_continuous":true,"native_goal":false,"sub_agent":false,"model_switch":false,"api_call":true}}
+EOF
+}
+
+detect
