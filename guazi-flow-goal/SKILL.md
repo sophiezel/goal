@@ -24,8 +24,9 @@ description: guazi-flow-goal 统一入口。加载 goal-pipeline 管线引擎，
 | 文件 | 用途 |
 |------|------|
 | `goal-pipeline/SKILL.md` | 通用管线引擎定义（管线流程、修复循环、审核、进度可见化） |
-| `guazi-flow-goal-bridge/SKILL.md` | 桥接层（goal-pipeline ↔ guazi-flow 关系） |
-| `guazi-flow-goal-bridge/references/guazi-flow-integration.md` | guazi-flow 调度规则（MUST + 条件触发） |
+| `references/bridge-contract.md` | 桥接契约（goal-pipeline ↔ guazi-flow 映射规则、扩展字段、降级策略） |
+| `references/guazi-flow-integration.md` | guazi-flow 调度规则（MUST + 条件触发） |
+| `references/guazi-flow-state-schema.md` | guazi-flow 扩展字段定义和写入边界 |
 | `goal-pipeline/references/interview-protocol.md` | 三步收敛访谈协议 |
 | `goal-pipeline/references/platform-detection.md` | 平台检测和能力矩阵 |
 | `goal-pipeline/references/separation-strategies.md` | 审核模型多通道探测策略 |
@@ -64,7 +65,7 @@ else:
 ```
 Step 1: 环境初始化
   ├─ 运行 detect-platform → 确定平台
-  ├─ 加载 guazi-flow-goal-bridge (版本检查) → 确定 guazi_flow_available
+  ├─ 读取 references/bridge-contract.md (版本检查) → 确定 guazi_flow_available
   └─ 检查是否已有 active goal
       ├─ 有 → goal_already_active, 提示用户 [继续/清除/查看]
       └─ 无 → 继续

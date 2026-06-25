@@ -37,7 +37,7 @@ Options:
   --ssh        Clone via SSH (requires configured SSH key)
   --agent X    Force agent platform (skip auto-detection)
                Supported: claude_code, cursor, codex, pi, windsurf, generic
-  --no-guazi  Install goal-pipeline only, skip guazi-flow-* skills
+  --no-guazi  Install goal-pipeline only, skip guazi-flow-goal skill
   -h, --help   Show this help
 
 Examples:
@@ -135,7 +135,7 @@ mkdir -p "$SKILLS_DIR"
 # === Step 3: Deploy skills ===
 SKILLS=("goal-pipeline")
 if [ "$NO_GUAZI" = false ]; then
-  SKILLS+=("guazi-flow-goal-bridge" "guazi-flow-goal")
+  SKILLS+=("guazi-flow-goal")
 fi
 
 echo ""

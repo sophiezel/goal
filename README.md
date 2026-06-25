@@ -12,7 +12,8 @@ goal-pipeline（通用管线引擎）
   │  ~/.goal-state/ 持久化
   │  /goal-pipeline-* 生命周期命令
   │
-  └── guazi-flow-goal-bridge（可选桥接层）
+  └── guazi-flow-goal（可选统一入口）
+        内含桥接契约（references/bridge-contract.md）
         将 guazi-flow-* 系列适配到 goal-pipeline
 ```
 
@@ -92,7 +93,6 @@ curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | ba
 📦 Cloning repository...
 📋 Deploying skills...
   ✅ goal-pipeline → symlink
-  ✅ guazi-flow-goal-bridge → symlink
   ✅ guazi-flow-goal → symlink
 📁 Initializing state directory...
   ✅ config.json created
@@ -114,7 +114,6 @@ copy 模式需重新运行安装脚本。
 ```bash
 # 删除 skills 链接
 rm ~/.claude/skills/goal-pipeline
-rm ~/.claude/skills/guazi-flow-goal-bridge
 rm ~/.claude/skills/guazi-flow-goal
 
 # 删除仓库
