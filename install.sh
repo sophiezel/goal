@@ -1,25 +1,126 @@
 #!/bin/bash
+# install.sh - goal-pipeline 一键安装脚本
+# 支持: Claude Code / Cursor / Codex / Pi / Windsurf / Generic
+# 用法:
+#   curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | bash
+#   bash install.sh [选项]
+#
 set -e
 
-REPO_URL="https://github.com/sophiezel/goal-pipeline.git"
-REPO_DIR="$HOME/.goal-pipeline"
-SKILLS_DIR="$HOME/.agents/skills"
-SKILLS=("goal-pipeline" "guazi-flow-goal" "guazi-flow-goal-core")
-MODE="${1:---symlink}"  # default: symlink, alternative: --copy
+# === 配置 ===
+REPO_URL_HTTPS="https://github.com/sophiezel/goal.git"
+REPO_URL_SSH="git@github.com-sophiezel:sophiezel/goal.git"
+REPO_DIR="$HOME/.goal-pipeline-repo"
+GOAL_STATE_HOME="${GOAL_STATE_HOME:-$HOME/.goal-state}"
+MODE="--symlink"
+USE_SSH=false
+FORCE_AGENT=""
+NO_GUAZI=false
 
-usage() {
-  echo "Usage: $0 [--symlink|--copy]"
-  echo "  --symlink  创建符号链接（默认，git pull 后自动生效）"
-  echo "  --copy     复制文件（兼容不支持 symlink 的平台）"
-  exit 1
+# === 参数解析 ===
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --symlink) MODE="--symlink"; shift ;;
+    --copy)    MODE="--copy"; shift ;;
+    --ssh)     USE_SSH=true; shift ;;
+    --agent)   FORCE_AGENT="$2"; shift 2 ;;
+    --no-guazi) NO_GUAZI=true; shift ;;
+    --help|-h)
+      cat <<'USAGE'
+goal-pipeline installer
+
+Usage: bash install.sh [options]
+
+Options:
+  --symlink    Create symlinks (default, git pull auto-updates)
+  --copy       Copy files (for platforms that don't support symlinks)
+  --ssh        Clone via SSH (requires configured SSH key)
+  --agent X    Force agent platform (skip auto-detection)
+               Supported: claude_code, cursor, codex, pi, windsurf, generic
+  --no-guazi  Install goal-pipeline only, skip guazi-flow-* skills
+  -h, --help   Show this help
+
+Examples:
+  curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | bash
+  bash install.sh --ssh --agent cursor
+  bash install.sh --no-guazi --copy
+USAGE
+      exit 0
+      ;;
+    *) echo "Unknown option: $1"; exit 1 ;;
+  esac
+done
+
+# === 平台检测 ===
+detect_agent() {
+  if [ -n "$FORCE_AGENT" ]; then
+    echo "$FORCE_AGENT"
+    return
+  fi
+
+  # Pi
+  if [ -n "${PI_HOME:-}" ] || [ -d "$HOME/.pi" ] || [ -n "${PI_AGENT:-}" ]; then
+    echo "pi"; return
+  fi
+  # Codex
+  if [ -n "${CODEX_HOME:-}" ] || [ -d "$HOME/.codex" ]; then
+    echo "codex"; return
+  fi
+  # Claude Code
+  if [ -d "$HOME/.claude" ] || [ -n "${CLAUDE_CODE_SESSION_ID:-}" ]; then
+    echo "claude_code"; return
+  fi
+  # Cursor
+  if [ -d "$HOME/.cursor" ]; then
+    echo "cursor"; return
+  fi
+  # Windsurf
+  if [ -d "$HOME/.windsurf" ] || [ -n "${WINDSURF_HOME:-}" ]; then
+    echo "windsurf"; return
+  fi
+
+  echo "generic"
 }
 
-case "$MODE" in
-  --symlink|--copy) ;;
-  *) usage ;;
-esac
+# === Skills 目录映射 ===
+get_skills_dir() {
+  local agent="$1"
+  case "$agent" in
+    pi)          echo "$HOME/.pi/skills" ;;
+    codex)       echo "$HOME/.codex/skills" ;;
+    claude_code) echo "$HOME/.claude/skills" ;;
+    cursor)      echo "$HOME/.cursor/skills" ;;
+    windsurf)    echo "$HOME/.windsurf/skills" ;;
+    *)           echo "$HOME/.agents/skills" ;;
+  esac
+}
 
-# Step 1: Clone or update repo
+# === 主流程 ===
+AGENT=$(detect_agent)
+SKILLS_DIR=$(get_skills_dir "$AGENT")
+
+echo "=========================================="
+echo "  goal-pipeline installer"
+echo "=========================================="
+echo ""
+echo "  Detected agent:  $AGENT"
+echo "  Skills dir:      $SKILLS_DIR"
+echo "  State dir:       $GOAL_STATE_HOME"
+echo "  Install mode:    $MODE"
+if [ "$USE_SSH" = true ]; then
+  echo "  Clone method:    SSH"
+else
+  echo "  Clone method:    HTTPS"
+fi
+if [ "$NO_GUAZI" = true ]; then
+  echo "  guazi-flow:      skipped"
+fi
+echo ""
+
+# === Step 1: Clone or update repo ===
+REPO_URL="$REPO_URL_HTTPS"
+[ "$USE_SSH" = true ] && REPO_URL="$REPO_URL_SSH"
+
 if [ ! -d "$REPO_DIR/.git" ]; then
   echo "📦 Cloning repository..."
   git clone "$REPO_URL" "$REPO_DIR"
@@ -28,16 +129,24 @@ else
   cd "$REPO_DIR" && git pull
 fi
 
-# Step 2: Ensure skills directory exists
+# === Step 2: Ensure skills directory exists ===
 mkdir -p "$SKILLS_DIR"
 
-# Step 3: Deploy each skill
+# === Step 3: Deploy skills ===
+SKILLS=("goal-pipeline")
+if [ "$NO_GUAZI" = false ]; then
+  SKILLS+=("guazi-flow-goal-bridge" "guazi-flow-goal")
+fi
+
+echo ""
+echo "📋 Deploying skills..."
+
 for skill in "${SKILLS[@]}"; do
   target="$SKILLS_DIR/$skill"
   source="$REPO_DIR/$skill"
 
   if [ ! -d "$source" ]; then
-    echo "⚠️  Warning: $source not found, skipping"
+    echo "  ⚠️  $source not found, skipping"
     continue
   fi
 
@@ -45,23 +154,91 @@ for skill in "${SKILLS[@]}"; do
   if [ -L "$target" ]; then
     rm "$target"
   elif [ -d "$target" ]; then
-    echo "🗑️  Removing existing directory: $target"
+    echo "  🗑️  Removing existing: $target"
     rm -rf "$target"
   fi
 
   if [ "$MODE" = "--symlink" ]; then
     ln -sfn "$source" "$target"
-    echo "✅ $skill → symlink created"
+    echo "  ✅ $skill → symlink"
   else
     cp -r "$source" "$target"
-    echo "✅ $skill → copied"
+    echo "  ✅ $skill → copied"
   fi
 done
 
-echo ""
-echo "🎉 Installation complete!"
-echo "   Skills deployed to: $SKILLS_DIR"
-echo "   Mode: $MODE"
-if [ "$MODE" = "--symlink" ]; then
-  echo "   Update: cd $REPO_DIR && git pull"
+# === Step 4: Migrate old paths (before skeleton creation) ===
+if [ -d "$HOME/.guazi-flow-goal" ]; then
+  echo ""
+  echo "🔄 Migrating from ~/.guazi-flow-goal/ to $GOAL_STATE_HOME/..."
+  mkdir -p "$GOAL_STATE_HOME/projects" "$GOAL_STATE_HOME/archive"
+  if [ -d "$HOME/.guazi-flow-goal/projects" ]; then
+    cp -r "$HOME/.guazi-flow-goal/projects"/* "$GOAL_STATE_HOME/projects/" 2>/dev/null || true
+  fi
+  if [ -d "$HOME/.guazi-flow-goal/archive" ]; then
+    cp -r "$HOME/.guazi-flow-goal/archive"/* "$GOAL_STATE_HOME/archive/" 2>/dev/null || true
+  fi
+  echo "  ✅ Migration complete (old directory preserved at ~/.guazi-flow-goal/)"
 fi
+
+# === Step 5: Initialize ~/.goal-state/ skeleton ===
+echo ""
+echo "📁 Initializing state directory..."
+
+mkdir -p "$GOAL_STATE_HOME/projects"
+mkdir -p "$GOAL_STATE_HOME/archive"
+mkdir -p "$GOAL_STATE_HOME/scripts"
+
+# Create config.json if not exists
+if [ ! -f "$GOAL_STATE_HOME/config.json" ]; then
+  cat > "$GOAL_STATE_HOME/config.json" <<'CONFIG'
+{
+  "version": 1,
+  "api_keys": {},
+  "review_model": "auto",
+  "human_review_accepted": false,
+  "channel_cache": {
+    "last_probed": "",
+    "channels": {}
+  }
+}
+CONFIG
+  echo "  ✅ config.json created"
+else
+  echo "  ✅ config.json already exists"
+fi
+
+# Deploy scripts
+for script in verify.sh verify-review.sh detect-review-channels detect-platform check-consistency runtime-smoke.sh; do
+  src="$REPO_DIR/goal-pipeline/scripts/$script"
+  dst="$GOAL_STATE_HOME/scripts/$script"
+  if [ -f "$src" ]; then
+    cp "$src" "$dst"
+    chmod +x "$dst"
+  fi
+done
+echo "  ✅ Scripts deployed to $GOAL_STATE_HOME/scripts/"
+
+# === Done ===
+echo ""
+echo "=========================================="
+echo "  🎉 Installation complete!"
+echo "=========================================="
+echo ""
+echo "  Skills:     $SKILLS_DIR"
+echo "  State:      $GOAL_STATE_HOME"
+echo "  Repo:       $REPO_DIR"
+echo "  Agent:      $AGENT"
+echo ""
+if [ "$MODE" = "--symlink" ]; then
+  echo "  Update:     cd $REPO_DIR && git pull"
+fi
+echo ""
+echo "  Usage:"
+echo "    /goal-pipeline <目标>          Start a new goal"
+echo "    /goal-pipeline-status          Check current goal"
+echo "    /goal-pipeline-pause           Pause execution"
+echo "    /goal-pipeline-resume          Resume from pause"
+echo "    /goal-pipeline-clear           Archive current goal"
+echo "    /goal-pipeline-list            List history"
+echo ""

@@ -126,3 +126,34 @@ else:
 ```
 
 `guazi_flow_available=false` 时，上述字段全部为空或 false。goal-pipeline 完全独立运行。
+
+## 泛化 review 的桥接
+
+goal-pipeline 的 review 阶段为三步流程（确定性检查 → 独立审核 → 分流）。
+桥接层在 Step 1 和 Step 2 之间注入 guazi-flow-review：
+
+```
+Step 1: verify-review.sh（确定性检查）
+  ↓
+[注入] Step 1.5: guazi-flow-review（如果可用）
+  专业代码审阅：读 index.md/unit.md/Figma/evidence
+  检查：契约可追溯、前置状态、E2E 证据、视觉契约
+  → issues_gf[]
+  ↓
+Step 2: 独立审核（始终执行）
+  → issues_goal[]
+  ↓
+合并: issues = 去重(issues_gf ∪ issues_goal)
+  ↓
+Step 3: 分流
+```
+
+## task_dir 映射
+
+guazi-flow 集成时，task_dir 由 guazi-flow-plan 确定：
+
+```
+task_dir = "docs/guazi-flow/<task>"
+```
+
+state.json 中 `guazi_flow_task` 字段记录此路径。goal-pipeline 通过此字段定位任务产物。

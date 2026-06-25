@@ -2,7 +2,7 @@
 
 ## 状态恢复入口
 
-Goal 状态存储在 `~/.guazi-flow-goal/projects/<project_id>/<branch>/<task>/state.json`。
+Goal 状态存储在 `~/.goal-state/projects/<project_id>/<branch>/<task>/state.json`。
 锁文件同目录 `.lock`。
 
 ## 崩溃场景
@@ -12,8 +12,8 @@ Goal 状态存储在 `~/.guazi-flow-goal/projects/<project_id>/<branch>/<task>/s
 | Agent crash | 下次启动时检测 state.json | 运行恢复流程 |
 | state.json 损坏 | JSON parse 失败 | 从 git + evidence 重建 |
 | .lock 残留 | lock 中 pid 不存活 | 接管 lock，继续 |
-| Goal 状态与管线不一致 | check-consistency | 以 guazi-flow 事实为准 |
-| 旧路径 state.json 存在 | `<project>/.guazi-flow/goal/state.json` | 迁移到新路径，删除旧文件 |
+| Goal 状态与管线不一致 | check-consistency | 以管线事实为准 |
+| 旧路径 state.json 存在 | `~/.guazi-flow-goal/` 旧目录 | 迁移到新路径 `~/.goal-state/` |
 
 ## 恢复流程
 
@@ -27,8 +27,6 @@ Goal 状态存储在 `~/.guazi-flow-goal/projects/<project_id>/<branch>/<task>/s
 
 ## 旧路径迁移
 
-`<project>/.guazi-flow/goal/` → `~/.guazi-flow-goal/projects/<project_id>/<branch>/<task>/`
+`~/.guazi-flow-goal/` → `~/.goal-state/`
 
-`<project>/.guazi-flow/config.local.json` 中的 goal 相关字段（api key / review_model）→ 迁移到 `~/.guazi-flow-goal/config.json`，删除旧字段。
-
-JIRA_TOKEN、FIGMA_ACCESS_TOKEN、repos 留在原地不动。
+检测旧目录存在且新目录不存在时自动 mv。JIRA_TOKEN、FIGMA_ACCESS_TOKEN 等非 goal 配置留在原地不动。

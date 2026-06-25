@@ -16,8 +16,8 @@ description: guazi-flow-goal 统一入口。加载 goal-pipeline 管线引擎，
 | 文件 | 用途 |
 |------|------|
 | `goal-pipeline/SKILL.md` | 通用管线引擎定义（管线流程、修复循环、审核、进度可见化） |
-| `guazi-flow-goal-core/SKILL.md` | 桥接层（goal-pipeline ↔ guazi-flow 关系） |
-| `guazi-flow-goal-core/references/guazi-flow-integration.md` | guazi-flow 调度规则（MUST + 条件触发） |
+| `guazi-flow-goal-bridge/SKILL.md` | 桥接层（goal-pipeline ↔ guazi-flow 关系） |
+| `guazi-flow-goal-bridge/references/guazi-flow-integration.md` | guazi-flow 调度规则（MUST + 条件触发） |
 | `goal-pipeline/references/interview-protocol.md` | 三步收敛访谈协议 |
 | `goal-pipeline/references/platform-detection.md` | 平台检测和能力矩阵 |
 | `goal-pipeline/references/separation-strategies.md` | 审核模型多通道探测策略 |
@@ -54,7 +54,7 @@ else:
 ```
 Step 1: 环境初始化
   ├─ 运行 detect-platform → 确定平台
-  ├─ 加载 guazi-flow-core (版本检查) → 确定 guazi_flow_available
+  ├─ 加载 guazi-flow-goal-bridge (版本检查) → 确定 guazi_flow_available
   └─ 检查是否已有 active goal
       ├─ 有 → goal_already_active, 提示用户 [继续/清除/查看]
       └─ 无 → 继续
@@ -85,12 +85,12 @@ Step 6: 用户确认
   └─ 放弃 → 退出
 
 Step 7: 初始化 state
-  ├─ 确保 ~/.guazi-flow-goal/ 目录存在
-  ├─ 首次部署脚本到 ~/.guazi-flow-goal/scripts/
+  ├─ 确保 ~/.goal-state/ 目录存在
+  ├─ 首次部署脚本到 ~/.goal-state/scripts/
   ├─ 计算 project_id = sha256(项目根绝对路径)[:12]
   ├─ 解析 branch = git rev-parse --abbrev-ref HEAD or "default"
   ├─ 调 guazi-flow-doctor (环境诊断，如果 guazi_flow_available)
-  ├─ 创建 ~/.guazi-flow-goal/projects/<pid>/<branch>/<task>/state.json
+  ├─ 创建 ~/.goal-state/projects/<pid>/<branch>/<task>/state.json
   └─ 检测并迁移旧路径 .guazi-flow/goal/ 产物（若存在）
 
 Step 8: Gate Check（以下条件全部满足才进入 Phase 2）
@@ -132,12 +132,12 @@ while goal.status == active:
   │
   ├─ review:
   │   ┌─ GATE: 加载 guazi-flow-review/SKILL.md（如果 guazi_flow_available）
-  │   按 goal-pipeline 定义的统一五步流程执行:
+  │   按 goal-pipeline 定义的三步审核流程执行，桥接层注入 guazi-flow-review:
   │   Step 1: verify-review.sh（确定性检查）
-  │   Step 2: guazi-flow-review（如果可用）→ issues_gf[]
-  │   Step 3: goal-pipeline 独立审核（始终执行）→ issues_goal[]
-  │   Step 4: 合并结论
-  │   Step 5: pass → complete / not_pass → 修复子循环
+  │   Step 1.5: guazi-flow-review（桥接层注入）→ issues_gf[]
+  │   Step 2: goal-pipeline 独立审核（始终执行）→ issues_goal[]
+  │   合并: issues = 去重(issues_gf ∪ issues_goal)
+  │   Step 3: pass → complete / not_pass → 修复子循环
   │   输出: "[4/5] review: ✅ 通过 (N 轮)"
   │
   ├─ [e2e]: 用户选择 + h5 → guazi-flow-e2e（条件触发）
@@ -184,11 +184,11 @@ while goal.status == active:
 
 | 命令 | 操作 |
 |------|------|
-| `/guazi-flow-goal-status` | 读取 state.json + verify.sh，输出中文摘要 |
-| `/guazi-flow-goal-pause` | status = paused, 释放 .lock |
-| `/guazi-flow-goal-resume` | check-consistency → status = active |
-| `/guazi-flow-goal-clear` | 归档 state.json → archive/，保留 evidence/ |
-| `/guazi-flow-goal-list` | 遍历 archive/*/goal_*.json，输出历史列表 |
+| `/goal-pipeline-status` (别名 `/guazi-flow-goal-status`) | 读取 state.json + verify.sh，输出中文摘要 |
+| `/goal-pipeline-pause` (别名 `/guazi-flow-goal-pause`) | status = paused, 释放 .lock |
+| `/goal-pipeline-resume` (别名 `/guazi-flow-goal-resume`) | check-consistency → status = active |
+| `/goal-pipeline-clear` (别名 `/guazi-flow-goal-clear`) | 归档 state.json → archive/，保留 evidence/ |
+| `/goal-pipeline-list` (别名 `/guazi-flow-goal-list`) | 遍历 archive/*/goal_*.json，输出历史列表 |
 
 ### status 输出格式
 
@@ -206,7 +206,7 @@ while goal.status == active:
 
 - `project_id = sha256($(git rev-parse --show-toplevel))[:12]`
 - `branch = $(git rev-parse --abbrev-ref HEAD)` or `"default"`
-- state.json: `~/.guazi-flow-goal/projects/<pid>/<branch>/<task>/state.json`
+- state.json: `~/.goal-state/projects/<pid>/<branch>/<task>/state.json`
 
 ---
 
@@ -214,11 +214,11 @@ while goal.status == active:
 
 | 文件 | 操作 |
 |------|------|
-| `~/.guazi-flow-goal/config.json` | 创建骨架 + 写 api_keys |
-| `~/.guazi-flow-goal/projects/<pid>/<branch>/<task>/state.json` | 读/写 |
-| `~/.guazi-flow-goal/projects/<pid>/<branch>/<task>/.lock` | 读/写 |
-| `~/.guazi-flow-goal/archive/<pid>/goal_<id>.json` | 写入 |
-| `~/.guazi-flow-goal/scripts/` | 首次部署 |
+| `~/.goal-state/config.json` | 创建骨架 + 写 api_keys |
+| `~/.goal-state/projects/<pid>/<branch>/<task>/state.json` | 读/写 |
+| `~/.goal-state/projects/<pid>/<branch>/<task>/.lock` | 读/写 |
+| `~/.goal-state/archive/<pid>/goal_<id>.json` | 写入 |
+| `~/.goal-state/scripts/` | 首次部署 |
 | `docs/guazi-flow/<task>/**` | 委托 guazi-flow-plan/implement/review/complete |
 | 业务代码 | 委托 guazi-flow-implement 或 goal-pipeline 通用 implement |
 | `<project>/.guazi-flow/` | ❌ 不写入 goal 产物 |

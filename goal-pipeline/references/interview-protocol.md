@@ -2,14 +2,14 @@
 
 ## 设计原则
 
-**用户不需要手写标准 Goal Prompt。** guazi-flow-goal 通过渐进式结构化访谈自动生成。
+**用户不需要手写标准 Goal Prompt。** goal-pipeline 通过渐进式结构化访谈自动生成。
 
-## Goal Schema（guazi-flow 推进所需的最小信息集）
+## Goal Schema（管线推进所需的最小信息集）
 
 | 字段 | 优先级 | 来源 | 缺失时行为 |
 |------|:--:|------|------|
 | objective | P0 | 用户输入 | 无法创建 goal |
-| profile | P0 | `guazi-flow-doctor` 检测 | 自动检测，用户确认 |
+| profile | P0 | 自动检测 | 自动检测，用户确认 |
 | scope | P1 | git status / 项目结构推断 | 推断后确认，不确定则追问 |
 | acceptance_criteria | P1 | 追问（提供选项） | 可先推进 plan，plan 阶段细化 |
 | constraints | P1 | `AGENTS.md` / profile 推断 | 自动推断，用户可追加 |
@@ -34,7 +34,7 @@
 
 ```
 1. profile 推断:
-   → 调 guazi-flow-doctor → h5/react / service/go / rn
+   → 读 package.json / go.mod / 项目结构 → 推断技术栈
 
 2. scope 推断:
    ├─ git diff → 已修改文件列表
@@ -43,8 +43,7 @@
 
 3. constraints 推断:
    ├─ 读 AGENTS.md / CLAUDE.md / .cursorrules
-   ├─ 读 guazi-flow.config.json rules
-   └─ 读 profile.default.json 默认约束
+   └─ 读项目配置文件默认约束
 
 4. verification 推断:
    ├─ 读 package.json scripts.test → npm test
@@ -106,17 +105,12 @@ Q3: 验收标准? (如何判断目标已完成)
 ### 验证方式
 - 自动验证: <命令>
 - 人工验证: <需确认方面>
-
-### Guazi Flow 上下文
-- 任务目录: docs/guazi-flow/<task>/
-- Profile: <检测结果>
-- 管线: plan → implement → review → complete
 ```
 
 ## 访谈示例
 
 ```
-用户: /guazi-flow-goal 加个登录
+用户: /goal-pipeline 加个登录
 
 Agent:
   🔍 检测到: React + TypeScript 项目
@@ -134,7 +128,7 @@ Agent:
 > A, A, C
 
 Agent:
-  ✅ Goal 已生成: docs/guazi-flow/user-auth/
+  ✅ Goal 已生成: <task_dir>/
   📊 管线: plan → implement → review → complete
   🔍 审核: ollama/qwen2.5:7b (本地免费) | 通道探测中...
   

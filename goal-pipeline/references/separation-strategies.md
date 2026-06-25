@@ -16,7 +16,7 @@
 
 | 来源 | 探测方式 | 排序权重 |
 |------|---------|:--:|
-| **全局配置** | 读取 `~/.guazi-flow-goal/config.json` 的 `api_keys` 字段 | 最高(用户显式配置)|
+| **全局配置** | 读取 `~/.goal-state/config.json` 的 `api_keys` 字段 | 最高(用户显式配置)|
 | **标准环境变量** | `$OPENAI_API_KEY` / `$ANTHROPIC_API_KEY` / `$GEMINI_API_KEY` / `$GROQ_API_KEY` / `$DEEPSEEK_API_KEY` | 正常 |
 | **Agent 自省** | agent 回答 provider + model | 正常 |
 | **Ollama 本地** | `ollama list` | 正常 |
@@ -103,7 +103,7 @@
 ## 选择流程
 
 ```
-静默预检(/guazi-flow-goal 入口) / Step 0 权威选择 / review 失败重试:
+静默预检(/goal-pipeline 入口) / Step 0 权威选择 / review 失败重试:
 
 1. 检查用户显式配置 review_model → 使用,跳过自动选择
 
@@ -134,8 +134,8 @@
 
    **Gemini 半自动路径**（30秒, key 永不在 chat 出现）:
    - Agent 打开 https://aistudio.google.com/apikey
-   - 创建 ~/.guazi-flow-goal/key-pending
-   - 用户终端执行: echo 'key' > ~/.guazi-flow-goal/key-pending
+   - 创建 ~/.goal-state/key-pending
+   - 用户终端执行: echo 'key' > ~/.goal-state/key-pending
    - Agent 验证 API → 写入 config.json → 删除临时文件
 
    **人工审核**（逃生通道）: Ollama / Gemini 均不可用时
@@ -157,13 +157,13 @@
 
 ## 静默预检
 
-`/guazi-flow-goal` 入口处,访谈开始前执行。职责:提前发现不可用,在投入用户时间之前告警。
+`/goal-pipeline` 入口处,访谈开始前执行。职责:提前发现不可用,在投入用户时间之前告警。
 
 若有候选 → 静默,继续访谈。用户全程无感知。
 
 若无候选 → 告知并引导(此时尚未进入访谈,零沉没成本):
 
-**API key 脱敏规则**:只写变量名和占位符 `"你的key"`,不写任何格式提示。必须告诉用户写到 `~/.guazi-flow-goal/config.json` 这个文件,不可只说"设为环境变量"。严禁用户将 key 粘贴到 chat 中。
+**API key 脱敏规则**:只写变量名和占位符 `"你的key"`,不写任何格式提示。必须告诉用户写到 `~/.goal-state/config.json` 这个文件,不可只说"设为环境变量"。严禁用户将 key 粘贴到 chat 中。
 
 ```
 ⚠️ Goal 需要独立审核,但当前环境无可用审核模型。
@@ -171,13 +171,13 @@
 推荐配置(30 秒,免费,一次配置所有项目通用):
 
   注册 Gemini API key: https://aistudio.google.com/apikey
-  获取后,打开 ~/.guazi-flow-goal/config.json
+  获取后,打开 ~/.goal-state/config.json
   在 api_keys 中添加: "GEMINI_API_KEY": "你的key"
   → 该文件在 home 目录,不在 git 仓库中,不会泄露
 
   如已有 OpenAI / Anthropic / DeepSeek key,同样在 api_keys 中添加。
 
-写入后回复 "已配置" → 自动继续,不需要重新 /guazi-flow-goal
+写入后回复 "已配置" → 自动继续,不需要重新 /goal-pipeline
 
 ⚠️ 不要把 key 粘贴到聊天中
 ───────────────────────────
@@ -189,7 +189,7 @@
 
 引导内容根据预检结果动态生成:推荐已注册但未设变量的 provider、检测 RAM 给出模型建议、网络不可达时隐藏 API 选项。
 
-用户配置后回复"已配置" → 重新探测 → 命中 → 原地继续访谈。不需要重新 `/guazi-flow-goal`。
+用户配置后回复"已配置" → 重新探测 → 命中 → 原地继续访谈。不需要重新 `/goal-pipeline`。
 
 ---
 
@@ -197,7 +197,7 @@
 
 ```markdown
 ## 角色
-你是 Guazi Flow 独立代码审核者。你不是这段代码的实现者。
+你是独立代码审核者。你不是这段代码的实现者。
 你的唯一职责:根据任务契约,客观评审候选 diff。
 
 ## 任务契约
@@ -234,7 +234,7 @@
 1. `{contract}`: 从 `index.md` 验收标准 + `unit.md` 契约提取
 2. `{diff}`: `git diff` 完整输出(若 >8KB,截断为前 8KB + 文件列表)
 3. `{write_set}`: 从 `index.md` 或 `unit.md` 提取
-4. `{constraints}`: 从 profile + guazi-flow.config.json rules 提取
+4. `{constraints}`: 从 profile + 项目规则文件提取
 
 ## JSON 解析与重试
 
@@ -251,7 +251,7 @@ def parse_review_response(content):
 
 ## 用户自定义审核模型
 
-`~/.guazi-flow-goal/config.json` 中显式指定,覆盖所有自动选择:
+`~/.goal-state/config.json` 中显式指定,覆盖所有自动选择:
 
 ```json
 {

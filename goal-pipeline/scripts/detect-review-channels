@@ -7,8 +7,8 @@ import json, os, subprocess, sys, shutil
 # ============================================================
 # 1. 执行模型信息（优先从参数，其次从环境变量推断）
 # ============================================================
-EXEC_PROVIDER = sys.argv[sys.argv.index("--exec-provider") + 1] if "--exec-provider" in sys.argv else os.environ.get("GUAZI_EXEC_PROVIDER", "")
-EXEC_MODEL = sys.argv[sys.argv.index("--exec-model") + 1] if "--exec-model" in sys.argv else os.environ.get("GUAZI_EXEC_MODEL", "")
+EXEC_PROVIDER = sys.argv[sys.argv.index("--exec-provider") + 1] if "--exec-provider" in sys.argv else os.environ.get("GOAL_EXEC_PROVIDER", os.environ.get("GUAZI_EXEC_PROVIDER", ""))
+EXEC_MODEL = sys.argv[sys.argv.index("--exec-model") + 1] if "--exec-model" in sys.argv else os.environ.get("GOAL_EXEC_MODEL", os.environ.get("GUAZI_EXEC_MODEL", ""))
 
 # ============================================================
 # 2. Provider 元信息
@@ -51,8 +51,8 @@ PROVIDERS = {
 # ============================================================
 
 def probe_global_config():
-    """读取 ~/.guazi-flow-goal/config.json 中的 api_keys。"""
-    config_path = os.path.expanduser("~/.guazi-flow-goal/config.json")
+    """读取 ~/.goal-state/config.json 中的 api_keys。"""
+    config_path = os.path.expanduser(os.environ.get("GOAL_STATE_HOME", "~/.goal-state") + "/config.json")
     candidates = []
     try:
         with open(config_path) as f:
@@ -70,7 +70,7 @@ def probe_global_config():
                             "same_provider_as_exec": (pid == EXEC_PROVIDER),
                             "cost_per_1m_input": pinfo["cost_per_1m_input"],
                             "available": True,
-                            "detail": f"~/.guazi-flow-goal/config.json: {var_name}",
+                            "detail": f"~/.goal-state/config.json: {var_name}",
                         })
                         break
         # Check user override

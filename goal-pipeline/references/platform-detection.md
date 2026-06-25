@@ -83,6 +83,6 @@ detect_platform() {
 
 ## 重要说明
 
-**不依赖 native_goal。** guazi-flow-goal 使用 agent_mode_continuous（所有平台可用）作为执行引擎。native_goal 仅作为可选增强，用于跨 session 持久化恢复等场景。
+**不依赖 native_goal。** goal-pipeline 使用 agent_mode_continuous（所有平台可用）作为执行引擎。native_goal 仅作为可选增强，用于跨 session 持久化恢复等场景。
 
 **不依赖 sub_agent 做审核分离。** 审核分离通过 API 直调独立模型实现，所有平台统一支持。

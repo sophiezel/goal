@@ -1,11 +1,11 @@
 ---
-name: guazi-flow-goal-core
-description: guazi-flow-goal 集成桥接层——goal-pipeline 管线与 guazi-flow-* 系列之间的契约定义和集成规则。加载goal-pipeline 管线后，按此契约在 plan/implement/review/complete 各阶段按需调用 guazi-flow-* skills。guazi-flow 不可用时 goal-pipeline 独立运行。
+name: guazi-flow-goal-bridge
+description: guazi-flow-goal 集成桥接层——goal-pipeline 管线与 guazi-flow-* 系列之间的契约定义和集成规则。加载 goal-pipeline 管线后，按此契约在 plan/implement/review/complete 各阶段按需调用 guazi-flow-* skills。guazi-flow 不可用时 goal-pipeline 独立运行。
 ---
 
-# Guazi Flow Goal Core（集成桥接层）
+# Guazi Flow Goal Bridge（集成桥接层）
 
-guazi-flow-goal-core 是 goal-pipeline 内核与 guazi-flow-* 系列之间的桥接契约。goal-pipeline 管线独立运行于所有平台，guazi-flow-* 在可用时按此层定义的规则在各阶段被调用。
+guazi-flow-goal-bridge 是 goal-pipeline 内核与 guazi-flow-* 系列之间的桥接契约。goal-pipeline 管线独立运行于所有平台，guazi-flow-* 在可用时按此层定义的规则在各阶段被调用。
 
 ## goal ↔ guazi-flow 关系
 
@@ -28,11 +28,11 @@ goal-pipeline（通用管线）          guazi-flow-* 系列（可选增强）
 
 ## 集成规则
 
-详见 `guazi-flow-goal-core/references/guazi-flow-integration.md`。
+详见 `guazi-flow-goal-bridge/references/guazi-flow-integration.md`。
 
 ## guazi-flow 扩展字段
 
-Goal 状态文件 `~/.guazi-flow-goal/projects/<pid>/<branch>/<task>/state.json`
+Goal 状态文件 `~/.goal-state/projects/<pid>/<branch>/<task>/state.json`
 中 guazi-flow 相关扩展字段：
 
 ```json

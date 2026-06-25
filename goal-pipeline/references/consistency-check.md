@@ -2,13 +2,13 @@
 
 ## 目的
 
-交叉校验 Goal 状态（state.json）、guazi-flow 管线状态（index.md + evidence）、git 状态。
+交叉校验 Goal 状态（state.json）、管线状态（index.md + evidence）、git 状态。
 
 ## 路径
 
-- state.json: `$GUAZI_GOAL_HOME/projects/<project_id>/<branch>/<task>/state.json`
-- index.md: `<project>/docs/guazi-flow/<task>/index.md`
-- evidence: `<project>/docs/guazi-flow/<task>/evidence/*.md`
+- state.json: `$GOAL_STATE_HOME/projects/<project_id>/<branch>/<task>/state.json`
+- index.md: `<task_dir>/index.md`
+- evidence: `<task_dir>/evidence/*.md`
 
 ## 校验规则
 
@@ -30,6 +30,6 @@
 - lock 存在 + pid 存活 + heartbeat 超 5min → 可能死锁
 
 ### 全局配置检查
-- `~/.guazi-flow-goal/config.json` 存在且 JSON 合法 → 正常
+- `~/.goal-state/config.json` 存在且 JSON 合法 → 正常
 - 缺失 → 创建骨架
 - 不合法 → 警告，使用空配置

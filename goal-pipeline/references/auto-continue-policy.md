@@ -86,7 +86,7 @@ Agent 在以下任一条件满足时停止执行，返回控制权给用户：
 
 Goal 状态通过 `state.json` 持久化。跨 session 恢复：
 
-1. Agent 启动 → 检测 `~/.guazi-flow-goal/projects/<pid>/<branch>/<task>/state.json` 存在且 `status ∈ {active, blocked, paused}`
+1. Agent 启动 → 检测 `~/.goal-state/projects/<pid>/<branch>/<task>/state.json` 存在且 `status ∈ {active, blocked, paused}`
 2. 提示用户: "检测到未完成的 goal: <objective>，是否恢复?"
 3. 用户确认 → 运行 `check-consistency` → 从断点继续
 4. 用户拒绝 → goal 标记为 paused

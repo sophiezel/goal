@@ -1,5 +1,5 @@
 #!/bin/bash
-# check-consistency - Goal/guazi-flow 状态一致性交叉校验
+# check-consistency - Goal 状态一致性校验
 # 对比: state.json / index.md / evidence / git
 # 依赖: bash + git
 
@@ -9,13 +9,13 @@ TASK_DIR="${1:-.}"
 GIT_ROOT=$(git -C "$TASK_DIR" rev-parse --show-toplevel 2>/dev/null || echo ".")
 
 # === New path resolution ===
-GUAZI_GOAL_HOME="${GUAZI_GOAL_HOME:-$HOME/.guazi-flow-goal}"
+GOAL_STATE_HOME="${GOAL_STATE_HOME:-${GUAZI_GOAL_HOME:-$HOME/.goal-state}}"
 PROJECT_ID=$(echo -n "$(cd "$GIT_ROOT" && pwd)" | python3 -c "import sys,hashlib; print(hashlib.sha256(sys.stdin.read().encode()).hexdigest()[:12])" 2>/dev/null || echo "unknown")
 BRANCH=$(git -C "$GIT_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "default")
 TASK_SLUG=$(basename "$TASK_DIR")
 
-STATE_FILE="$GUAZI_GOAL_HOME/projects/$PROJECT_ID/$BRANCH/$TASK_SLUG/state.json"
-LOCK_FILE="$GUAZI_GOAL_HOME/projects/$PROJECT_ID/$BRANCH/$TASK_SLUG/.lock"
+STATE_FILE="$GOAL_STATE_HOME/projects/$PROJECT_ID/$BRANCH/$TASK_SLUG/state.json"
+LOCK_FILE="$GOAL_STATE_HOME/projects/$PROJECT_ID/$BRANCH/$TASK_SLUG/.lock"
 INDEX_FILE="$TASK_DIR/index.md"
 EVIDENCE_DIR="$TASK_DIR/evidence"
 
@@ -48,14 +48,6 @@ parse_fm_nested() {
 
 # === Rule 1: state.json vs index.md ===
 check_state_vs_index() {
-  # Also check old path for migration
-  local old_state="$GIT_ROOT/.guazi-flow/goal/state.json"
-  if [ -f "$old_state" ] && [ ! -f "$STATE_FILE" ]; then
-    issues+=('{"rule":"state_vs_index","issue":"state.json at old path, needs migration","action":"migrate_state"}')
-    # Use old path for further checks
-    STATE_FILE="$old_state"
-  fi
-
   if [ ! -f "$STATE_FILE" ]; then
     issues+=('{"rule":"state_vs_index","issue":"state.json missing","action":"create_state"}')
     return
@@ -142,8 +134,6 @@ check_evidence_progression() {
 # === Rule 4: Lock staleness (new path + old path fallback) ===
 check_lock() {
   local lock_file="$LOCK_FILE"
-  # Fallback to old path
-  [ -f "$lock_file" ] || lock_file="$GIT_ROOT/.guazi-flow/goal/.lock"
   [ -f "$lock_file" ] || return
   
   local lock_pid
@@ -156,9 +146,9 @@ check_lock() {
 
 # === Rule 5: Global config check ===
 check_global_config() {
-  local config_file="$GUAZI_GOAL_HOME/config.json"
+  local config_file="$GOAL_STATE_HOME/config.json"
   if [ ! -f "$config_file" ]; then
-    issues+=('{"rule":"global_config","issue":"~/.guazi-flow-goal/config.json missing","action":"create_config_skeleton"}')
+    issues+=('{"rule":"global_config","issue":"~/.goal-state/config.json missing","action":"create_config_skeleton"}')
   elif ! python3 -c "import json; json.load(open('$config_file'))" 2>/dev/null; then
     issues+=('{"rule":"global_config","issue":"config.json is invalid JSON","action":"repair_config"}')
   fi

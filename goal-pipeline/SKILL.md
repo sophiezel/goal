@@ -1,6 +1,6 @@
 ---
 name: goal-pipeline
-description: 持久化目标执行管线——与 Claude Code /goal 对齐的 5 阶段管线引擎。使用 `/goal-pipeline <目标>` 启动，Agent 持续执行直到完成或阻塞。包含：目标澄清访谈、5 阶段管线（plan→implement→smoke→review↩→complete）、独立模型审核、自动修复循环、token 预算控制、跨 session 持久化（~/.guazi-flow-goal/）。所有平台通用，不依赖任何外部 skill。
+description: 持久化目标执行管线——与 Claude Code /goal 对齐的 5 阶段管线引擎。使用 `/goal-pipeline <目标>` 启动，Agent 持续执行直到完成或阻塞。包含：目标澄清访谈、5 阶段管线（plan→implement→smoke→review↩→complete）、独立模型审核、自动修复循环、token 预算控制、跨 session 持久化（~/.goal-state/）。所有平台通用，不依赖任何外部 skill。
 ---
 
 # Goal Pipeline
@@ -55,9 +55,7 @@ Agent 在确定的范围内修改代码，产出候选 diff。
 - not_pass → blocked（暂停等用户决策）
 - 无法推导 dev 命令 → skipped
 
-### review 阶段——统一五步流程
-
-guazi-flow 可用时，guazi-flow-review 和 goal 独立审核**两者都运行**。guazi-flow 不可用时仅运行 goal 独立审核。
+### review 阶段——三步审核流程
 
 ```
 implement complete
@@ -67,30 +65,22 @@ Step 1: 确定性检查（verify-review.sh，0 模型调用）
   任一 not_pass → 修复子循环
   全部 pass → 继续
   ↓
-Step 2: guazi-flow-review（如果 guazi-flow 可用）
-  专业代码审阅：读 index.md/unit.md/Figma/evidence
-  检查：契约可追溯、前置状态、E2E 证据、视觉契约
-  → issues_gf[]
-  不可用 → issues_gf = []
-  ↓
-Step 3: goal 独立审核（始终执行）
+Step 2: 独立审核（始终执行）
   独立 API 模型（跨 provider 优先，与执行模型不同 provider）
   输入: diff + 验收标准 + 约束
-  → issues_goal[]
+  → issues[]
   ↓
-Step 4: 合并结论
-  issues = 去重(issues_gf ∪ issues_goal)
-  result = 两者都 pass ? pass : not_pass
-  ↓
-Step 5: 分流
+Step 3: 分流
   pass → complete
-  not_pass → 修复子循环（使用合并 issues）
+  not_pass → 修复子循环
 ```
+
+**扩展点**：桥接层可在 Step 1 和 Step 2 之间注入额外审核步骤（如专业代码审阅），注入的 issues 合并到 Step 2 的结果中。详见桥接层文档。
 
 ### 修复子循环——五种场景分类处理（与 Claude Code /goal 对齐）
 
 ```
-review 合并结论 not_pass:
+review not_pass:
   │
   ├─ 分类 issues（vs 前轮）:
   │   ├─ persistent: 前轮有、本轮仍在的同一 blocker
@@ -131,22 +121,22 @@ review 合并结论 not_pass:
 ### 正常流程
 
 ```
-[1/5] plan:      🔄 guazi-flow-plan 生成任务文档...
-[1/5] plan:      ✅ 2 个 unit → docs/guazi-flow/<task>/
+[1/5] plan:      🔄 目标规划中...
+[1/5] plan:      ✅ plan 卡片已生成
 
-[2/5] implement: 🔄 guazi-flow-implement 执行中...
+[2/5] implement: 🔄 执行中...
 [2/5] implement: ✅ 5 files changed
 
 [3/5] smoke:     🔄 runtime-smoke 验证项目启动...
 [3/5] smoke:     ✅ pnpm run dev → localhost:8000 (35s)
 
-[4/5] review:    🔄 guazi-flow-review + 独立模型审核中...
+[4/5] review:    🔄 独立模型审核中...
                  审核模型: deepseek-v4-flash (独立于执行模型)
 [4/5] review:    ✅ 通过 (1 轮)
-                 gf-review: pass | 独立审核: pass
+                 独立审核: pass
                  分离置信度: high (跨provider)
 
-[5/5] complete:  🔄 guazi-flow-complete 收口中...
+[5/5] complete:  🔄 收口中...
 [5/5] complete:  ✅ 目标完成
 ```
 
@@ -172,17 +162,6 @@ review 合并结论 not_pass:
   请选择: [A] 人工修复 [B] 简化契约 [C] 跳过此问题 [D] 放弃
 ```
 
-### guazi-flow 不可用时
-
-```
-[1/5] plan:      🔄 goal 通用 plan 执行中...
-[1/5] plan:      ✅ (guazi-flow 不可用)
-
-[4/5] review:    🔄 独立审核中... openai/gpt-4o-mini
-[4/5] review:    ✅ 通过 (1 轮)
-                 分离置信度: high (跨provider)
-```
-
 ### 每阶段必须输出的信息
 
 | 阶段 | 必须输出 |
@@ -190,7 +169,7 @@ review 合并结论 not_pass:
 | plan | skill 来源 + unit 数 + 任务目录路径 |
 | implement | skill 来源 + 文件数 |
 | smoke | dev 命令 + URL + 耗时（或跳过原因） |
-| review | 两个审核结论 + 审核模型名 + 分离置信度 + 轮次 + issue 变动 |
+| review | 审核结论 + 审核模型名 + 分离置信度 + 轮次 + issue 变动 |
 | complete | 最终状态 + 总轮次 + token 估算 |
 | blocked | 阻塞原因 + 阶段 + 决策选项 |
 | budget ≥80% | 已消耗 X/Y tokens |
@@ -213,8 +192,8 @@ review 合并结论 not_pass:
 
 **路径 B（Gemini 半自动，30秒）**:
 - Agent 打开 https://aistudio.google.com/apikey
-- 创建 `~/.guazi-flow-goal/key-pending`
-- 用户终端执行: `echo 'key' > ~/.guazi-flow-goal/key-pending`
+- 创建 `~/.goal-state/key-pending`
+- 用户终端执行: `echo 'key' > ~/.goal-state/key-pending`
 - key 永不在 chat 中出现
 - Agent 验证 → 写入 config.json → 删除临时文件
 
@@ -259,11 +238,11 @@ review 合并结论 not_pass:
 
 ## 状态持久化
 
-`~/.guazi-flow-goal/projects/<project_id>/<branch>/<task>/state.json`
+`~/.goal-state/projects/<project_id>/<branch>/<task>/state.json`
 
 project_id = sha256(项目根绝对路径)[:12]，branch = git 分支名或 "default"。
 
-跨 session 可恢复，不依赖平台原生 goal 机制。
+跨 session 可恢复。对于支持原生 /goal 的平台（Claude Code / Codex / Pi），同时利用平台持久化能力作为双保险。
 
 ## 与 Claude Code /goal 对齐
 
@@ -275,4 +254,63 @@ project_id = sha256(项目根绝对路径)[:12]，branch = git 分支名或 "def
 | Budget | Token 预算 | Token 预算 + 80/95/100 三级提示 |
 | 暂停/恢复 | 用户 pause/resume | blocked → 用户决策 → resume |
 | 持久化 | Session-scoped | 磁盘 state.json（跨 session） |
-| 与外部 skill | 无 | guazi-flow-* 按需增强（不影响独立运行） |
+| 与外部 skill | 无 | 外部 skill 按需增强（通过桥接层，不影响独立运行） |
+
+## 原生 Goal 集成
+
+当平台支持原生 /goal 能力时（`platform.native_goal = true`），goal-pipeline 利用平台原生能力作为执行引擎：
+
+```
+平台原生 /goal 能力            goal-pipeline 职责
+──────────────────────────    ──────────────────────────
+跨 session 持久化              state.json 持久化（双保险）
+auto-continue 循环             agent 持续执行模型
+pause/resume（平台级）         pause/resume（应用级 + state.json 记录）
+/goal status（平台 UI）        /goal-pipeline-status（详细摘要）
+```
+
+**集成规则：**
+
+- **Claude Code**：检测到 `.claude/` 时，通过 `/goal` 创建原生 goal，在原生 goal 上下文中执行管线阶段。平台的 pause/resume 和 goal-pipeline 的 pause/resume 双向同步。
+- **Pi**：检测到 Pi 环境时，使用 `propose_goal_draft` 创建原生 goal，管线在原生 goal 内执行。
+- **Codex**：检测到 Codex 时，使用 `/goal` 创建原生 goal。
+- **通用规则**：原生 goal 提供持久化和恢复能力，goal-pipeline 提供管线逻辑和审核分离。state.json 作为双保险——即使平台 goal 丢失，state.json 仍可恢复。
+
+**当 `platform.native_goal = false` 时**：goal-pipeline 完全自主管理，不依赖任何平台机制。
+
+## 生命周期管理
+
+所有命令以 `/goal-pipeline` 为前缀。对于支持原生 /goal 的平台，同时提供平台级别名。
+
+| 命令 | 操作 | 对齐 Claude Code |
+|------|------|:---:|
+| `/goal-pipeline <目标>` | 启动新 goal | /goal |
+| `/goal-pipeline` | 恢复当前 active goal | /goal (no args) |
+| `/goal-pipeline-status` | 读取 state.json + verify.sh，输出摘要 | /goal status |
+| `/goal-pipeline-pause` | status = paused, 释放 .lock, 输出断点 | 暂停 |
+| `/goal-pipeline-resume` | check-consistency → status = active | 继续 |
+| `/goal-pipeline-clear` | 归档 state.json → archive/，保留 evidence/ | /goal clear |
+| `/goal-pipeline-list` | 遍历 archive/，输出历史列表 | /goal list |
+
+### status 输出格式
+
+```
+当前目标: 给项目加用户认证
+状态: 活跃
+管线: plan(v) -> implement(v) -> review( ) -> complete( )
+进度: 50% (第 2/4 步)
+审核: deepseek-v4-flash | 分离置信度: high
+消耗: 2 轮 / 最大 50 轮
+```
+
+### pause 行为
+
+- 写入 `pause_reason` + `paused_at` 到 state.json
+- 释放 .lock
+- 输出恢复指令提示：`运行 /goal-pipeline-resume 继续`
+
+### clear 行为
+
+- state.json 归档到 `~/.goal-state/archive/<pid>/goal_<id>.json`
+- evidence/ 保留（用户可能需要查看历史）
+- 释放 .lock

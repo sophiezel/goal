@@ -1,5 +1,5 @@
 #!/bin/bash
-# verify.sh - guazi-flow-goal 管线状态检查
+# verify.sh - 管线状态检查
 # 最小依赖: bash + git
 # 可选增强: jq (用于 JSON 解析), python3 (jq 降级)
 
@@ -77,22 +77,19 @@ get_git_head() {
 
 # === 主逻辑 ===
 main() {
-  local task_dir="${TASK_DIR:-docs/guazi-flow/}"
+  local task_dir="${TASK_DIR:-${GOAL_TASK_DIR:-}}"
   local root="${GIT_ROOT:-.}"
   
   # 查找任务目录
-  if [ -z "$TASK_DIR" ]; then
-    task_dir=$(find "$root/docs/guazi-flow" -name "index.md" -maxdepth 3 2>/dev/null | head -1 | xargs dirname)
-    if [ -z "$task_dir" ]; then
-      echo '{"error":"no task found","next_action":"run guazi-flow-plan first"}'
-      return 1
-    fi
+  if [ -z "$task_dir" ]; then
+    echo '{"error":"no task found","next_action":"provide TASK_DIR or set GOAL_TASK_DIR env var"}'
+    return 1
   fi
   
   local index_file="$root/$task_dir/index.md"
   
   if [ ! -f "$index_file" ]; then
-    echo "{\"error\":\"index.md not found at $index_file\",\"next_action\":\"run guazi-flow-plan\"}"
+    echo "{\"error\":\"index.md not found at $index_file\",\"next_action\":\"run plan first\"}"
     return 1
   fi
   

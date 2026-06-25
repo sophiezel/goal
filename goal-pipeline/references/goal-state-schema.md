@@ -3,7 +3,7 @@
 ## 目录结构
 
 ```
-~/.guazi-flow-goal/                       ← 全局目录（goal 所有产物）
+~/.goal-state/                              ← 全局目录（goal 所有产物）
 ├── config.json                           ← API key + 偏好 + 通道缓存（跨项目通用）
 ├── projects/
 │   └── <project_id>/                    ← sha256(项目根绝对路径)[:12]
@@ -20,19 +20,11 @@
     ├── verify-review.sh
     ├── detect-review-channels
     └── check-consistency
-
-<project>/                                ← 用户项目（不受影响）
-├── .guazi-flow/
-│   └── config.local.json                 ← JIRA_TOKEN / repos（goal 不碰）
-└── docs/guazi-flow/<task>/
-    ├── index.md
-    ├── evidence/*.md                     ← 任务产物（在项目中，进 git）
-    └── units/*.md
 ```
 
 ## 全局配置文件
 
-位置: `~/.guazi-flow-goal/config.json`
+位置: `~/.goal-state/config.json`
 
 ```json
 {
@@ -55,11 +47,11 @@
 }
 ```
 
-**项目级 `.guazi-flow/config.local.json` 不含任何 goal 产物**：仅 JIRA_TOKEN、FIGMA_ACCESS_TOKEN、repos 等 guazi-flow 自身字段。
+**项目级配置不含任何 goal 产物**：仅项目自身的配置字段。
 
 ## Goal 状态文件
 
-位置: `~/.guazi-flow-goal/projects/<project_id>/<branch>/<task>/state.json`
+位置: `~/.goal-state/projects/<project_id>/<branch>/<task>/state.json`
 
 ```json
 {
@@ -71,7 +63,6 @@
   "objective": "用户目标描述文本（Goal Engineering 产出）",
   "status": "active | paused | complete | blocked | aborted",
   "sisyphus": false,
-  "guazi_flow_task": "docs/guazi-flow/<task>",
   "platform": {
     "agent": "codex | claude_code | cursor | windsurf | pi | generic",
     "native_goal": false,
@@ -116,7 +107,7 @@
 
 ## Global Config Schema
 
-`~/.guazi-flow-goal/config.json`:
+`~/.goal-state/config.json`:
 
 ```json
 {
@@ -148,7 +139,6 @@
 - 计算 `project_id = sha256($(git rev-parse --show-toplevel))[:12]`
 - 解析 `branch = $(git rev-parse --abbrev-ref HEAD)` or `"default"`
 - 检查 `.lock` — 若存在且进程存活 → `goal_already_active`
-- 若旧路径 `<project>/.guazi-flow/goal/state.json` 存在 → 迁移到新路径，删除旧文件
 - 否则 → 创建新路径 state.json, status = active
 
 ### Active → Blocked
@@ -157,11 +147,11 @@
 - 审核不可用 (`review_unavailable`)
 
 ### Active → Paused
-- 用户执行 `/guazi-flow-goal-pause`
+- 用户执行 `/goal-pipeline-pause`
 - 记录 `pause_reason`
 
 ### Paused → Active
-- 用户执行 `/guazi-flow-goal-resume`
+- 用户执行 `/goal-pipeline-resume`
 - 运行 `check-consistency` 校验状态一致性
 - 若一致性 broken → 修复后继续；若无法修复 → blocked
 
@@ -169,15 +159,15 @@
 - `verify.sh` 输出 `completion_condition_met: true`
 
 ### Active/Blocked/Paused → Aborted
-- 用户执行 `/guazi-flow-goal-clear`
-- state.json 归档到 `~/.guazi-flow-goal/archive/<project_id>/goal_<id>.json`
-- 不删除 `docs/guazi-flow/<task>/evidence/`（管线产物保留）
+- 用户执行 `/goal-pipeline-clear`
+- state.json 归档到 `~/.goal-state/archive/<project_id>/goal_<id>.json`
+- evidence/ 保留（用户可能需要查看历史）
 
 ## 并发控制
 
 粒度: `(project_id, branch, task)` 三元组。
 
-锁文件: `~/.guazi-flow-goal/projects/<project_id>/<branch>/<task>/.lock`
+锁文件: `~/.goal-state/projects/<project_id>/<branch>/<task>/.lock`
 
 - 记录: `pid + created_at + heartbeat_at`
 - 同三元组只允许一个 active goal
@@ -192,5 +182,5 @@
 
 ## 兼容迁移
 
-检测 `<project>/.guazi-flow/goal/state.json` 存在 → 自动迁移到新路径，删除旧文件。
-`<project>/.guazi-flow/config.local.json` 中 goal 相关字段（api key / review_model）→ 自动迁移到 `~/.guazi-flow-goal/config.json`，删除旧字段。
+检测 `~/.guazi-flow-goal/` 存在且 `~/.goal-state/` 不存在 → 自动 mv 到新路径。
+检测 `~/.guazi-flow-goal/config.json` 存在 → 迁移到 `~/.goal-state/config.json`，删除旧文件。
