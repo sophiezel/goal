@@ -17,6 +17,8 @@ description: guazi-flow-goal 统一入口。加载 goal-pipeline 管线引擎，
 - **NEVER 在 guazi-flow 不可用时强制加载 guazi-flow-* skills**——降级为纯 goal-pipeline 运行，不阻断管线
 - **NEVER 修改 goal-pipeline 的 state.json 基础字段**——guazi-flow 扩展字段（guazi_flow_*）只能追加，不覆盖管线字段
 - **NEVER 在 guazi-flow-plan 产出前修改项目代码**——plan 未完成时改代码会导致 write_set 不匹配，implement 阶段无法正确驱动
+- **NEVER 在 guazi-flow-plan 产出 index.md 前进入 implement**——MUST 先调 guazi-flow-plan，验证 index.md 存在，不存在则 blocked（failure_code: plan_artifact_missing）
+- **NEVER 跳过 [1/5] plan 进度输出**——缺少 [1/5] 输出说明 plan 被跳过，必须立即暂停并报告
 
 ## 必读 references
 
@@ -88,15 +90,19 @@ Step 4: 生成 + 确认 Goal 结构
   └─ 确认 → 继续 Step 5
 
 Step 5: 初始化 state（路径计算见 goal-pipeline/references/goal-state-schema.md）
-  ├─ 确保 ~/.goal-state/ 目录存在 + 首次部署脚本
+  ├─ mkdir -p ~/.goal-state/ → 失败则 blocked（failure_code: state_dir_creation_failed）
   ├─ 创建 state.json（project_id/branch/task 路径见 goal-state-schema.md）
+  ├─ 验证 state.json 可读写 → 失败则 blocked（failure_code: state_json_unwritable）
   └─ 检测并迁移旧路径 .guazi-flow/goal/ 产物（若存在）
 
-Step 6: Gate Check（全部满足才进入 Phase 2）
+Step 6: GATE Check（全部满足才进入 Phase 2）
   ├─ [✓] state.json 已创建且 schema 校验通过
   ├─ [✓] 用户已确认 Goal 内容
   ├─ [✓] guazi-flow-* SKILL.md 可加载（或 guazi_flow_available = false）
+  ├─ [✓] docs/guazi-flow/ 目录可写（guazi_flow_available=true 时）
   └─ [✓] 输出进度摘要 → 进入 Phase 2
+
+❗ 任一项不满足 → blocked，不得进入 Phase 2。输出失败项 + 修复建议。
 ```
 
 ---
@@ -107,8 +113,8 @@ Step 6: Gate Check（全部满足才进入 Phase 2）
 
 | 阶段 | GATE（guazi_flow_available=true 时） | guazi-flow 调度 | 降级 | 自由度 |
 |------|--------------------------------------|----------------|------|--------|
-| plan | 加载 guazi-flow-plan/SKILL.md | MUST：guazi-flow-plan 产出 + 桥接层契约融入（详见 guazi-flow-integration.md） | goal-pipeline 通用 plan | 中——结构化产出，内容自主 |
-| implement | 加载 guazi-flow-implement/SKILL.md | MUST：profile/contract/write_set 驱动 | goal-pipeline 通用 implement | 高——实现方式自主 |
+| plan | 加载 guazi-flow-plan/SKILL.md | MUST：加载 guazi-flow-plan/SKILL.md → 调 guazi-flow-plan → 产物验证 GATE（index.md 存在） → 契约融入 | goal-pipeline 通用 plan | 中——结构化产出，内容自主 |
+| implement | 加载 guazi-flow-implement/SKILL.md + GATE: index.md 存在且非空（guazi-flow 模式下） | MUST：profile/contract/write_set 驱动 | goal-pipeline 通用 implement | 高——实现方式自主 |
 | runtime_smoke | 无 GATE | 始终用 goal-pipeline 通用脚本 | — | 低——固定脚本 |
 | review | 加载 guazi-flow-review/SKILL.md | Step 1.5 注入：guazi-flow-review → issues_gf[] | 仅 goal-pipeline 独立审核 | 低——按流程执行 |
 | complete | 加载 guazi-flow-complete/SKILL.md | MUST：guazi-flow 收口检查 | goal-pipeline 通用 complete | 低——门禁驱动 |
@@ -159,6 +165,8 @@ Step 6: Gate Check（全部满足才进入 Phase 2）
 | guazi-flow-core 版本不兼容 | 警告 + 降级为纯 goal-pipeline |
 | state.json 与 docs/guazi-flow/ 不一致 | 运行 check-consistency 修复或归档重建 |
 | guazi-flow-plan 失败 | 输出错误，暂停，让用户修复后重试 |
+| plan_artifact_missing（index.md 不存在） | blocked，不得进入 implement，输出失败原因 + 重新调用 guazi-flow-plan 建议 |
+| state_dir_creation_failed / state_json_unwritable | blocked，输出权限/路径诊断建议 |
 
 ## 完成门禁
 

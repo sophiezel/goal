@@ -61,6 +61,7 @@ Phase 2: Pipeline Execution（Agent 持续执行）
 ### implement 阶段
 
 **Before implementing, ask yourself**:
+- [1/5] plan 是否已完成且输出正常？缺少 plan 输出 → blocked，不得继续
 - 修改是否在 Allowed Files 白名单内？超范围 → 输出告警，需用户确认或缩小范围
 - 是否命中 Stop Conditions（新增依赖/改接口协议）？命中 → 暂停并报告
 - 能否用更小步幅完成？小步幅 → review 更精准、修复更快
