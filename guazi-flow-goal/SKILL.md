@@ -37,8 +37,9 @@ description: guazi-flow-goal 统一入口。加载 goal-pipeline 管线引擎，
 ```
 加载 goal-pipeline 后：
 if guazi-flow-core/SKILL.md 存在（通过 skill 加载机制）:
-    guazi_flow_available = true
-    加载 guazi-flow-core/SKILL.md（版本检查）
+    检查版本兼容性（bridge-contract.md 中的 required_version）
+    ├─ 兼容 → guazi_flow_available = true
+    └─ 不兼容 → 警告 + guazi_flow_available = false（降级为纯 goal-pipeline）
 else:
     guazi_flow_available = false
     goal-pipeline 独立运行
@@ -65,6 +66,8 @@ else:
 
 **Before dispatching, ask yourself**: guazi_flow_available? profile? 有无 active goal?
 
+**Before plan, ask yourself**: 用户真实需求是什么（而非表面诉求）？验收标准是否可量化（避免模糊通过）？范围是否过大（宁可收窄再扩展）？
+
 ```
 Step 1: 环境初始化
   ├─ 运行 detect-platform → 确定平台
@@ -84,11 +87,9 @@ Step 4: 生成 + 确认 Goal 结构
   ├─ 展示给用户确认（含结构化字段摘要）→ 确认/编辑/重新讨论/放弃
   └─ 确认 → 继续 Step 5
 
-Step 5: 初始化 state
+Step 5: 初始化 state（路径计算见 goal-pipeline/references/goal-state-schema.md）
   ├─ 确保 ~/.goal-state/ 目录存在 + 首次部署脚本
-  ├─ 计算 project_id = sha256(项目根绝对路径)[:12]
-  ├─ 解析 branch = git rev-parse --abbrev-ref HEAD or "default"
-  ├─ 创建 ~/.goal-state/projects/<pid>/<branch>/<task>/state.json
+  ├─ 创建 state.json（project_id/branch/task 路径见 goal-state-schema.md）
   └─ 检测并迁移旧路径 .guazi-flow/goal/ 产物（若存在）
 
 Step 6: Gate Check（全部满足才进入 Phase 2）
@@ -129,17 +130,7 @@ Step 6: Gate Check（全部满足才进入 Phase 2）
 
 ## 生命周期管理
 
-生命周期管理命令与 goal-pipeline 完全一致（详见 `goal-pipeline/SKILL.md`）。本 skill 提供别名：
-
-| 别名 | 对应命令 |
-|------|----------|
-| `/guazi-flow-goal-status` | `/goal-pipeline-status` |
-| `/guazi-flow-goal-pause` | `/goal-pipeline-pause` |
-| `/guazi-flow-goal-resume` | `/goal-pipeline-resume` |
-| `/guazi-flow-goal-clear` | `/goal-pipeline-clear` |
-| `/guazi-flow-goal-list` | `/goal-pipeline-list` |
-
-status 输出格式同 goal-pipeline，增加 🎯/📊/📍/📈 emoji 前缀和 📁 任务路径行。路径解析同 goal-pipeline（`references/goal-state-schema.md`）。
+与 goal-pipeline 完全一致，唯一差异是命令前缀为 `guazi-flow-goal-*`（如 `/guazi-flow-goal-status` → `/goal-pipeline-status`）。路径解析同 goal-pipeline（`references/goal-state-schema.md`）。
 
 ---
 
