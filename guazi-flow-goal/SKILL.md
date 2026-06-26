@@ -17,8 +17,17 @@ description: guazi-flow-goal 统一入口。加载 goal-pipeline 管线引擎，
 - **NEVER 在 guazi-flow 不可用时强制加载 guazi-flow-* skills**——降级为纯 goal-pipeline 运行，不阻断管线
 - **NEVER 修改 goal-pipeline 的 state.json 基础字段**——guazi-flow 扩展字段（guazi_flow_*）只能追加，不覆盖管线字段
 - **NEVER 在 guazi-flow-plan 产出前修改项目代码**——plan 未完成时改代码会导致 write_set 不匹配，implement 阶段无法正确驱动
-- **NEVER 在 guazi-flow-plan 产出 index.md 前进入 implement**——MUST 先调 guazi-flow-plan，验证 index.md 存在，不存在则 blocked（failure_code: plan_artifact_missing）
+- **NEVER 在 guazi-flow-plan 产出 index.md 前进入 implement**——MUST 先执行 guazi-flow-plan 完整流程（见关键执行协议），验证 index.md 存在且包含必需章节（核心事实/完整伪代码/验收矩阵/执行记录），否则 blocked（failure_code: plan_artifact_missing / plan_schema_incomplete）
 - **NEVER 跳过 [1/5] plan 进度输出**——缺少 [1/5] 输出说明 plan 被跳过，必须立即暂停并报告
+
+## 关键执行协议（Phase 2 必读）
+
+guazi_flow_available = true 时，plan 阶段执行方式：
+
+1. **加载**：读取 `guazi-flow-plan/SKILL.md` 全文（MANDATORY，不得跳过）
+2. **执行**：按 guazi-flow-plan/SKILL.md 中的完整流程（9 步）逐步执行，读取其必读 references（unified-doc-contract.md / profile-selection.md 等）
+3. **不得自行编写**：index.md 必须由 guazi-flow-plan 流程产出，不得自行编写简化版替代——缺少核心事实/完整伪代码/验收矩阵等章节的 index.md 视为无效
+4. **完成验证**：产出后检查 index.md 包含必需章节（见 guazi-flow-integration.md 产物质量 GATE）
 
 ## 必读 references
 
@@ -113,7 +122,7 @@ Step 6: GATE Check（全部满足才进入 Phase 2）
 
 | 阶段 | GATE（guazi_flow_available=true 时） | guazi-flow 调度 | 降级 | 自由度 |
 |------|--------------------------------------|----------------|------|--------|
-| plan | 加载 guazi-flow-plan/SKILL.md | MUST：加载 guazi-flow-plan/SKILL.md → 调 guazi-flow-plan → 产物验证 GATE（index.md 存在） → 契约融入 | goal-pipeline 通用 plan | 中——结构化产出，内容自主 |
+| plan | 加载 guazi-flow-plan/SKILL.md | MUST：按关键执行协议 4 步执行（加载→执行 9 步流程→产物质量 GATE→契约融入） | goal-pipeline 通用 plan | 中——结构化产出，内容自主 |
 | implement | 加载 guazi-flow-implement/SKILL.md + GATE: index.md 存在且非空（guazi-flow 模式下） | MUST：profile/contract/write_set 驱动 | goal-pipeline 通用 implement | 高——实现方式自主 |
 | runtime_smoke | 无 GATE | 始终用 goal-pipeline 通用脚本 | — | 低——固定脚本 |
 | review | 加载 guazi-flow-review/SKILL.md | Step 1.5 注入：guazi-flow-review → issues_gf[] | 仅 goal-pipeline 独立审核 | 低——按流程执行 |
@@ -166,6 +175,7 @@ Step 6: GATE Check（全部满足才进入 Phase 2）
 | state.json 与 docs/guazi-flow/ 不一致 | 运行 check-consistency 修复或归档重建 |
 | guazi-flow-plan 失败 | 输出错误，暂停，让用户修复后重试 |
 | plan_artifact_missing（index.md 不存在） | blocked，不得进入 implement，输出失败原因 + 重新调用 guazi-flow-plan 建议 |
+| plan_schema_incomplete（index.md 缺少必需章节） | blocked，输出缺失章节列表 + "请重新执行 guazi-flow-plan 完整流程（9 步）"，不得自行补齐简化版 |
 | state_dir_creation_failed / state_json_unwritable | blocked，输出权限/路径诊断建议 |
 
 ## 完成门禁

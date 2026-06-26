@@ -49,9 +49,16 @@ if guazi_flow_available:
     → 调 guazi-flow-doctor（环境诊断）
     → 调 guazi-flow-plan（MUST，产出 docs/guazi-flow/<task>/index.md + unit.md）
        guazi-flow-plan 执行完毕，不做任何干预
-    → 产物验证 GATE（硬门禁）:
-       test -f docs/guazi-flow/<task>/index.md
-       不存在 → blocked（failure_code: plan_artifact_missing），不得继续
+    → 产物质量 GATE（硬门禁）:
+       1. test -f docs/guazi-flow/<task>/index.md
+          不存在 → blocked（failure_code: plan_artifact_missing），不得继续
+       2. 必需章节检查（全部必须存在）:
+          - ## 核心事实
+          - ## 完整伪代码
+          - ## 验收与验证矩阵
+          - ## 执行记录
+          任一缺失 → blocked（failure_code: plan_schema_incomplete）
+          输出缺失章节列表 + "请重新执行 guazi-flow-plan 完整流程"
     → 契约融入（后置，纯追加，不修改 index.md 已有内容）:
        读取 Phase 1 Goal 结构: Allowed Files / Out of Scope / Stop Conditions
        追加到 index.md 对应字段的子 section:
