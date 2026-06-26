@@ -80,8 +80,8 @@ Step 2-3: 意图采集 + 自动推断 (interview-protocol.md)
   └─ 缺口检测 + 定向追问 (最多 5 题，每题附带默认选项)
 
 Step 4: 生成 + 确认 Goal 结构
-  ├─ 组装: 目标描述 + 验收标准 + 范围 + 约束 + 验证方式
-  ├─ 展示给用户确认 → 确认/编辑/重新讨论/放弃
+  ├─ 组装: 目标描述 + 验收标准 + 范围 + Allowed Files + Out of Scope + Stop Conditions + 约束 + 验证方式
+  ├─ 展示给用户确认（含结构化字段摘要）→ 确认/编辑/重新讨论/放弃
   └─ 确认 → 继续 Step 5
 
 Step 5: 初始化 state
@@ -106,7 +106,7 @@ Step 6: Gate Check（全部满足才进入 Phase 2）
 
 | 阶段 | GATE（guazi_flow_available=true 时） | guazi-flow 调度 | 降级 | 自由度 |
 |------|--------------------------------------|----------------|------|--------|
-| plan | 加载 guazi-flow-plan/SKILL.md | MUST：产出 docs/guazi-flow/<task>/index.md + unit.md | goal-pipeline 通用 plan | 中——结构化产出，内容自主 |
+| plan | 加载 guazi-flow-plan/SKILL.md | MUST：guazi-flow-plan 产出 index.md + unit.md，**然后**桥接层追加 Goal 契约字段到 index.md（见 guazi-flow-integration.md） | goal-pipeline 通用 plan | 中——结构化产出，内容自主 |
 | implement | 加载 guazi-flow-implement/SKILL.md | MUST：profile/contract/write_set 驱动 | goal-pipeline 通用 implement | 高——实现方式自主 |
 | runtime_smoke | 无 GATE | 始终用 goal-pipeline 通用脚本 | — | 低——固定脚本 |
 | review | 加载 guazi-flow-review/SKILL.md | Step 1.5 注入：guazi-flow-review → issues_gf[] | 仅 goal-pipeline 独立审核 | 低——按流程执行 |
@@ -139,20 +139,7 @@ Step 6: Gate Check（全部满足才进入 Phase 2）
 | `/guazi-flow-goal-clear` | `/goal-pipeline-clear` |
 | `/guazi-flow-goal-list` | `/goal-pipeline-list` |
 
-### status 输出格式
-
-```
-🎯 目标: 给项目加用户认证 | 📊 状态: 活跃
-📍 管线: plan(✓) → implement(✓) → review( ) → complete( )
-📈 进度: 50% (2/4) | 📁 任务: docs/guazi-flow/user-auth/
-🔍 审核: deepseek-v4-flash | 📊 消耗: 2/50 轮
-```
-
-### 路径解析
-
-- `project_id = sha256($(git rev-parse --show-toplevel))[:12]`
-- `branch = $(git rev-parse --abbrev-ref HEAD)` or `"default"`
-- state.json: `~/.goal-state/projects/<pid>/<branch>/<task>/state.json`
+status 输出格式同 goal-pipeline，增加 🎯/📊/📍/📈 emoji 前缀和 📁 任务路径行。路径解析同 goal-pipeline（`references/goal-state-schema.md`）。
 
 ---
 
@@ -166,6 +153,7 @@ Step 6: Gate Check（全部满足才进入 Phase 2）
 | `~/.goal-state/archive/<pid>/goal_<id>.json` | 写入 |
 | `~/.goal-state/scripts/` | 首次部署 |
 | `docs/guazi-flow/<task>/**` | 委托 guazi-flow-plan/implement/review/complete |
+| `docs/guazi-flow/<task>/index.md` | 桥接层追加 Goal 契约字段（allowed_patterns/exclusions/stop_conditions 子 section） |
 | 业务代码 | 委托 guazi-flow-implement 或 goal-pipeline 通用 implement |
 | `<project>/.guazi-flow/` | ❌ 不写入 goal 产物 |
 

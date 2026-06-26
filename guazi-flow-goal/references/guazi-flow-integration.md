@@ -48,8 +48,18 @@ else:
 if guazi_flow_available:
     → 调 guazi-flow-doctor（环境诊断）
     → 调 guazi-flow-plan（MUST，产出 docs/guazi-flow/<task>/index.md + unit.md）
+       guazi-flow-plan 执行完毕，不做任何干预
+    → 契约融入（后置，纯追加，不修改 index.md 已有内容）:
+       读取 Phase 1 Goal 结构: Allowed Files / Out of Scope / Stop Conditions
+       追加到 index.md 对应字段的子 section:
+         - Allowed Files → write_set 下 ### allowed_patterns
+         - Out of Scope  → scope 下 ### exclusions
+         - Stop Conditions → contract 下 ### stop_conditions
+       冲突检测: write_set 文件不在 allowed_patterns 内 → 追加 warn 备注（不阻断）
+       融入失败（如 index.md 不存在）→ 静默跳过，不影响后续阶段
+       state.json.guazi_flow_contract_enriched = true/false
     → state.json.guazi_flow_task = "docs/guazi-flow/<task>"
-    → 输出: "[1/5] plan: ✅ guazi-flow-plan 生成 N 个 unit"
+    → 输出: "[1/5] plan: ✅ guazi-flow-plan 生成 N 个 unit (+ 契约融入)"
 else:
     → goal-pipeline 通用 plan（访谈 + plan 卡片）
     → 输出: "[1/5] plan: ✅ (guazi-flow 不可用)"
@@ -91,6 +101,10 @@ Step 3: goal-pipeline 独立审核（始终执行）
 Step 4: 合并结论
   issues = 去重(issues_gf ∪ issues_goal)
   result = 两者都 pass ? pass : not_pass
+  格式归一化: issues_goal 包含 file/line_range/evidence 可选字段。
+             issues_gf 可能不含这些字段。
+             去重规则: 相同 file + 相似 description 视为重复，
+             保留信息更丰富的版本。
   ↓
 Step 5: 分流
   pass → complete
@@ -144,6 +158,8 @@ Step 2: 独立审核（始终执行）
   → issues_goal[]
   ↓
 合并: issues = 去重(issues_gf ∪ issues_goal)
+  格式归一化: issues_goal 包含 file/line_range/evidence 可选字段。
+             issues_gf 可能不含这些字段。
   ↓
 Step 3: 分流
 ```

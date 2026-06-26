@@ -13,6 +13,9 @@
 | scope | P1 | git status / 项目结构推断 | 推断后确认，不确定则追问 |
 | acceptance_criteria | P1 | 追问（提供选项） | 可先推进 plan，plan 阶段细化 |
 | constraints | P1 | `AGENTS.md` / profile 推断 | 自动推断，用户可追加 |
+| allowed_files | P1 | scope 推断 + git diff | 推断后确认，不确定则追问 |
+| out_of_scope | P1 | 关键词反推 + constraints | 默认排除 CI/DB schema |
+| stop_conditions | P2 | 默认模板 + acceptance_criteria 反推 | 提供默认 4 条 |
 | verification | P1 | `package.json` scripts.test 推断 | 自动推断，用户可调整 |
 | budget | P2 | 默认值 | `max_turns=50` |
 
@@ -54,6 +57,21 @@
 5. acceptance_criteria 推断 (最弱):
    └─ 从用户原始输入提取关键词
    └─ 提取不到 → 追问
+
+6. allowed_files 推断:
+   ├─ scope 推断结果中的文件/目录 → 转为 glob 模式
+   ├─ git diff 已修改文件 → 纳入白名单
+   └─ 项目约束文件（AGENTS.md 等）→ 提取禁止修改目录 → 排除
+
+7. out_of_scope 推断:
+   ├─ 从目标关键词反推（如"加登录" → 排除注册、排除支付）
+   ├─ 从 constraints 提取禁止修改项
+   └─ 默认: 不修改 CI 配置、不修改数据库 schema
+
+8. stop_conditions 推断:
+   ├─ 从 acceptance_criteria 反推（如"测试全通过" → "测试无法通过时停止"）
+   ├─ 从 constraints 提取边界条件（如"不改接口协议" → "发现需改协议时停止"）
+   └─ 提供默认模板（4 条），用户可追加
 ```
 
 ### Step 3: 定向追问
@@ -95,7 +113,21 @@ Q3: 验收标准? (如何判断目标已完成)
 
 ### 范围
 - 涉及: <模块/文件列表>
-- 禁止修改: <约束>
+
+### Allowed Files（修改白名单）
+- <glob 模式1>  (如 src/auth/**)
+- <glob 模式2>
+- 不在白名单内的文件只读，修改需审批
+
+### Out of Scope（明确排除）
+- <排除项1>  (如 不重构数据库 schema)
+- <排除项2>
+
+### Stop Conditions（停止条件）
+- 无法复现目标问题时停止
+- 需要新增外部依赖时停止
+- 发现需要修改接口协议时停止
+- 修改超出 Allowed Files 范围时停止
 
 ### 约束
 - 来自项目规则: <规则>
@@ -131,6 +163,10 @@ Agent:
   ✅ Goal 已生成: <task_dir>/
   📊 管线: plan → implement → review → complete
   🔍 审核: ollama/qwen2.5:7b (本地免费) | 通道探测中...
+  
+  📋 Allowed Files: src/auth/**, tests/auth/**
+  📋 Out of Scope: 注册功能、支付模块、数据库 schema
+  📋 Stop Conditions: 需新增依赖 / 需改接口协议 / 超出白名单
   
   确认开始执行? [Y/n]
 ```

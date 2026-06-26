@@ -211,6 +211,17 @@
 ## 约束
 - 允许修改的文件(write_set): {write_set}
 - 项目规则: {constraints}
+- 修改白名单(allowed_files): {allowed_files}
+- 明确排除(out_of_scope): {out_of_scope}
+
+## Evaluator Checklist
+按以下维度逐项检查，每项给出 pass/fail/skip。P0 项 fail → result=not_pass；P1 项 fail → 生成 blocker issue：
+1. [P0] 目标达成：候选 diff 是否真正解决了任务契约中的每个验收标准？
+2. [P0] 范围合规：是否所有修改都在 Allowed Files 白名单内？是否有 Out of Scope 的改动？
+3. [P1] 证据充分：是否运行了要求的验证命令？结论是否有 diff 内容支撑？
+4. [P1] 副作用：是否新增依赖、配置、权限或数据库迁移？
+5. [P1] 完整性：是否有未验证的路径被标记为已完成？
+6. [P0] 安全性：是否泄漏 secret、token 或敏感信息？
 
 ## 输出格式
 只输出一个 JSON object,不要额外文字。每条 issue 描述不超过 80 字。
@@ -220,21 +231,36 @@
   "issues": [
     {
       "severity": "blocker | warning | uncertain",
-      "description": "简短描述",
+      "file": "src/auth/login.ts",
+      "line_range": "42-58",
+      "description": "简短描述（不超过 80 字）",
+      "evidence": "diff 中该函数缺少 error boundary，第 45 行直接 throw",
       "suggestion": "简短建议"
     }
   ],
-  "summary": "一句话总结"
+  "summary": "一句话总结",
+  "checklist": {
+    "goal_achieved": "pass | fail",
+    "scope_compliant": "pass | fail",
+    "evidence_sufficient": "pass | fail",
+    "side_effects": "pass | fail | skip",
+    "completeness": "pass | fail",
+    "security": "pass | fail | skip"
+  }
 }
 ```
+
+注意：`file` 和 `line_range` 为可选字段。当 issue 不针对特定代码位置时（如"缺少整体测试"），可省略。
 ```
 
 ## 审核 Prompt 构建规则
 
 1. `{contract}`: 从 `index.md` 验收标准 + `unit.md` 契约提取
-2. `{diff}`: `git diff` 完整输出(若 >8KB,截断为前 8KB + 文件列表)
+2. `{diff}`: `git diff -U5 HEAD` 完整输出(5 行上下文 + 行号标注, 若 >8KB 截断为前 8KB + 文件列表)
 3. `{write_set}`: 从 `index.md` 或 `unit.md` 提取
 4. `{constraints}`: 从 profile + 项目规则文件提取
+5. `{allowed_files}`: 纯 goal-pipeline 模式从 Goal 结构提取；guazi-flow-goal 模式从 `index.md` 的 `write_set` 下 `### allowed_patterns` 子 section 提取
+6. `{out_of_scope}`: 纯 goal-pipeline 模式从 Goal 结构提取；guazi-flow-goal 模式从 `index.md` 的 `scope` 下 `### exclusions` 子 section 提取
 
 ## JSON 解析与重试
 
@@ -247,6 +273,17 @@ def parse_review_response(content):
         try: return json.loads(match.group(1))
         except: pass
     return None  # triggers review_undetermined
+```
+
+## Checklist 字段容错
+
+旧模型或部分模型可能不返回 `checklist` 字段。解析后进行归一化：
+
+```python
+def normalize_review(review):
+    if not review.get("checklist"):
+        review["checklist"] = {}  # 空 checklist，不阻断分流
+    return review
 ```
 
 ## 用户自定义审核模型
