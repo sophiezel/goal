@@ -120,13 +120,31 @@ Step 6: GATE Check（全部满足才进入 Phase 2）
 
 管线流程详见 `goal-pipeline/SKILL.md`。本层在每个阶段注入 GATE 检查和 guazi-flow-* 调度：
 
-| 阶段 | GATE（guazi_flow_available=true 时） | guazi-flow 调度 | 降级 | 自由度 |
-|------|--------------------------------------|----------------|------|--------|
-| plan | 加载 guazi-flow-plan/SKILL.md | MUST：按关键执行协议 4 步执行（加载→执行 9 步流程→产物质量 GATE→契约融入） | goal-pipeline 通用 plan | 中——结构化产出，内容自主 |
-| implement | 加载 guazi-flow-implement/SKILL.md + GATE: index.md 存在且非空（guazi-flow 模式下） | MUST：profile/contract/write_set 驱动 | goal-pipeline 通用 implement | 高——实现方式自主 |
-| runtime_smoke | 无 GATE | 始终用 goal-pipeline 通用脚本 | — | 低——固定脚本 |
-| review | 加载 guazi-flow-review/SKILL.md | Step 1.5 注入：guazi-flow-review → issues_gf[] | 仅 goal-pipeline 独立审核 | 低——按流程执行 |
-| complete | 加载 guazi-flow-complete/SKILL.md | MUST：guazi-flow 收口检查 | goal-pipeline 通用 complete | 低——门禁驱动 |
+| 阶段 | GATE | 降级 | 自由度 |
+|------|------|------|--------|
+| plan | 加载 guazi-flow-plan/SKILL.md | goal-pipeline 通用 plan | 中——结构化产出，内容自主 |
+| implement | guazi-flow-implement/SKILL.md + index.md 非空 | goal-pipeline 通用 implement | 高——实现方式自主 |
+| runtime_smoke | 无 | — | 低——固定脚本 |
+| review | 加载 guazi-flow-review/SKILL.md | 仅 goal-pipeline 独立审核 | 低——按流程执行 |
+| complete | 加载 guazi-flow-complete/SKILL.md | goal-pipeline 通用 complete | 低——门禁驱动 |
+
+**各阶段调度细节**:
+
+- **plan**: MUST 按关键执行协议 4 步执行（加载 → 执行 9 步流程 → 产物质量 GATE → 交叉验证(write_set vs Allowed Files) → 契约融入）
+- **implement**: MUST profile/contract/write_set 驱动
+- **review**: Step 1.5 注入 guazi-flow-review → issues_gf[] 合并到独立审核结果
+- **complete**: MUST guazi-flow 收口检查
+
+### 降级差异（guazi_flow_available = false）
+
+| 维度 | guazi-flow 模式 | 降级为纯 goal-pipeline |
+|------|----------------|----------------------|
+| plan 产物 | index.md + unit.md（9 步流程） | plan 卡片（三步收敛访谈） |
+| 交叉验证 | write_set vs Allowed Files + V# vs 验收矩阵 | 无（plan 质量门槛替代） |
+| implement 审计 | diff 合规性审计 5 步 | After-verify 3 步 |
+| review | 五步（含 guazi-flow-review + 根因分类） | 三步（确定性检查 + 独立审核 + 分流） |
+| evidence 路径 | docs/guazi-flow/<task>/evidence/ | <task_dir>/evidence/ |
+| complete 报告 | guazi-flow-complete 收口摘要 + 质量报告 | 仅质量报告 |
 
 **Before review not_pass → 修复子循环, ask**: 这是同一根因的持续，还是新症状？根因未变 → 换策略；新症状 → 评估方向是否正确。
 

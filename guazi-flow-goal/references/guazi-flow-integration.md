@@ -59,6 +59,18 @@ if guazi_flow_available:
           - ## 执行记录
           任一缺失 → blocked（failure_code: plan_schema_incomplete）
           输出缺失章节列表 + "请重新执行 guazi-flow-plan 完整流程"
+    → 交叉验证（产物质量 GATE 通过后，契约融入之前）:
+       1. write_set vs Allowed Files:
+          从 index.md 提取 write_set 文件列表
+          从 Phase 1 Goal 结构提取 Allowed Files
+          write_set 文件 ⊆ Allowed Files?
+          超出 → 追加 warn 到 index.md（不阻断，guazi-flow-plan 可能有合理扩展）
+       2. 验证清单 vs 验收矩阵:
+          从 Phase 1 Goal 结构提取 V#1..V#N
+          从 index.md 提取验收与验证矩阵
+          V# 全部被矩阵覆盖?
+          缺口 → 记录为 plan_gap（review 阶段重点检查）
+       3. 交叉验证结果写入 state.json.cross_validation
     → 契约融入（后置，纯追加，不修改 index.md 已有内容）:
        读取 Phase 1 Goal 结构: Allowed Files / Out of Scope / Stop Conditions
        追加到 index.md 对应字段的子 section:
@@ -69,7 +81,7 @@ if guazi_flow_available:
        融入失败（如 index.md 不存在）→ 静默跳过，不影响后续阶段
        state.json.guazi_flow_contract_enriched = true/false
     → state.json.guazi_flow_task = "docs/guazi-flow/<task>"
-    → 输出: "[1/5] plan: ✅ guazi-flow-plan 生成 N 个 unit (+ 契约融入)"
+    → 输出: "[1/5] guazi-flow-plan: ✅ 生成 N 个 unit (+ 交叉验证 + 契约融入)"
 else:
     → goal-pipeline 通用 plan（访谈 + plan 卡片）
     → 输出: "[1/5] plan: ✅ (guazi-flow 不可用)"
@@ -80,55 +92,56 @@ else:
 ```
 if guazi_flow_available:
     → guazi-flow-implement（MUST，profile/contract/write_set 驱动）
+    → diff 合规性审计（guazi-flow-implement 完成后）:
+       1. git diff --name-only → 变更文件列表
+       2. 对比 write_set: 全部在 write_set 内? 超出 → warn
+       3. 对比 Allowed Files: 全部在 Allowed Files 内? 超出 → warn
+       4. 检查 Stop Conditions: 新增依赖? 修改接口协议? 命中 → 暂停
+       5. 审计结果写入 evidence/implement.md scope_compliance 字段
     → 写入 evidence/implement.md（guazi-flow schema）
-    → 输出: "[2/5] implement: ✅ guazi-flow-implement X files changed"
+    → 输出: "[2/5] guazi-flow-implement: ✅ X files changed"
 else:
     → goal-pipeline 通用 implement
     → 输出: "[2/5] implement: ✅ (guazi-flow 不可用)"
 ```
 
-### review 阶段——统一五步流程
+### review 阶段——增量注入
 
-```
-implement complete
-  ↓
-Step 1: verify-review.sh（确定性检查，0 模型调用）
-  scope + secret + test + lint
-  任一 not_pass → 修复子循环
-  全部 pass → 继续
-  ↓
-Step 2: guazi-flow-review（如果 guazi-flow 可用）
+基础三步审核流程（Step 1/2/3）由 `goal-pipeline/SKILL.md` review 阶段定义。
+guazi-flow 可用时，在基础流程中注入两个增量步骤：
+
+**Step 1.5 注入（guazi-flow-review）**:
   专业代码审阅：读 index.md/unit.md/Figma/evidence
   检查：契约可追溯、前置状态、E2E 证据、视觉契约
   → issues_gf[]
   不可用 → issues_gf = []
-  ↓
-Step 3: goal-pipeline 独立审核（始终执行）
-  独立 API 模型（跨 provider 优先）
-  输入: diff + 验收标准 + 约束
-  → issues_goal[]
-  ↓
-Step 4: 合并结论
+
+**Step 4.5 注入（根因分类）**:
+  对每个 blocker issue 标注根因:
+  - plan_gap: 对照 index.md/unit.md，plan 未覆盖此场景
+  - implement_error: plan 有要求但 diff 未满足
+  - spec_ambiguity: 需求源本身模糊
+  根因分布写入 evidence/review.md root_cause_summary
+  修复策略路由:
+  - plan_gap > 50% → mini-replan（调 guazi-flow-plan 更新 index.md）
+  - implement_error > 50% → 进入修复子循环
+  - spec_ambiguity 存在 → blocked + 用户决策
+
+**合并与去重规则**:
   issues = 去重(issues_gf ∪ issues_goal)
   result = 两者都 pass ? pass : not_pass
   格式归一化: issues_goal 包含 file/line_range/evidence 可选字段。
              issues_gf 可能不含这些字段。
-             去重规则: 相同 file + 相似 description 视为重复，
-             保留信息更丰富的版本。
-  ↓
-Step 5: 分流
-  pass → complete
-  not_pass → 修复子循环（使用合并 issues，按决策树处理）
+  去重规则: 相同 file + 相似 description 视为重复，保留信息更丰富的版本。
 
-修复子循环决策树见 goal/SKILL.md ——五种场景 + 完整决策树。
-```
+修复子循环决策树见 `goal-pipeline/SKILL.md`——五种场景 + 完整决策树。
 
 ### complete 阶段
 
 ```
 if guazi_flow_available:
     → guazi-flow-complete（MUST，完整收口门禁）
-    → 输出: "[5/5] complete: ✅ guazi-flow-complete"
+    → 输出: "[5/5] guazi-flow-complete: ✅"
 else:
     → goal-pipeline 通用 complete
     → 输出: "[5/5] complete: ✅ (guazi-flow 不可用)"
@@ -150,29 +163,6 @@ else:
 ```
 
 `guazi_flow_available=false` 时，上述字段全部为空或 false。goal-pipeline 完全独立运行。
-
-## 泛化 review 的桥接
-
-goal-pipeline 的 review 阶段为三步流程（确定性检查 → 独立审核 → 分流）。
-桥接层在 Step 1 和 Step 2 之间注入 guazi-flow-review：
-
-```
-Step 1: verify-review.sh（确定性检查）
-  ↓
-[注入] Step 1.5: guazi-flow-review（如果可用）
-  专业代码审阅：读 index.md/unit.md/Figma/evidence
-  检查：契约可追溯、前置状态、E2E 证据、视觉契约
-  → issues_gf[]
-  ↓
-Step 2: 独立审核（始终执行）
-  → issues_goal[]
-  ↓
-合并: issues = 去重(issues_gf ∪ issues_goal)
-  格式归一化: issues_goal 包含 file/line_range/evidence 可选字段。
-             issues_gf 可能不含这些字段。
-  ↓
-Step 3: 分流
-```
 
 ## task_dir 映射
 
