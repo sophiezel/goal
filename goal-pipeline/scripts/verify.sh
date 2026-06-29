@@ -209,6 +209,7 @@ main() {
   "completion_condition_met": $completion_met,
   "git_head": "$git_head",
   "task_dir": "$task_dir",
+  "handoff": $(handoff_status_json "$task_dir"),
   "blockers": []
 }
 EOF
@@ -224,6 +225,30 @@ EOF
       echo "✅ Completion:  CONDITION MET"
     fi
   fi
+}
+
+
+# === Handoff gate status (guazi-flow tasks) ===
+handoff_status_json() {
+  local task_dir="$1"
+  local handoff_dir="$task_dir/handoff"
+  if [ ! -d "$handoff_dir" ]; then
+    echo '{"present":false,"stages":{}}'
+    return
+  fi
+  python3 - "$handoff_dir" << 'PYH'
+import json, sys, os, hashlib
+d = sys.argv[1]
+stages = {}
+for s in ['plan','implement','review','complete']:
+    p = os.path.join(d, f'{s}.json')
+    if os.path.isfile(p):
+        h = hashlib.sha256(open(p,'rb').read()).hexdigest()[:16]
+        stages[s] = {'present': True, 'hash': h}
+    else:
+        stages[s] = {'present': False}
+print(json.dumps({'present': bool(stages), 'stages': stages}))
+PYH
 }
 
 main "$@"

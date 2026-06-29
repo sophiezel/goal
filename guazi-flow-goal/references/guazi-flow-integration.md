@@ -49,16 +49,16 @@ if guazi_flow_available:
     → 调 guazi-flow-doctor（环境诊断）
     → 调 guazi-flow-plan（MUST，产出 docs/guazi-flow/<task>/index.md + unit.md）
        guazi-flow-plan 执行完毕，不做任何干预
-    → 产物质量 GATE（硬门禁）:
-       1. test -f docs/guazi-flow/<task>/index.md
-          不存在 → blocked（failure_code: plan_artifact_missing），不得继续
-       2. 必需章节检查（全部必须存在）:
-          - ## 核心事实
-          - ## 完整伪代码
-          - ## 验收与验证矩阵
-          - ## 执行记录
-          任一缺失 → blocked（failure_code: plan_schema_incomplete）
-          输出缺失章节列表 + "请重新执行 guazi-flow-plan 完整流程"
+    → 硬门禁（机器可验证，替代纯文本 GATE）:
+       ```bash
+       gate-guazi-flow-stage.sh --task-dir docs/guazi-flow/<task> --stage plan --pre --mode guazi
+       # ... 执行 guazi-flow-plan 9 步 ...
+       gate-guazi-flow-stage.sh --task-dir docs/guazi-flow/<task> --stage plan --post --mode guazi
+       ```
+       - `--post` 校验 index.md schema（frontmatter + 核心事实/完整伪代码/验收与验证矩阵/执行记录）
+       - 通过则写入 `handoff/plan.json`；失败 exit 1 → blocked(plan_schema_incomplete)
+       - 简化 index（如缺完整伪代码）**无法通过** plan gate
+
     → 交叉验证（产物质量 GATE 通过后，契约融入之前）:
        1. write_set vs Allowed Files:
           从 index.md 提取 write_set 文件列表
@@ -110,6 +110,7 @@ else:
 基础三步审核流程（Step 1/2/3）由 `goal-pipeline/SKILL.md` review 阶段定义。
 guazi-flow 可用时，在基础流程中注入两个增量步骤：
 
+**Step 0**: `gate --pre(review)` — implement handoff fresh
 **Step 1.5 注入（guazi-flow-review）**:
   专业代码审阅：读 index.md/unit.md/Figma/evidence
   检查：契约可追溯、前置状态、E2E 证据、视觉契约
@@ -121,7 +122,10 @@ guazi-flow 可用时，在基础流程中注入两个增量步骤：
   - plan_gap: 对照 index.md/unit.md，plan 未覆盖此场景
   - implement_error: plan 有要求但 diff 未满足
   - spec_ambiguity: 需求源本身模糊
-  根因分布写入 evidence/review.md root_cause_summary
+  Step 2 前: `assemble-review-packet.sh` → handoff/review-packet.json
+Step 5: `merge-review-issues.sh` 合并 issues
+Step 6: `gate --post(review)` — merged result=pass 才过
+根因分布写入 evidence/review.md root_cause_summary
   修复策略路由:
   - plan_gap > 50% → mini-replan（调 guazi-flow-plan 更新 index.md）
   - implement_error > 50% → 进入修复子循环
@@ -173,3 +177,18 @@ task_dir = "docs/guazi-flow/<task>"
 ```
 
 state.json 中 `guazi_flow_task` 字段记录此路径。goal-pipeline 通过此字段定位任务产物。
+
+
+## 硬门禁脚本（goal 侧，不修改 guazi-flow-*）
+
+| 脚本 | 用途 |
+|------|------|
+| `gate-guazi-flow-stage.sh` | plan/implement/review/complete `--pre`/`--post` |
+| `assemble-review-packet.sh` | review Step 2 输入包 |
+| `merge-review-issues.sh` | 合并 issues_gf + issues_goal |
+
+implement `--post`: diff ⊆ write_set + 执行记录含 guazi-flow-implement。
+review `--post`: evidence/review.md frontmatter + Goal annex；merged result=pass 才过。
+complete `--post`: index current_stage=complete + review pass+fresh。
+
+Handoff 规范：`references/stage-handoff-contract.md`。

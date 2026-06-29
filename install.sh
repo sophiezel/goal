@@ -295,7 +295,7 @@ else
 fi
 
 # Deploy scripts
-for script in verify.sh verify-review.sh detect-review-channels detect-platform check-consistency runtime-smoke.sh; do
+for script in verify.sh verify-review.sh detect-review-channels detect-platform check-consistency runtime-smoke.sh gate-guazi-flow-stage.sh assemble-review-packet.sh merge-review-issues.sh; do
   src="$REPO_DIR/goal-pipeline/scripts/$script"
   dst="$GOAL_STATE_HOME/scripts/$script"
   if [ -f "$src" ]; then
@@ -304,6 +304,15 @@ for script in verify.sh verify-review.sh detect-review-channels detect-platform 
   fi
 done
 echo "  ✅ Scripts deployed to $GOAL_STATE_HOME/scripts/"
+# Sync guazi-flow artifact schema (read-only copy for gates)
+SCHEMA_SRC="$REPO_DIR/goal-pipeline/references/guazi-flow-artifact-schema"
+SCHEMA_DST="$GOAL_STATE_HOME/references/guazi-flow-artifact-schema"
+if [ -d "$SCHEMA_SRC" ]; then
+  mkdir -p "$SCHEMA_DST"
+  cp -R "$SCHEMA_SRC/"* "$SCHEMA_DST/" 2>/dev/null || true
+  echo "  ✅ guazi-flow-artifact-schema synced"
+fi
+
 
 # === Done ===
 echo ""

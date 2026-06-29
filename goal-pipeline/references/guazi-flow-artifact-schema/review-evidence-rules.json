@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "source": "guazi-flow-core/stage-result-snapshots.md",
+  "frontmatter_required": [
+    "stage",
+    "result",
+    "git_head",
+    "review_subject_hash"
+  ],
+  "sections_required": [
+    "## 审查范围",
+    "## 发现项"
+  ],
+  "goal_annex_markers": [
+    "## Goal Pipeline Review",
+    "review-goal.json"
+  ]
+}

@@ -154,6 +154,34 @@ check_global_config() {
   fi
 }
 
+
+# === Rule 6: Handoff vs state gate (guazi-flow integration) ===
+check_handoff() {
+  [ -f "$STATE_FILE" ] || return
+  local gf_avail
+  gf_avail=$(python3 -c "import json; d=json.load(open('$STATE_FILE')); print(d.get('guazi_flow_available', False))" 2>/dev/null || echo "False")
+  if [ "$gf_avail" != "True" ]; then
+    return
+  fi
+  local handoff_dir="$TASK_DIR/handoff"
+  for stage in plan implement review complete; do
+    local used
+    used=$(python3 -c "import json; d=json.load(open('$STATE_FILE')); print(d.get('guazi_flow_stages',{}).get('$stage',{}).get('used', False))" 2>/dev/null || echo "False")
+    [ "$used" = "True" ] || continue
+    local hf="$handoff_dir/${stage}.json"
+    if [ ! -f "$hf" ]; then
+      issues+=("{"rule":"handoff_missing","stage":"$stage","issue":"handoff/${stage}.json missing for used stage","action":"restage"}")
+      continue
+    fi
+    local gate_hash stored
+    gate_hash=$(python3 -c "import json; d=json.load(open('$STATE_FILE')); print(d.get('guazi_flow_stages',{}).get('$stage',{}).get('gate',{}).get('handoff_hash',''))" 2>/dev/null || echo "")
+    stored=$(shasum -a 256 "$hf" 2>/dev/null | cut -c1-16 || sha256sum "$hf" 2>/dev/null | cut -c1-16 || echo "")
+    if [ -n "$gate_hash" ] && [ "$gate_hash" != "$stored" ]; then
+      issues+=("{"rule":"handoff_stale","stage":"$stage","issue":"handoff hash mismatch state.gate.handoff_hash","action":"restage"}")
+    fi
+  done
+}
+
 # === Main ===
 main() {
   check_state_vs_index
@@ -161,6 +189,7 @@ main() {
   check_evidence_progression
   check_lock
   check_global_config
+  check_handoff
   
   local consistent="true"
   local action="continue"

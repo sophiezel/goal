@@ -33,7 +33,7 @@
   "guazi_flow_task": "docs/guazi-flow/<task>",
   "guazi_flow_profile": "h5",
   "guazi_flow_stages": {
-    "plan": {"used": true},
+    "plan": {"used": true, "skill": "guazi-flow-plan", "gate": {"script": "gate-guazi-flow-stage.sh", "version": 1, "passed_at": "2026-01-01T00:00:00Z", "handoff_hash": "abc123"}}
     "implement": {"used": true},
     "review": {"used": true},
     "complete": {"used": true}
@@ -47,6 +47,24 @@
 - `guazi_flow_task`: guazi-flow 任务目录路径，仅集成时存在
 - `guazi_flow_profile`: 技术栈 profile（h5/react/service/rn 等）
 - `guazi_flow_stages`: 各阶段是否使用了 guazi-flow 版本
+
+
+
+### guazi_flow_stages.*.gate
+
+每个使用 guazi-flow 的阶段追加 `gate` 对象（**仅 gate 脚本可写 `passed_at`**）：
+
+```json
+"gate": {
+  "script": "gate-guazi-flow-stage.sh",
+  "version": 1,
+  "passed_at": "<ISO8601>",
+  "handoff_hash": "<sha256[:16] of handoff/<stage>.json>"
+}
+```
+
+阶段推进条件：`gate.passed_at` 存在且 `handoff/<stage>.json` hash 与 `handoff_hash` 一致。
+Agent 禁止手改 `gate.passed_at` 或 `handoff/*.json`。
 
 `guazi_flow_available=false` 时，上述字段全部为空或不存在。goal-pipeline 完全独立运行。
 

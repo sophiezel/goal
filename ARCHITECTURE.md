@@ -591,6 +591,24 @@ guazi-flow 可用时，每个管线阶段开始前 **MUST 加载**对应 SKILL.m
 - 不加载 → Agent 不知道 guazi-flow 具体指令 → 产物不符合规范
 - Do NOT Load：review SKILL 在 plan/implement 阶段；complete SKILL 在 plan/implement/review 阶段
 
+
+### 9.5 Handoff Bundle 与 Review 并集
+
+```
+gate --post(plan)      → handoff/plan.json      (index schema hash)
+gate --post(implement) → handoff/implement.json (candidate_diff_hash)
+assemble-review-packet → handoff/review-packet.json
+guazi-flow-review      → evidence/review.md (issues_gf)
+goal-pipeline Step 2   → evidence/review-goal.json (issues_goal)
+merge-review-issues    → evidence/review.md annex
+gate --post(review)    → handoff/review.json
+gate --post(complete)  → handoff/complete.json
+```
+
+- plan/implement/complete：**替代**（guazi vs goal-pipeline 互斥）
+- review：**并集**（guazi-flow-review + goal-pipeline 独立审核，merged result 两者都 pass 才 complete）
+- handoff 由 goal 侧 gate 从磁盘产物反推，**不修改 guazi-flow-* skill**
+
 ### 9.4 降级策略
 
 guazi-flow-core 不可用时：

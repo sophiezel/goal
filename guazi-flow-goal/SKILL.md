@@ -128,6 +128,29 @@ Step 6: GATE Check（全部满足才进入 Phase 2）
 | review | 加载 guazi-flow-review/SKILL.md | 仅 goal-pipeline 独立审核 | 低——按流程执行 |
 | complete | 加载 guazi-flow-complete/SKILL.md | goal-pipeline 通用 complete | 低——门禁驱动 |
 
+
+### 硬门禁执行顺序（MANDATORY）
+
+每个 guazi-flow 阶段 MUST 按以下顺序执行（脚本：`~/.goal-state/scripts/gate-guazi-flow-stage.sh`）：
+
+```
+gate --pre(<stage>) --mode guazi
+  → Read 完整 guazi-flow-<stage>/SKILL.md（Lazy Loading）
+  → 按 skill 流程执行（Agent 行为）
+  → gate --post(<stage>) --mode guazi   # 校验产物 + 脚本写入 handoff/<stage>.json
+  → exit 0 才允许输出 [N/5] guazi-flow-<stage>: ✅
+  → exit 1 → blocked(failure_code=stage_gate_failed)，不得进入下一阶段
+```
+
+- handoff 由 gate `--post` 从磁盘产物反推，Agent **禁止**手写 `handoff/*.json`
+- `--post` 时传 `--state-file` 更新 `guazi_flow_stages.*.gate`（仅脚本写入 passed_at）
+- `gate.passed_at` 仅由脚本写入 state.json（见 `guazi-flow-state-schema.md`）
+- review 前：`assemble-review-packet.sh` → 独立审核读 `handoff/review-packet.json`
+- review 后：`merge-review-issues.sh` 合并 issues_gf ∪ issues_goal
+- 降级 `--mode degraded` 时跳过 guazi handoff 要求，**禁止混用** guazi/goal 产物
+
+详见 `references/stage-handoff-contract.md`。
+
 **各阶段调度细节**:
 
 - **plan**: MUST 按关键执行协议 4 步执行（加载 → 执行 9 步流程 → 产物质量 GATE → 交叉验证(write_set vs Allowed Files) → 契约融入）
