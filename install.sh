@@ -295,7 +295,7 @@ else
 fi
 
 # Deploy scripts
-for script in verify.sh verify-review.sh detect-review-channels detect-platform check-consistency runtime-smoke.sh gate-guazi-flow-stage.sh assemble-review-packet.sh merge-review-issues.sh; do
+for script in verify.sh verify-review.sh detect-review-channels detect-platform check-consistency runtime-smoke.sh gate-guazi-flow-stage.sh goal-advance-stage.sh assemble-review-packet.sh merge-review-issues.sh goal-pipeline-stop-hook.sh; do
   src="$REPO_DIR/goal-pipeline/scripts/$script"
   dst="$GOAL_STATE_HOME/scripts/$script"
   if [ -f "$src" ]; then
@@ -338,5 +338,50 @@ echo "    /goal-pipeline-status          Check current goal"
 echo "    /goal-pipeline-pause           Pause execution"
 echo "    /goal-pipeline-resume          Resume from pause"
 echo "    /goal-pipeline-clear           Archive current goal"
+
+# === Step 6: Deploy Stop Hook (optional, user-level) ===
+STOP_HOOK_SRC="$REPO_DIR/goal-pipeline/scripts/goal-pipeline-stop-hook.sh"
+STOP_HOOK_DST="$HOME/.cursor/hooks/goal-pipeline-stop-hook.sh"
+if [ -f "$STOP_HOOK_SRC" ]; then
+  mkdir -p "$HOME/.cursor/hooks"
+  cp "$STOP_HOOK_SRC" "$STOP_HOOK_DST"
+  chmod +x "$STOP_HOOK_DST"
+  echo "  ✅ Stop hook deployed to $STOP_HOOK_DST"
+  # Merge stop hook into ~/.cursor/hooks.json if missing
+  if [ -f "$HOME/.cursor/hooks.json" ]; then
+    python3 - "$HOME/.cursor/hooks.json" << 'PYMERGE'
+import json, sys
+path = sys.argv[1]
+with open(path) as f:
+    data = json.load(f)
+hooks = data.setdefault("hooks", {})
+stop = hooks.setdefault("stop", [])
+cmd = {"command": "./hooks/goal-pipeline-stop-hook.sh", "loop_limit": 3}
+if not any(h.get("command","").endswith("goal-pipeline-stop-hook.sh") for h in stop):
+    stop.append(cmd)
+with open(path, "w") as f:
+    json.dump(data, f, indent=2)
+    f.write("\n")
+print("  ✅ Merged stop hook into ~/.cursor/hooks.json")
+PYMERGE
+  else
+    cat > "$HOME/.cursor/hooks.json" << 'HJSON'
+{
+  "version": 1,
+  "hooks": {
+    "stop": [
+      {
+        "command": "./hooks/goal-pipeline-stop-hook.sh",
+        "loop_limit": 3
+      }
+    ]
+  }
+}
+HJSON
+    echo "  ✅ Created ~/.cursor/hooks.json with stop hook"
+  fi
+fi
+
+
 echo "    /goal-pipeline-list            List history"
 echo ""

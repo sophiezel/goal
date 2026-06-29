@@ -19,6 +19,10 @@ description: guazi-flow-goal 统一入口。加载 goal-pipeline 管线引擎，
 - **NEVER 在 guazi-flow-plan 产出前修改项目代码**——plan 未完成时改代码会导致 write_set 不匹配，implement 阶段无法正确驱动
 - **NEVER 在 guazi-flow-plan 产出 index.md 前进入 implement**——MUST 先执行 guazi-flow-plan 完整流程（见关键执行协议），验证 index.md 存在且包含必需章节（核心事实/完整伪代码/验收矩阵/执行记录），否则 blocked（failure_code: plan_artifact_missing / plan_schema_incomplete）
 - **NEVER 跳过 [1/5] plan 进度输出**——缺少 [1/5] 输出说明 plan 被跳过，必须立即暂停并报告
+- **NEVER 在 [5/5] complete 前以「如需继续」「需要我跑 review 吗」交还控制权**——implement 完成 ≠ goal 完成，必须自动进入 review → complete
+- **NEVER 输出 [N/5] ✅ 而未运行 gate --post（exit 0）**——进度行必须对应机器门禁通过
+- **NEVER 在 ~/.goal-state/scripts/ 缺失时进入 Phase 2**——先 Pre-flight 部署或 blocked(infra_missing)
+- **NEVER 因「需求已清晰」跳过 Phase 1  entirely**——Fast-path 仍须创建 state.json 并输出 Goal 摘要
 
 ## 关键执行协议（Phase 2 必读）
 
@@ -87,6 +91,19 @@ Step 1: 环境初始化
       ├─ 有 → goal_already_active, 提示用户 [继续/清除/查看]
       └─ 无 → 继续
 
+Step 1.5: Pre-flight（MANDATORY，Phase 2 前亦须可用）
+  ├─ 检查 ~/.goal-state/scripts/gate-guazi-flow-stage.sh 存在
+  ├─ 检查 ~/.goal-state/scripts/goal-advance-stage.sh 存在
+  ├─ 检查 ~/.goal-state/references/guazi-flow-artifact-schema/ 存在
+  │   任一缺失 → 运行 `bash <goal-repo>/install.sh --agent <detected>` 或 blocked(failure_code: infra_missing)
+  └─ 输出: "pre-flight: scripts=OK|MISSING"
+
+Fast-path（用户已提供 JIRA + 明确验收标准时）:
+  ├─ Step 2-3 缩减为自动推断（跳过 interview 追问）
+  ├─ 仍 MUST 执行 Step 5 创建 state.json
+  ├─ 仍 MUST 输出 Goal 结构摘要（1 屏以内，默认确认，用户可打断）
+  └─ 不得因「需求清晰」跳过 Phase 1 entirely
+
 Step 2-3: 意图采集 + 自动推断 (interview-protocol.md)
   ├─ 解析用户输入 → 保留原始文本作为 objective
   ├─ 调 guazi-flow-doctor（如果可用）→ 检测 profile/profile_detail
@@ -138,6 +155,7 @@ gate --pre(<stage>) --mode guazi
   → Read 完整 guazi-flow-<stage>/SKILL.md（Lazy Loading）
   → 按 skill 流程执行（Agent 行为）
   → gate --post(<stage>) --mode guazi   # 校验产物 + 脚本写入 handoff/<stage>.json
+  → goal-advance-stage.sh → 立即进入 next_stage
   → exit 0 才允许输出 [N/5] guazi-flow-<stage>: ✅
   → exit 1 → blocked(failure_code=stage_gate_failed)，不得进入下一阶段
 ```
@@ -150,6 +168,25 @@ gate --pre(<stage>) --mode guazi
 - 降级 `--mode degraded` 时跳过 guazi handoff 要求，**禁止混用** guazi/goal 产物
 
 详见 `references/stage-handoff-contract.md`。
+
+### Stage Exit（MANDATORY — 每阶段结束，不得跳过）
+
+每个 guazi-flow 阶段结束后 **立即** 执行：
+
+```
+1. gate-guazi-flow-stage.sh --task-dir <task> --stage <stage> --post --mode guazi --state-file <state>
+2. goal-advance-stage.sh --state-file <state> --task-dir <task> --project-root <repo>
+3. 输出: [N/5] guazi-flow-<stage>: ✅（仅 gate exit 0 后）
+4. 读取 stdout.next_stage → 立即加载对应 SKILL.md 开始下一阶段
+```
+
+**禁止**：
+- 询问用户「是否继续 review/complete」
+- 输出「实现完成，如需…」类结束语
+- 在 next_stage != done 且非 blocked 时结束 turn
+
+Phase 2 每个阶段**开头**亦须运行 `goal-advance-stage.sh`：若 next_stage != 当前阶段 → blocked(wrong_stage)。
+
 
 **各阶段调度细节**:
 

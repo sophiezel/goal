@@ -14,9 +14,12 @@ STAGE=""
 PHASE="post"
 MODE="guazi"
 STATE_FILE=""
+ASSERT_COMPLETE=false
+PROJECT_ROOT=""
 
 usage() {
   echo "Usage: $0 --task-dir <path> --stage plan|implement|review|complete [--pre|--post] [--mode guazi|degraded]" >&2
+  echo "       $0 --assert-complete --state-file <path> [--task-dir <path>] [--project-root <path>]" >&2
   exit 2
 }
 
@@ -28,10 +31,34 @@ while [[ $# -gt 0 ]]; do
     --post) PHASE="post"; shift ;;
     --mode) MODE="$2"; shift 2 ;;
     --state-file) STATE_FILE="$2"; shift 2 ;;
+    --assert-complete) ASSERT_COMPLETE=true; shift ;;
+    --project-root) PROJECT_ROOT="$2"; shift 2 ;;
     -h|--help) usage ;;
     *) echo "Unknown arg: $1" >&2; usage ;;
   esac
 done
+
+
+# === Assert-complete mode (Stop Hook / pipeline guard) ===
+if [[ "$ASSERT_COMPLETE" == "true" ]]; then
+  [[ -n "$STATE_FILE" ]] || { echo "gate assert-complete: --state-file required" >&2; exit 2; }
+  ADVANCE="$SCRIPT_DIR/goal-advance-stage.sh"
+  [[ -x "$ADVANCE" ]] || ADVANCE="${GOAL_STATE_HOME:-$HOME/.goal-state}/scripts/goal-advance-stage.sh"
+  [[ -x "$ADVANCE" ]] || { echo "gate assert-complete: goal-advance-stage.sh not found" >&2; exit 2; }
+  ARGS=(--state-file "$STATE_FILE" --format json)
+  [[ -n "$TASK_DIR" ]] && ARGS+=(--task-dir "$TASK_DIR")
+  [[ -n "$PROJECT_ROOT" ]] && ARGS+=(--project-root "$PROJECT_ROOT")
+  OUT=$("$ADVANCE" "${ARGS[@]}" 2>/dev/null) || RC=$?
+  RC=${RC:-0}
+  NEXT=$(echo "$OUT" | python3 -c "import json,sys; print(json.load(sys.stdin).get('next_stage','unknown'))" 2>/dev/null || echo "unknown")
+  if [[ "$NEXT" == "done" ]]; then
+    echo "gate assert-complete: pipeline complete"
+    exit 0
+  fi
+  echo "gate assert-complete: pipeline incomplete — next_stage=$NEXT" >&2
+  echo "$OUT"
+  exit 2
+fi
 
 [[ -n "$TASK_DIR" && -n "$STAGE" ]] || usage
 case "$STAGE" in plan|implement|review|complete) ;; *) echo "Invalid stage: $STAGE" >&2; exit 2 ;; esac

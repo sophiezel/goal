@@ -93,3 +93,32 @@ Goal 状态通过 `state.json` 持久化。跨 session 恢复：
 4. 用户拒绝 → goal 标记为 paused
 
 **不依赖平台原生 goal 的持久化能力。** `state.json` 自建持久化在所有平台统一工作。
+
+
+## 阶段推进（goal-advance-stage.sh）
+
+Phase 2 每阶段结束 **MANDATORY** 运行：
+
+```bash
+~/.goal-state/scripts/goal-advance-stage.sh \
+  --state-file <state.json> \
+  --task-dir <docs/guazi-flow/task> \
+  --project-root <repo_root>
+```
+
+- exit 0 + next_stage != done → **立即**进入 next_stage（禁止交还控制权）
+- exit 1 → 管线完成，可结束 turn
+- exit 2 → blocked，输出 failure_code
+
+Agent **不得**在 implement 完成后停止；next_stage=review 时必须自动加载 guazi-flow-review。
+
+## Stop Hook 联动
+
+Session 结束前 Stop Hook 运行：
+
+```bash
+gate-guazi-flow-stage.sh --assert-complete --state-file ... --task-dir ... --project-root ...
+```
+
+exit 2 → 返回 followup_message 续跑 pipeline。
+

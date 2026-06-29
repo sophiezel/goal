@@ -99,6 +99,7 @@ if guazi_flow_available:
        4. 检查 Stop Conditions: 新增依赖? 修改接口协议? 命中 → 暂停
        5. 审计结果写入 evidence/implement.md scope_compliance 字段
     → 写入 evidence/implement.md（guazi-flow schema）
+    → gate --post(implement) → goal-advance-stage.sh → **立即**进入 [3/5] smoke 或 [4/5] review（不得结束 turn）
     → 输出: "[2/5] guazi-flow-implement: ✅ X files changed"
 else:
     → goal-pipeline 通用 implement
@@ -190,5 +191,28 @@ state.json 中 `guazi_flow_task` 字段记录此路径。goal-pipeline 通过此
 implement `--post`: diff ⊆ write_set + 执行记录含 guazi-flow-implement。
 review `--post`: evidence/review.md frontmatter + Goal annex；merged result=pass 才过。
 complete `--post`: index current_stage=complete + review pass+fresh。
+
+
+## 阶段跳过检测（MANDATORY）
+
+implement 完成后 **review 不是可选增强**——guazi-flow 模式下 review = guazi-flow-review **+** goal-pipeline 独立审核（并集），complete 前 MUST 全部通过。
+
+Agent 在每个阶段结束时运行：
+
+```bash
+goal-advance-stage.sh --state-file ~/.goal-state/projects/<pid>/<branch>/<task>/state.json \
+  --task-dir docs/guazi-flow/<task> --project-root <repo_root>
+```
+
+| 检测信号 | 判定 | 行为 |
+|---------|------|------|
+| next_stage=review 且 Agent 准备结束 turn | 阶段跳过 | Stop Hook / assert-complete 拦截 |
+| 有 index.md + 代码 diff 但无 handoff/review.json | review 未执行 | blocked(stage_skipped) |
+| 输出了 [2/5] ✅ 但无 [3/5]/[4/5] | 管线中断 | 立即续跑 next_stage，不得询问用户 |
+| gate --post 未 exit 0 却输出 ✅ | 伪造进度 | NEVER，blocked(stage_gate_failed) |
+
+Stop Hook 调用：`gate-guazi-flow-stage.sh --assert-complete --state-file ... --task-dir ... --project-root ...`
+exit 2 → 注入 followup 继续 pipeline。
+
 
 Handoff 规范：`references/stage-handoff-contract.md`。
