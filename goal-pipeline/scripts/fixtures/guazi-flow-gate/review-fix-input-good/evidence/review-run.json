@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "run_id": "run1234567890abcd",
+  "provider": "deterministic",
+  "model": "deterministic",
+  "packet_hash": "c01d9ee55537e046",
+  "channels": [
+    "goal",
+    "guazi-flow-review"
+  ],
+  "gf_skill_attested": true,
+  "latency_ms": 10
+}

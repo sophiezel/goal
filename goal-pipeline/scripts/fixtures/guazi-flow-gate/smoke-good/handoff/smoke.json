@@ -1,0 +1,17 @@
+{
+  "stage": "smoke",
+  "schema_version": 1,
+  "result": "pass",
+  "classification": "none",
+  "dev_cmd": "",
+  "duration_ms": 0,
+  "git_head": "5a1a62862b7c041b",
+  "artifact_paths": [
+    "evidence/runtime-smoke.md"
+  ],
+  "gate": {
+    "script": "gate-guazi-flow-stage.sh",
+    "version": 1,
+    "passed_at": "2026-06-30T11:54:40Z"
+  }
+}

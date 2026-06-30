@@ -182,6 +182,27 @@ check_handoff() {
   done
 }
 
+
+# === Rule 7: Smoke/review provenance ===
+check_provenance() {
+  local smoke_md="$EVIDENCE_DIR/runtime-smoke.md"
+  if [ -f "$smoke_md" ]; then
+    local sr
+    sr=$(parse_fm "$smoke_md" "result")
+    if [ "$sr" != "skipped" ] && [ ! -f "$TASK_DIR/handoff/smoke.json" ]; then
+      issues+=('{"rule":"smoke_provenance","issue":"runtime-smoke.md without handoff/smoke.json","action":"run_smoke_gate"}')
+    fi
+  fi
+  if [ -f "$EVIDENCE_DIR/review.md" ]; then
+    if [ ! -f "$EVIDENCE_DIR/review-run.json" ]; then
+      issues+=('{"rule":"review_provenance","issue":"review.md without review-run.json","action":"run_independent_review"}')
+    fi
+    if [ ! -f "$EVIDENCE_DIR/review-goal.json" ]; then
+      issues+=('{"rule":"review_provenance","issue":"review.md without review-goal.json","action":"run_independent_review"}')
+    fi
+  fi
+}
+
 # === Main ===
 main() {
   check_state_vs_index
@@ -189,6 +210,7 @@ main() {
   check_evidence_progression
   check_lock
   check_global_config
+  check_provenance
   check_handoff
   
   local consistent="true"
@@ -199,17 +221,25 @@ main() {
     action=$(echo "${issues[0]}" | python3 -c "import sys,json; print(json.load(sys.stdin).get('action','continue'))" 2>/dev/null || echo "continue")
   fi
   
+
+  # Provenance panel for status consumers
+  local prov_smoke="missing" prov_review_run="missing"
+  [ -f "$EVIDENCE_DIR/runtime-smoke.md" ] && prov_smoke=$(parse_fm "$EVIDENCE_DIR/runtime-smoke.md" "result")
+  [ -f "$EVIDENCE_DIR/review-run.json" ] && prov_review_run="present"
   # Output
   local issues_json="[]"
   if [ ${#issues[@]} -gt 0 ]; then
     issues_json=$(printf '%s\n' "${issues[@]}" | python3 -c 'import sys,json; print(json.dumps([json.loads(l.strip()) for l in sys.stdin if l.strip()]))' 2>/dev/null || echo '[]')
   fi
   
-  printf '{"consistent":%s,"issues_count":%d,"issues":%s,"recommended_action":"%s"}\n' \
+  local prov_json
+  prov_json=$(python3 -c "import json; print(json.dumps({'smoke_result':'$prov_smoke','review_run':'$prov_review_run'}))" 2>/dev/null || echo '{}')
+  printf '{"consistent":%s,"issues_count":%d,"issues":%s,"recommended_action":"%s","provenance":%s}\n' \
     "$consistent" \
     "${#issues[@]}" \
     "$issues_json" \
-    "$action"
+    "$action" \
+    "$prov_json"
 }
 
 main

@@ -12,6 +12,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 [[ -x "$GATE" ]] || GATE="$SCRIPT_DIR/gate-guazi-flow-stage.sh"
 [[ -x "$ADVANCE" ]] || ADVANCE="$SCRIPT_DIR/goal-advance-stage.sh"
 
+VALIDATOR="$GOAL_STATE_HOME/scripts/validate-pipeline-chain.sh"
+[[ -x "$VALIDATOR" ]] || VALIDATOR="$SCRIPT_DIR/validate-pipeline-chain.sh"
+
+
 INPUT=$(cat)
 WORKSPACE=$(echo "$INPUT" | python3 -c "
 import json,sys
@@ -89,6 +93,23 @@ if [[ -x "$ADVANCE" && -n "$STATE_FILE" && -f "$STATE_FILE" ]]; then
 elif [[ -n "$TASK" ]]; then
   NEXT="review"
 fi
+
+
+if [[ -n "$WORKSPACE" && -n "$TASK" ]]; then
+  TASK_DIR_ABS="$WORKSPACE/$TASK"
+  if [[ -x "$VALIDATOR" && -d "$TASK_DIR_ABS" ]]; then
+    if ! "$VALIDATOR" --task-dir "$TASK_DIR_ABS" >/dev/null 2>&1; then
+      CHAIN_ERR=$("$VALIDATOR" --task-dir "$TASK_DIR_ABS" 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print('; '.join(d.get('errors',[])[:2]))" 2>/dev/null || echo "chain invalid")
+      MSG="Pipeline chain invalid: $CHAIN_ERR. Fix provenance before stopping."
+      python3 - "$MSG" << 'PYMSG'
+import json, sys
+print(json.dumps({"followup_message": sys.argv[1]}))
+PYMSG
+      exit 0
+    fi
+  fi
+fi
+
 
 if [[ "$NEXT" == "done" ]]; then
   exit 0

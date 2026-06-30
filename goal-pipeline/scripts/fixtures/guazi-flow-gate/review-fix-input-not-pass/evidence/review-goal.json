@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "result": "not_pass",
+  "issues": [
+    {
+      "id": "G01",
+      "severity": "high",
+      "summary": "scope violation",
+      "root_cause": "implement_error"
+    }
+  ],
+  "checklist": [
+    {
+      "id": "C01",
+      "passed": false,
+      "detail": "fail"
+    }
+  ],
+  "separation_confidence": "high",
+  "provider": "deterministic",
+  "packet_hash": "c01d9ee55537e046"
+}

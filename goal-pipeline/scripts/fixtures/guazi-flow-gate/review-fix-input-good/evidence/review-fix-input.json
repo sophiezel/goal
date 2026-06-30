@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "round": 1,
+  "merged_result": "pass",
+  "action": "proceed_complete",
+  "issues": [],
+  "resolved_since_last_round": [],
+  "next_steps": [
+    "gate --post review",
+    "guazi-flow-complete"
+  ],
+  "provenance": {
+    "review_run_id": "run1234567890abcd",
+    "packet_hash": "c01d9ee55537e046",
+    "gf_skill_attested": true
+  }
+}

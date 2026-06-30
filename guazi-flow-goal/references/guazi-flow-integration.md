@@ -106,6 +106,15 @@ else:
     → 输出: "[2/5] implement: ✅ (guazi-flow 不可用)"
 ```
 
+
+### smoke 阶段——gate 对齐
+
+**Step 0**: implement gate --post 通过后 **立即** `runtime-smoke.sh`
+**Step 1**: `gate --stage smoke --post` → handoff/smoke.json
+- skipped（无 dev 命令）允许继续 review，但须记录 classification: none
+- not_pass 须带 classification（environmental | code_issue | runtime_crash）
+**NEVER [3/5] ✅ 而无 handoff/smoke.json gate.passed_at**
+
 ### review 阶段——增量注入
 
 基础三步审核流程（Step 1/2/3）由 `goal-pipeline/SKILL.md` review 阶段定义。
@@ -216,3 +225,8 @@ exit 2 → 注入 followup 继续 pipeline。
 
 
 Handoff 规范：`references/stage-handoff-contract.md`。
+
+
+## Review 双通道收敛（v2.2）
+
+独立审核 `run-independent-review.sh --mode dual` 在 packet 中携带 `guazi_flow_rubric` + `goal_checklist`，一次或两次 API 调用产出 `review-goal.json` + `review-gf.json`（`gf_skill_attested: true`）。执行 Agent **只读** `evidence/review-fix-input.json` 驱动修复子循环。

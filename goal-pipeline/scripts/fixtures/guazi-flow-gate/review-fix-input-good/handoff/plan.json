@@ -1,0 +1,10 @@
+{
+  "stage": "plan",
+  "write_set": [
+    "src/"
+  ],
+  "index_schema_hash": "abc",
+  "acceptance_matrix_ids": [
+    "C01"
+  ]
+}

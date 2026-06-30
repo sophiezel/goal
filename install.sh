@@ -295,7 +295,7 @@ else
 fi
 
 # Deploy scripts
-for script in verify.sh verify-review.sh detect-review-channels detect-platform check-consistency runtime-smoke.sh gate-guazi-flow-stage.sh goal-advance-stage.sh assemble-review-packet.sh merge-review-issues.sh goal-pipeline-stop-hook.sh; do
+for script in verify.sh verify-review.sh detect-review-channels detect-platform check-consistency runtime-smoke.sh gate-guazi-flow-stage.sh goal-advance-stage.sh assemble-review-packet.sh merge-review-issues.sh merge_review_core.py run-independent-review.sh platform-review-adapter.sh platform_review_adapter_core.py validate-pipeline-chain.sh validate-pipeline-chain.py goal-pipeline-stop-hook.sh; do
   src="$REPO_DIR/goal-pipeline/scripts/$script"
   dst="$GOAL_STATE_HOME/scripts/$script"
   if [ -f "$src" ]; then
@@ -304,6 +304,20 @@ for script in verify.sh verify-review.sh detect-review-channels detect-platform 
   fi
 done
 echo "  ✅ Scripts deployed to $GOAL_STATE_HOME/scripts/"
+# Write VERSION manifest with gate script hash for drift detection
+GATE_SRC="$REPO_DIR/goal-pipeline/scripts/gate-guazi-flow-stage.sh"
+GATE_HASH=$(shasum -a 256 "$GATE_SRC" 2>/dev/null | cut -c1-16 || sha256sum "$GATE_SRC" 2>/dev/null | cut -c1-16 || echo "unknown")
+GIT_REV=$(git -C "$REPO_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")
+cat > "$GOAL_STATE_HOME/VERSION" << VEREOF
+{
+  "goal_pipeline_version": "2.2.0-review-contract",
+  "git_rev": "$GIT_REV",
+  "gate_script_hash": "$GATE_HASH",
+  "installed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+}
+VEREOF
+echo "  ✅ VERSION manifest ($GATE_HASH)"
+
 # Sync guazi-flow artifact schema (read-only copy for gates)
 SCHEMA_SRC="$REPO_DIR/goal-pipeline/references/guazi-flow-artifact-schema"
 SCHEMA_DST="$GOAL_STATE_HOME/references/guazi-flow-artifact-schema"

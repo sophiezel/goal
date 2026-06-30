@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "description": "Provenance record for independent review execution",
+  "required": [
+    "run_id",
+    "provider",
+    "packet_hash",
+    "latency_ms",
+    "output_hash",
+    "started_at",
+    "finished_at"
+  ],
+  "fields": {
+    "run_id": "16-char hex",
+    "provider": "deterministic | cursor-task | claude-native | openai-api",
+    "model": "model identifier",
+    "packet_hash": "sha256[:16] of review-packet.json",
+    "latency_ms": "integer",
+    "tokens": "object with prompt/completion counts when available",
+    "output_hash": "sha256[:16] of review-goal.json canonical form"
+  }
+}

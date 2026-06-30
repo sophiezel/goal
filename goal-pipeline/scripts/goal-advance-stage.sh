@@ -195,12 +195,36 @@ if ! handoff_ok "$HANDOFF/implement.json" && ! gate_passed_in_state "implement";
   exit 0
 fi
 
-# runtime_smoke (optional)
+# runtime_smoke — gate required when script available
 SMOKE_SCRIPT="$GOAL_STATE_HOME/scripts/runtime-smoke.sh"
 [[ -x "$SMOKE_SCRIPT" ]] || SMOKE_SCRIPT="$SCRIPT_DIR/runtime-smoke.sh"
-if [[ -x "$SMOKE_SCRIPT" && ! -f "$EVIDENCE/runtime-smoke.md" ]]; then
-  emit "runtime_smoke" "" "false" '["runtime-smoke.sh"]'
-  exit 0
+GATE_SCRIPT="$GOAL_STATE_HOME/scripts/gate-guazi-flow-stage.sh"
+[[ -x "$GATE_SCRIPT" ]] || GATE_SCRIPT="$SCRIPT_DIR/gate-guazi-flow-stage.sh"
+if [[ -x "$SMOKE_SCRIPT" ]]; then
+  if [[ ! -f "$EVIDENCE/runtime-smoke.md" ]]; then
+    emit "runtime_smoke" "" "false" '["runtime-smoke.sh --repo-root PROJECT --task-dir TASK","gate-guazi-flow-stage.sh --stage smoke --post"]'
+    exit 0
+  fi
+  SMOKE_RESULT=$(python3 - "$EVIDENCE/runtime-smoke.md" << 'PYSR'
+import re, sys
+t = open(sys.argv[1]).read()
+m = re.match(r"^---\s*
+(.*?)
+---", t, re.DOTALL)
+if not m:
+    print("unknown"); sys.exit(0)
+for line in m.group(1).splitlines():
+    if line.strip().startswith("result:"):
+        print(line.split(":",1)[1].strip().strip(chr(34))); sys.exit(0)
+print("unknown")
+PYSR
+)
+  if [[ "$SMOKE_RESULT" == "skipped" ]]; then
+    : # allow skip when no dev command
+  elif ! handoff_ok "$HANDOFF/smoke.json" && ! gate_passed_in_state "smoke"; then
+    emit "runtime_smoke" "smoke_gate_pending" "false" '["gate-guazi-flow-stage.sh --stage smoke --post --mode guazi"]'
+    exit 0
+  fi
 fi
 
 # review
@@ -223,7 +247,14 @@ print("unknown")
 PY
 )
 if [[ "$REVIEW_RESULT" != "pass" ]]; then
-  emit "review" "review_not_pass" "false" '["fix issues and re-run review"]'
+  FIX_INPUT="$EVIDENCE/review-fix-input.json"
+  if [[ -f "$FIX_INPUT" ]]; then
+    NEXT=$(python3 -c "import json; print(json.dumps(json.load(open('$FIX_INPUT')).get('next_steps',[])))" 2>/dev/null || echo '[]')
+    ACTION=$(python3 -c "import json; print(json.load(open('$FIX_INPUT')).get('action',''))" 2>/dev/null || echo "")
+    emit "review" "review_not_pass" "false" "$NEXT"
+  else
+    emit "review" "review_not_pass" "false" '["read evidence/review-fix-input.json after merge-review-issues.sh","fix within write_set","run-independent-review.sh","merge-review-issues.sh","gate --post review"]'
+  fi
   exit 0
 fi
 

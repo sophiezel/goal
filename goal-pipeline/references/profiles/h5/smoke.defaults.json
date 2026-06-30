@@ -1,0 +1,7 @@
+{
+  "dev_cmd": "npm run dev",
+  "port": 8080,
+  "health_path": "/",
+  "timeout_sec": 180,
+  "note": "Vue CLI H5 — override health_path to /#/route when needed"
+}

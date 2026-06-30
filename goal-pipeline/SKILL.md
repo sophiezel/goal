@@ -85,6 +85,20 @@ Agent 在确定的范围内修改代码，产出候选 diff。
   未覆盖项 → 记录原因（依赖联调/超出范围/待后续实现）
   覆盖声明必须基于 diff 中可见的代码事实
 
+
+### review 分步聊天输出（MANDATORY）
+
+每步 MUST 在聊天中输出一行，再执行脚本：
+
+1. `[4/5] review Step 0: gate --pre` → 展示 verify-review overall
+2. `[4/5] review Step 1: (已收敛) run-independent-review --mode dual` → dual-channel 含 guazi-flow rubric
+3. `[4/5] review Step 2: assemble-review-packet` → 展示 packet_hash
+4. `[4/5] review Step 3: run-independent-review` → 展示 review-run.json provider/latency/issues
+5. `[4/5] review Step 4: merge-review-issues` → 展示 merged_result
+6. `[4/5] review Step 5: gate --post` → 展示 handoff/review.json
+
+可选落盘：`evidence/review-transcript.md`（merge 脚本自动写入 provenance 表）
+
 ### runtime_smoke 阶段（条件触发）
 
 如果 `goal/scripts/runtime-smoke.sh` 可用，implement 之后运行：
@@ -126,6 +140,8 @@ Step 3: 分流
 **MANDATORY**: 读取 `skill_dir/references/auto-continue-policy.md`（停止条件和空转检测）
 
 ```
+**MUST 只读** `evidence/review-fix-input.json` 的 `action` / `issues` / `next_steps`——禁止直接解析 review-goal / review-gf / review.md。
+
 review not_pass:
   │
   ├─ 分类 issues（vs 前轮）:

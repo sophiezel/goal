@@ -192,6 +192,33 @@ if not os.path.isfile(plan_path):
 if not os.path.isfile(impl_path):
     errors.append('handoff/implement.json missing')
 
+
+# guazi-flow rubric excerpt from index + SKILL summary
+gf_skill_path = os.path.join(git_root, '.agents', 'skills', 'guazi-flow-review', 'SKILL.md') if git_root else ''
+if not os.path.isfile(gf_skill_path):
+    for cand in [os.path.expanduser('~/.agents/skills/guazi-flow-review/SKILL.md'),
+                 os.path.join(os.path.dirname(verify_script or ''), '..', '..', 'guazi-flow-review', 'SKILL.md')]:
+        if os.path.isfile(cand):
+            gf_skill_path = cand
+            break
+gf_skill_excerpt = ''
+if gf_skill_path and os.path.isfile(gf_skill_path):
+    gf_skill_excerpt = open(gf_skill_path, encoding='utf-8').read()[:2500]
+guazi_flow_rubric = {
+    'acceptance_matrix_excerpt': contract.get('acceptance_matrix', '')[:2000],
+    'pseudocode_excerpt': contract.get('pseudocode_summary', '')[:2000],
+    'skill_summary': gf_skill_excerpt[:2500],
+    'rubric_hash': sha16((contract.get('acceptance_matrix', '') + gf_skill_excerpt)[:4000]),
+}
+goal_checklist = [
+    {'id': 'goal_achieved', 'priority': 'P0', 'question': '候选 diff 是否达成任务契约验收标准？'},
+    {'id': 'scope_compliant', 'priority': 'P0', 'question': '修改是否在 Allowed Files 白名单内？'},
+    {'id': 'evidence_sufficient', 'priority': 'P1', 'question': '验证命令是否运行且结论有 diff 支撑？'},
+    {'id': 'side_effects', 'priority': 'P1', 'question': '是否新增依赖/配置/权限？'},
+    {'id': 'completeness', 'priority': 'P1', 'question': '是否有未验证路径标记完成？'},
+    {'id': 'security', 'priority': 'P0', 'question': '是否泄漏 secret/token？'},
+]
+
 packet = {
     'schema_version': 1,
     'assembled_at': datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
@@ -202,6 +229,8 @@ packet = {
     'verification_checklist': checklist,
     'deterministic_checks': deterministic,
     'issues_gf': issues_gf[:50],
+    'guazi_flow_rubric': guazi_flow_rubric,
+    'goal_checklist': goal_checklist,
     'smoke_diagnostic': smoke,
     'hashes': hashes,
     'truncated': truncated,

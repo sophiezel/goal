@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "round": 1,
+  "merged_result": "not_pass",
+  "action": "fix_and_rerun_review",
+  "issues": [
+    {
+      "id": "G01",
+      "channel": "goal",
+      "severity": "blocker",
+      "summary": "scope violation",
+      "root_cause": "implement_error"
+    },
+    {
+      "id": "GF01",
+      "channel": "guazi-flow-review",
+      "severity": "blocker",
+      "summary": "missing handler",
+      "root_cause": "implement_error"
+    }
+  ],
+  "resolved_since_last_round": [],
+  "next_steps": [
+    "read evidence/review-fix-input.json",
+    "fix within write_set"
+  ],
+  "provenance": {
+    "review_run_id": "run1234567890abcd",
+    "packet_hash": "c01d9ee55537e046",
+    "gf_skill_attested": true
+  }
+}

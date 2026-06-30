@@ -20,6 +20,10 @@ description: guazi-flow-goal 统一入口。加载 goal-pipeline 管线引擎，
 - **NEVER 在 guazi-flow-plan 产出 index.md 前进入 implement**——MUST 先执行 guazi-flow-plan 完整流程（见关键执行协议），验证 index.md 存在且包含必需章节（核心事实/完整伪代码/验收矩阵/执行记录），否则 blocked（failure_code: plan_artifact_missing / plan_schema_incomplete）
 - **NEVER 跳过 [1/5] plan 进度输出**——缺少 [1/5] 输出说明 plan 被跳过，必须立即暂停并报告
 - **NEVER 在 [5/5] complete 前以「如需继续」「需要我跑 review 吗」交还控制权**——implement 完成 ≠ goal 完成，必须自动进入 review → complete
+- **NEVER 跳过 [3/5] smoke 或未跑 gate --post smoke**——runtime-smoke.sh 产出 evidence/runtime-smoke.md 后 MUST gate --stage smoke --post
+- **NEVER 跳过 [4/5] review 或未跑 run-independent-review.sh**——review-run.json provenance 缺失则 gate --post review 失败
+- **NEVER 自填 review-goal.json 绕过独立审核**——MUST assemble-review-packet → run-independent-review → merge-review-issues
+- **NEVER 手改 review 产物**——修复前 MUST Read `evidence/review-fix-input.json`；禁止直接解析 review-goal / review-gf / review.md 做修复分流
 - **NEVER 输出 [N/5] ✅ 而未运行 gate --post（exit 0）**——进度行必须对应机器门禁通过
 - **NEVER 在 ~/.goal-state/scripts/ 缺失时进入 Phase 2**——先 Pre-flight 部署或 blocked(infra_missing)
 - **NEVER 因「需求已清晰」跳过 Phase 1  entirely**——Fast-path 仍须创建 state.json 并输出 Goal 摘要
