@@ -1,0 +1,126 @@
+{
+  "schema_version": 1,
+  "assembled_at": "2026-06-30T12:11:12Z",
+  "task_dir": "/Users/xuwei/Profession/goal/goal-pipeline/scripts/fixtures/guazi-flow-gate/review-dual-mock-good",
+  "contract": {
+    "goal": "dual mock fixture",
+    "scope": "",
+    "design": "",
+    "acceptance_matrix": "C01 pass",
+    "pseudocode_summary": "// minimal"
+  },
+  "diff": "",
+  "constraints": {
+    "allowed_files": [
+      "src/"
+    ],
+    "stop_conditions": [],
+    "agents_summary": ""
+  },
+  "verification_checklist": [
+    "C01"
+  ],
+  "deterministic_checks": {
+    "overall": "not_pass",
+    "checks": {
+      "scope": {
+        "pass": false,
+        "modified_files": [
+          "docs/exec-plans/active/2026-06-review-execution-contract.md",
+          "goal-pipeline/scripts/fixtures/guazi-flow-gate/plan-good/handoff/plan.json",
+          "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-fake-good/handoff/review.json",
+          "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-fix-input-good/handoff/review.json",
+          "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-fix-input-not-pass/handoff/review.json",
+          "goal-pipeline/scripts/fixtures/guazi-flow-gate/run-gate-tests.sh",
+          "goal-pipeline/scripts/fixtures/guazi-flow-gate/smoke-good/handoff/smoke.json",
+          "goal-pipeline/scripts/gate-guazi-flow-stage.sh",
+          "goal-pipeline/scripts/platform-review-adapter.sh",
+          "goal-pipeline/scripts/run-independent-review.sh",
+          "goal-pipeline/scripts/verify-review.sh"
+        ],
+        "out_of_scope": [
+          "docs/exec-plans/active/2026-06-review-execution-contract.md",
+          "goal-pipeline/scripts/fixtures/guazi-flow-gate/plan-good/handoff/plan.json",
+          "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-fake-good/handoff/review.json",
+          "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-fix-input-good/handoff/review.json",
+          "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-fix-input-not-pass/handoff/review.json",
+          "goal-pipeline/scripts/fixtures/guazi-flow-gate/run-gate-tests.sh",
+          "goal-pipeline/scripts/fixtures/guazi-flow-gate/smoke-good/handoff/smoke.json",
+          "goal-pipeline/scripts/gate-guazi-flow-stage.sh",
+          "goal-pipeline/scripts/platform-review-adapter.sh",
+          "goal-pipeline/scripts/run-independent-review.sh",
+          "goal-pipeline/scripts/verify-review.sh"
+        ]
+      },
+      "secret": {
+        "pass": false,
+        "findings": [
+          "suspect line: +    export VR_SCOPE=\"$scope_result\" VR_SECRET=\"$secret_result\" VR_TEST=\"$test_r..."
+        ]
+      },
+      "test": {
+        "pass": true,
+        "command": "not_found",
+        "output": "no test runner detected, skipping"
+      },
+      "lint": {
+        "pass": true,
+        "command": "skipped",
+        "output": "no eslint config detected"
+      }
+    }
+  },
+  "issues_gf": [],
+  "guazi_flow_rubric": {
+    "acceptance_matrix_excerpt": "C01 pass",
+    "pseudocode_excerpt": "// minimal",
+    "skill_summary": "---\nname: guazi-flow-review\ndescription: 当用户要评审 Guazi Flow 候选 diff、检查实现是否符合任务契约、刷新 evidence/review.md，或判断回归/安全/交付风险时使用；不用于 complete、postmerge 或远端交付。\n---\n\n# Flow Review\n\n`guazi-flow-review` 是所有项目必须经过的统一评审阶段：评审候选 diff 与任务契约，并写入 `evidence/review.md`。复杂任务默认一次评审全部非 skipped unit，不只评审 `active_unit`。\n\n执行前按 `guazi-flow-core` 的下游引用约定加载 core；core 不可读时按 `missing_core` 停止。\n\n## 必读 references\n\n以下 references 均从 `guazi-flow-core` skill 目录读取：\n\n- 固定读取：`references/unified-doc-contract.md`、`references/stage-result-snapshots.md`、`references/security-redaction.md`、`references/profile-selection.md`、`references/delivery-policy.md`、`references/rule-resolution.md`，以及 `profiles/<profile_id>/profile.default.json`、`profiles/<profile_id>/profile.md`。\n- 任务输入：simple-lite 读任务目录 `index.md`；复杂任务读任务目录 `index.md` 与 `units[]` 中所有非 skipped 的 `units/<unit_id>/unit.md`，并按 `index.md` unit 顺序评审。\n- 条件读取：任务包含 Figma 前置目录、`figma-structure.json` 或 `react-tailwind.txt` 时，追加读取 `references/figma-precision-contract.md`。\n\n## 多工程 contract review\n\n- `standalone`：只执行本仓 review。\n- `participant`：本仓 review + 检查 consumed/produced contracts。\n- `coordinator`：有本仓 unit 时执行本仓 review；聚合阶段执行 `aggregate_review` 与 contract sync。\n\n**提供方** review pass 后只写本仓：\n\n1. `docs/guazi-flow/<task>/evidence/review.md`（`result=pass`）\n2. evidence 正文记录产出协作约定快照与 `contract.hash`\n3. 不写总控 `contracts/<contract_id>.md`\n\n**contract sync**（独立前置，非 aggregate_review 副作用）：读提供方 review evidence → 校验仍 fresh（`review_subject_hash`、`git_head`、协作约定快照与当前一致）→ 总控将 `contracts/<contract_id>.md` 置 `status=ready, hash=<new_hash>`。提供方 evidence stale → `repo_review_stale`；请求/响应契约缺可解析 fenced code block → `contract_unparsable`；not_pass → `status=blocked`。\n\n**写入权限**：仅总控流程可写 `contracts/*.md`；参与项目不得改总控文件，只可写本仓 `index.md`、`evidence/review.md`、本仓协作约定快照。sync 不建 `evidence/contract-sync.md`；结果写入 `contracts/*.md`，总控 `index.md` 执行记录追加摘要（contract id、提供方/使用方、old/new hash、结果）。\n\n**使用方**：可基于可执行草稿并行开发；review/complete 前必须重读 ready 协作约定——判定前 read + hash 总控文件，不信内存。consumed 非 ready → `contract_blocked`；hash 与 `consumed_hash` 不一致，或草稿与 ready 差异未处理 → `contract_stale`。\n\n多使用方共用同一协作约定时，单使用方指纹过期只影响该仓，不连坐。\n\n## 评审模板\n\n### 基础 review 模板（所有 profile 必须先执行）\n\n无 profile、`profile=generic` 或 `resolved_rule_context.review_adapter ∈ {default, base}` 时只用基础模板。基础模板为 Guazi Flow 自带生产就绪规则，不依赖外部 skill，不强制 subagent。\n\n#### 输入与目标\n\n- 上下文自包含：只取任务文档、用户最新指令、仓库规则、候选 diff、validate 证据与必要上下文，不依赖对话记忆或未落盘结论。\n- 目标：验证候选 diff 是否满足需求与 plan 契约并达到交付准备度。\n- 先出结论与 findings 并按严重程度排序；无问题写\"未发现阻断问题\"。\n- 每条 finding 含：文件/位置、问题、为什么重要、修复建议；无实际审到的代码或证据",
+    "rubric_hash": "952cc5200d905df7"
+  },
+  "goal_checklist": [
+    {
+      "id": "goal_achieved",
+      "priority": "P0",
+      "question": "候选 diff 是否达成任务契约验收标准？"
+    },
+    {
+      "id": "scope_compliant",
+      "priority": "P0",
+      "question": "修改是否在 Allowed Files 白名单内？"
+    },
+    {
+      "id": "evidence_sufficient",
+      "priority": "P1",
+      "question": "验证命令是否运行且结论有 diff 支撑？"
+    },
+    {
+      "id": "side_effects",
+      "priority": "P1",
+      "question": "是否新增依赖/配置/权限？"
+    },
+    {
+      "id": "completeness",
+      "priority": "P1",
+      "question": "是否有未验证路径标记完成？"
+    },
+    {
+      "id": "security",
+      "priority": "P0",
+      "question": "是否泄漏 secret/token？"
+    }
+  ],
+  "smoke_diagnostic": {},
+  "hashes": {
+    "candidate_diff_hash": "e3b0c44298fc1c14",
+    "review_subject_hash": "6ca13d52ca70c883",
+    "git_head": "abc123",
+    "index_schema_hash": "abc"
+  },
+  "truncated": {},
+  "integrity": {
+    "plan_handoff_present": true,
+    "implement_handoff_present": true,
+    "errors": [],
+    "ok": true
+  }
+}

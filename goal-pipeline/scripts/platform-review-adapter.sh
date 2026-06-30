@@ -24,7 +24,19 @@ while [[ $# -gt 0 ]]; do
 done
 
 case "$PROVIDER" in
-  deterministic)
+  mock-dual)
+    python3 - "$PACKET" << 'PYMOCK'
+import json, sys
+packet = json.load(open(sys.argv[1], encoding="utf-8"))
+checklist = [{"id": c if isinstance(c, str) else c.get("id", "C01"), "passed": True, "detail": "mock"} 
+             for c in (packet.get("verification_checklist") or ["C01"])[:3]]
+goal = {"result": "pass", "issues": [], "checklist": checklist, "model": "mock-dual", "tokens": {}}
+gf = {"result": "pass", "issues": [], "skill": "guazi-flow-review", "skill_attested": True,
+      "model": "mock-dual", "checklist": {"goal_achieved": "pass", "scope_compliant": "pass"}}
+print(json.dumps({"goal": goal, "guazi-flow-review": gf}, ensure_ascii=False))
+PYMOCK
+    ;;
+    deterministic)
     echo "{}"
     ;;
   openai|openai-api)

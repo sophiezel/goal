@@ -3,7 +3,7 @@
   "schema_version": 1,
   "result": "not_pass",
   "review_subject_hash": "deadbeef",
-  "git_head": "5a1a62862b7c041b",
+  "git_head": "2261ea0c7ff46517",
   "issues_gf_count": 0,
   "issues_goal_count": 1,
   "gf_execution_mode": "independent_dual_channel",
@@ -18,6 +18,6 @@
   "gate": {
     "script": "gate-guazi-flow-stage.sh",
     "version": 1,
-    "passed_at": "2026-06-30T11:54:44Z"
+    "passed_at": "2026-06-30T12:11:13Z"
   }
 }

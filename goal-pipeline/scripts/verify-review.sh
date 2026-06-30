@@ -136,10 +136,16 @@ check_lint() {
   grep -q '"eslint"' package.json 2>/dev/null && has_lint=true
   
   if [ "$has_lint" = true ]; then
-    if npx eslint --quiet $(git diff --name-only HEAD 2>/dev/null | grep -E '\.(ts|tsx|js|jsx)$' | tr '\n' ' ') 2>/dev/null; then
+    local lint_files
+    lint_files=$(git diff --name-only HEAD 2>/dev/null | grep -E '\.(ts|tsx|js|jsx|vue)$' || true)
+    if [ -z "$lint_files" ]; then
+      echo '{"pass":true,"command":"skipped","output":"no lintable files in diff"}'
+    elif npx eslint --quiet $lint_files >/dev/null 2>&1; then
       echo '{"pass":true,"command":"eslint","output":"clean"}'
     else
-      echo '{"pass":false,"command":"eslint","output":"lint errors found"}'
+      local lint_out
+      lint_out=$(npx eslint --quiet $lint_files 2>&1 | head -20 || true)
+      LINT_OUT="$lint_out" python3 -c "import json,os; print(json.dumps({'pass':False,'command':'eslint','output':os.environ.get('LINT_OUT','')[:500]}))"
     fi
   else
     echo '{"pass":true,"command":"skipped","output":"no eslint config detected"}'
@@ -166,17 +172,26 @@ main() {
   fi
   
   if [ "$FORMAT" = "json" ]; then
-    cat <<EOF
-{
-  "overall": "$overall",
-  "checks": {
-    "scope": $scope_result,
-    "secret": $secret_result,
-    "test": $test_result,
-    "lint": $lint_result
-  }
+    export VR_SCOPE="$scope_result" VR_SECRET="$secret_result" VR_TEST="$test_result" VR_LINT="$lint_result" VR_OVERALL="$overall"
+    python3 << 'PYJSON'
+import json, os, sys
+
+def load(name):
+    raw = os.environ.get(name, "{}")
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        return {"pass": False, "output": raw[:500], "parse_error": True}
+
+checks = {
+    "scope": load("VR_SCOPE"),
+    "secret": load("VR_SECRET"),
+    "test": load("VR_TEST"),
+    "lint": load("VR_LINT"),
 }
-EOF
+overall = os.environ.get("VR_OVERALL", "not_pass")
+print(json.dumps({"overall": overall, "checks": checks}, ensure_ascii=False))
+PYJSON
   else
     echo "=== Review Checks ==="
     echo "Scope:  $([ "$scope_pass" = "True" ] && echo '✅' || echo '❌') (files outside write_set: $(echo "$scope_result" | python3 -c "import sys,json;d=json.load(sys.stdin);print(len(d.get('out_of_scope',[])))" 2>/dev/null || echo '?'))"

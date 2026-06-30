@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "result": "not_pass",
+  "issues": [
+    {
+      "id": "CHK-SCOPE",
+      "severity": "high",
+      "summary": "verify-review scope failed",
+      "source": "verify-review",
+      "root_cause": "implement_error"
+    },
+    {
+      "id": "CHK-SECRET",
+      "severity": "high",
+      "summary": "verify-review secret failed",
+      "source": "verify-review",
+      "root_cause": "implement_error"
+    }
+  ],
+  "checklist": [
+    {
+      "id": "scope",
+      "passed": false,
+      "detail": ""
+    },
+    {
+      "id": "secret",
+      "passed": false,
+      "detail": ""
+    },
+    {
+      "id": "test",
+      "passed": true,
+      "detail": "no test runner detected, skipping"
+    },
+    {
+      "id": "lint",
+      "passed": true,
+      "detail": "no eslint config detected"
+    },
+    {
+      "id": "C01",
+      "passed": true,
+      "detail": "mock"
+    }
+  ],
+  "separation_confidence": "high",
+  "provider": "mock-dual",
+  "model": "mock-dual",
+  "packet_hash": "c79c92aabc0bb0f5",
+  "generated_at": "2026-06-30T12:11:12Z"
+}

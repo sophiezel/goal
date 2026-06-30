@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "round": 2,
+  "merged_result": "not_pass",
+  "action": "fix_and_rerun_review",
+  "issues": [
+    {
+      "id": "CHK-SCOPE",
+      "channel": "goal",
+      "severity": "blocker",
+      "file": "",
+      "line_range": "",
+      "summary": "verify-review scope failed",
+      "suggestion": "",
+      "root_cause": "implement_error"
+    },
+    {
+      "id": "CHK-SECRET",
+      "channel": "goal",
+      "severity": "blocker",
+      "file": "",
+      "line_range": "",
+      "summary": "verify-review secret failed",
+      "suggestion": "",
+      "root_cause": "implement_error"
+    }
+  ],
+  "resolved_since_last_round": [],
+  "next_steps": [
+    "read evidence/review-fix-input.json",
+    "fix within write_set",
+    "gate --post implement if diff changed",
+    "assemble-review-packet.sh",
+    "run-independent-review.sh",
+    "merge-review-issues.sh",
+    "gate --post review"
+  ],
+  "provenance": {
+    "review_run_id": "d490e69ebfa06c7b",
+    "packet_hash": "c79c92aabc0bb0f5",
+    "gf_skill_attested": true,
+    "channels": [
+      "goal",
+      "guazi-flow-review"
+    ]
+  }
+}

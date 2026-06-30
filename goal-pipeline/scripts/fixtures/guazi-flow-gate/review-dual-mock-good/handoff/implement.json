@@ -1,0 +1,7 @@
+{
+  "stage": "implement",
+  "git_head": "abc123",
+  "gate": {
+    "passed_at": "2026-01-01T00:00:00Z"
+  }
+}

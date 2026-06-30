@@ -83,6 +83,7 @@ from datetime import datetime, timezone
 
 task_dir = os.environ["TASK_DIR"]
 packet_path = os.environ["PACKET"]
+packet_doc = json.load(open(packet_path, encoding="utf-8")) if os.path.isfile(packet_path) else {}
 packet_hash = os.environ["PACKET_HASH"]
 verify_json_s = os.environ["VERIFY_JSON"]
 provider = os.environ["PROVIDER"]
@@ -213,6 +214,7 @@ run_doc = {
     "mode": mode,
     "channels": channels,
     "gf_skill_attested": bool(gf_doc.get("skill_attested")) if gf_doc else False,
+    "gf_rubric_source": packet_doc.get("guazi_flow_rubric", {}).get("rubric_hash", ""),
     "packet_hash": packet_hash,
     "packet_path": os.path.relpath(packet_path, task_dir),
     "latency_ms": end_ms - start_ms,

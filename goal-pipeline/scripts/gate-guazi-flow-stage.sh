@@ -601,6 +601,24 @@ PYMG
       fi
       CLEN=$(python3 -c "import json; d=json.load(open('$EVIDENCE_DIR/review-goal.json')); print(len(d.get('checklist',[])))" 2>/dev/null || echo 0)
       [[ -f "$EVIDENCE_DIR/review-fix-input.json" ]] || fail "review-fix-input.json missing — run merge-review-issues.sh"
+      python3 - "$EVIDENCE_DIR/review-fix-input.json" << 'PYSCHEMA' || fail "review-fix-input.json schema invalid"
+import json, sys
+d = json.load(open(sys.argv[1], encoding="utf-8"))
+required = ["schema_version", "round", "merged_result", "action", "issues", "next_steps", "provenance"]
+for k in required:
+    if k not in d:
+        raise SystemExit(f"missing field: {k}")
+actions = {"proceed_complete", "fix_and_rerun_review", "mini_replan", "blocked_user_decision"}
+if d["action"] not in actions:
+    raise SystemExit(f"invalid action: {d['action']}")
+if d["merged_result"] not in ("pass", "not_pass"):
+    raise SystemExit("invalid merged_result")
+if d["merged_result"] == "pass" and d["action"] != "proceed_complete":
+    raise SystemExit("pass requires proceed_complete")
+if d["merged_result"] == "not_pass" and d["action"] == "proceed_complete":
+    raise SystemExit("not_pass cannot proceed_complete")
+PYSCHEMA
+
       FIX_ACTION=$(python3 -c "import json; print(json.load(open('$EVIDENCE_DIR/review-fix-input.json')).get('action',''))" 2>/dev/null || echo "")
       FIX_MERGED=$(python3 -c "import json; print(json.load(open('$EVIDENCE_DIR/review-fix-input.json')).get('merged_result',''))" 2>/dev/null || echo "")
       if [[ "$FIX_MERGED" != "$MERGED" && -n "$MERGED" && -n "$FIX_MERGED" ]]; then

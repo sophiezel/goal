@@ -254,3 +254,18 @@ flowchart LR
 并新增索引条目于 [`README.md`](/Users/xuwei/Profession/goal/README.md) 或 `docs/exec-plans/INDEX.md`（若不存在则创建）。
 
 完成后将 M1–M4 实施记录追加到同文件 `## 实施记录` 节或移至 `docs/exec-plans/completed/`。
+
+## 实施记录
+
+| 日期 | 阶段 | 说明 |
+|------|------|------|
+| 2026-06-30 | M1–M4 | commit `2261ea0`：review-fix-input 契约、dual-channel、gate/fixtures/SKILL |
+| 2026-06-30 | 补全 | verify-review JSON 根因修复；mock-dual fixture；gf_rubric_source；gate schema 校验；CTB-43564 replay |
+
+### 补全项（第二轮）
+
+- `verify-review.sh`：eslint stdout 泄漏修复 + Python 安全 JSON 输出
+- `platform-review-adapter.sh`：`mock-dual` provider 供 CI/fixture 验证 `gf_skill_attested`
+- `review-dual-mock-good` + `test-review-dual-mock.sh`
+- `review-run.json` 增加 `gf_rubric_source`
+- gate `--post review` 校验 `review-fix-input.json` 必填字段与 action 一致性

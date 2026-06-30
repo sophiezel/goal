@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "run_id": "d490e69ebfa06c7b",
+  "provider": "mock-dual",
+  "model": "mock-dual",
+  "mode": "dual",
+  "channels": [
+    "goal",
+    "guazi-flow-review"
+  ],
+  "gf_skill_attested": true,
+  "gf_rubric_source": "952cc5200d905df7",
+  "packet_hash": "c79c92aabc0bb0f5",
+  "packet_path": "handoff/review-packet.json",
+  "latency_ms": 312,
+  "tokens": {},
+  "output_hash": "daa8f83a11571e9d",
+  "started_at": "2026-06-30T12:11:12Z",
+  "finished_at": "2026-06-30T12:11:12Z"
+}
