@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "assembled_at": "2026-06-30T12:11:12Z",
+  "assembled_at": "2026-07-02T09:13:59Z",
   "task_dir": "/Users/xuwei/Profession/goal/goal-pipeline/scripts/fixtures/guazi-flow-gate/review-dual-mock-good",
   "contract": {
     "goal": "dual mock fixture",
@@ -26,37 +26,39 @@
       "scope": {
         "pass": false,
         "modified_files": [
-          "docs/exec-plans/active/2026-06-review-execution-contract.md",
+          "goal-pipeline/SKILL.md",
           "goal-pipeline/scripts/fixtures/guazi-flow-gate/plan-good/handoff/plan.json",
+          "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-dual-mock-good/evidence/review-fix-input.json",
+          "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-dual-mock-good/evidence/review-goal.json",
+          "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-dual-mock-good/evidence/review-run.json",
+          "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-dual-mock-good/evidence/review-transcript.md",
+          "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-dual-mock-good/evidence/review.md",
+          "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-dual-mock-good/handoff/merge-result.json",
+          "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-dual-mock-good/handoff/review-packet.json",
           "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-fake-good/handoff/review.json",
           "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-fix-input-good/handoff/review.json",
           "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-fix-input-not-pass/handoff/review.json",
-          "goal-pipeline/scripts/fixtures/guazi-flow-gate/run-gate-tests.sh",
-          "goal-pipeline/scripts/fixtures/guazi-flow-gate/smoke-good/handoff/smoke.json",
-          "goal-pipeline/scripts/gate-guazi-flow-stage.sh",
-          "goal-pipeline/scripts/platform-review-adapter.sh",
-          "goal-pipeline/scripts/run-independent-review.sh",
-          "goal-pipeline/scripts/verify-review.sh"
+          "goal-pipeline/scripts/fixtures/guazi-flow-gate/smoke-good/handoff/smoke.json"
         ],
         "out_of_scope": [
-          "docs/exec-plans/active/2026-06-review-execution-contract.md",
+          "goal-pipeline/SKILL.md",
           "goal-pipeline/scripts/fixtures/guazi-flow-gate/plan-good/handoff/plan.json",
+          "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-dual-mock-good/evidence/review-fix-input.json",
+          "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-dual-mock-good/evidence/review-goal.json",
+          "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-dual-mock-good/evidence/review-run.json",
+          "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-dual-mock-good/evidence/review-transcript.md",
+          "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-dual-mock-good/evidence/review.md",
+          "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-dual-mock-good/handoff/merge-result.json",
+          "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-dual-mock-good/handoff/review-packet.json",
           "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-fake-good/handoff/review.json",
           "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-fix-input-good/handoff/review.json",
           "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-fix-input-not-pass/handoff/review.json",
-          "goal-pipeline/scripts/fixtures/guazi-flow-gate/run-gate-tests.sh",
-          "goal-pipeline/scripts/fixtures/guazi-flow-gate/smoke-good/handoff/smoke.json",
-          "goal-pipeline/scripts/gate-guazi-flow-stage.sh",
-          "goal-pipeline/scripts/platform-review-adapter.sh",
-          "goal-pipeline/scripts/run-independent-review.sh",
-          "goal-pipeline/scripts/verify-review.sh"
+          "goal-pipeline/scripts/fixtures/guazi-flow-gate/smoke-good/handoff/smoke.json"
         ]
       },
       "secret": {
-        "pass": false,
-        "findings": [
-          "suspect line: +    export VR_SCOPE=\"$scope_result\" VR_SECRET=\"$secret_result\" VR_TEST=\"$test_r..."
-        ]
+        "pass": true,
+        "findings": []
       },
       "test": {
         "pass": true,

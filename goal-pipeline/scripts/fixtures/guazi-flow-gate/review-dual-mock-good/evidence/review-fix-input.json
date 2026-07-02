@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "round": 2,
+  "round": 4,
   "merged_result": "not_pass",
   "action": "fix_and_rerun_review",
   "issues": [
@@ -11,16 +11,6 @@
       "file": "",
       "line_range": "",
       "summary": "verify-review scope failed",
-      "suggestion": "",
-      "root_cause": "implement_error"
-    },
-    {
-      "id": "CHK-SECRET",
-      "channel": "goal",
-      "severity": "blocker",
-      "file": "",
-      "line_range": "",
-      "summary": "verify-review secret failed",
       "suggestion": "",
       "root_cause": "implement_error"
     }
@@ -36,8 +26,8 @@
     "gate --post review"
   ],
   "provenance": {
-    "review_run_id": "d490e69ebfa06c7b",
-    "packet_hash": "c79c92aabc0bb0f5",
+    "review_run_id": "6e8d71165a64ae34",
+    "packet_hash": "95456fb7cbd39da7",
     "gf_skill_attested": true,
     "channels": [
       "goal",

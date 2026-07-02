@@ -25,6 +25,13 @@ Goal 是一个持久化的工程目标。Agent 接到 goal 后持续执行，不
 - **NEVER 在 review not_pass 时修改验收标准来通过**——这是“降标准而非修代码”的反模式，必须修复实现而非弱化标准
 - **NEVER 在 implement 阶段忽略 plan 的结构化字段**——Allowed Files / Stop Conditions 在 Phase 1 确定后即生效，忽略会导致 scope 蔓延、review 无法准确定位
 
+
+## PIPELINE_SCOPE
+
+- State boundary: `~/.goal-state/projects/<project_id>/<branch>/<task>/state.json`
+- Forbidden read: `~/.goal-state/projects/*/state.json`（非当前 task）、其他项目 `handoff/*.json`
+- 跨管线隔离: 仅读写当前 task_dir；guazi-flow 扩展字段追加写入，不覆盖 goal-pipeline 基础字段
+
 ## 执行模型
 
 ```
@@ -46,6 +53,39 @@ Phase 2: Pipeline Execution（Agent 持续执行）
     │            not_pass → 修复子循环
     └─ complete: 所有门禁通过 → goal.status = complete
 ```
+
+
+## 阶段门禁契约
+
+五阶段确定性门禁（脚本位于 `gates/`，产物 schema 位于 `schemas/`）。
+
+### Step 1: plan
+
+- GATE pre: `gates/plan-pre.sh` — schema 校验 + 产物存在性；失败 **exit 1 BLOCK**
+- GATE post: `gates/plan-post.sh` — 写入 `handoff/plan.json`；失败 **exit 1 BLOCK**
+- 产出: plan 卡片 + `state.json`（遵循 `schemas/plan.schema.json`）
+
+### Step 2: implement
+
+- GATE pre: `gates/implement-pre.sh` — plan handoff + write_set 就绪；失败 **exit 1 BLOCK**
+- GATE post: `gates/implement-post.sh` — diff 范围 + handoff；失败 **exit 1 BLOCK**
+- 产出: 代码变更 + `handoff/implement.json`（遵循 `schemas/implement.schema.json`）
+
+### Step 3: runtime_smoke
+
+- GATE post: `gates/smoke-post.sh` — `evidence/runtime-smoke.md`；失败 **exit 1 BLOCK**（可降级为诊断信号）
+- 产出: `handoff/smoke.json`（遵循 `schemas/smoke.schema.json`）
+
+### Step 4: review
+
+- GATE pre: `gates/review-pre.sh` — scope/secret/test/lint 确定性检查；失败 **exit 1 BLOCK**
+- GATE post: `gates/review-post.sh` — `handoff/review.json` + merge 结果；失败 **exit 1 BLOCK**
+- 产出: `evidence/review-fix-input.json`（遵循 `schemas/review-fix-input.schema.json`）
+
+### Step 5: complete
+
+- GATE post: `gates/complete-post.sh` — `verify.sh` 全链校验；失败 **exit 1 BLOCK**
+- 产出: `goal.status = complete`（`state.json` 遵循 `schemas/state.schema.json`）
 
 ## 管线详解
 

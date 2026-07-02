@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "description": "Execution-agent contract for review fix loop",
+  "required": ["schema_version", "round", "merged_result", "action", "issues", "next_steps", "provenance"],
+  "action_enum": [
+    "proceed_complete",
+    "fix_and_rerun_review",
+    "mini_replan",
+    "blocked_user_decision"
+  ],
+  "issue_fields": {
+    "id": "string",
+    "channel": "goal | guazi-flow-review",
+    "severity": "blocker | warning | medium | high",
+    "summary": "string",
+    "root_cause": "implement_error | plan_gap | spec_ambiguity"
+  }
+}

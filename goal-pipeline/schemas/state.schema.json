@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "goal-pipeline/schemas/state.schema.json",
+  "title": "Goal pipeline state.json",
+  "type": "object",
+  "required": ["status", "current_stage"],
+  "properties": {
+    "status": { "enum": ["active", "complete", "blocked", "paused"] },
+    "current_stage": { "enum": ["plan", "implement", "smoke", "review", "complete"] },
+    "project_id": { "type": "string" },
+    "branch": { "type": "string" },
+    "task": { "type": "string" },
+    "replan_count": { "type": "integer", "minimum": 0 },
+    "review_round": { "type": "integer", "minimum": 0 }
+  },
+  "additionalProperties": true
+}

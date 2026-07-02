@@ -8,13 +8,6 @@
       "summary": "verify-review scope failed",
       "source": "verify-review",
       "root_cause": "implement_error"
-    },
-    {
-      "id": "CHK-SECRET",
-      "severity": "high",
-      "summary": "verify-review secret failed",
-      "source": "verify-review",
-      "root_cause": "implement_error"
     }
   ],
   "checklist": [
@@ -25,7 +18,7 @@
     },
     {
       "id": "secret",
-      "passed": false,
+      "passed": true,
       "detail": ""
     },
     {
@@ -47,6 +40,6 @@
   "separation_confidence": "high",
   "provider": "mock-dual",
   "model": "mock-dual",
-  "packet_hash": "c79c92aabc0bb0f5",
-  "generated_at": "2026-06-30T12:11:12Z"
+  "packet_hash": "95456fb7cbd39da7",
+  "generated_at": "2026-07-02T09:13:59Z"
 }

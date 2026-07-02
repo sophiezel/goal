@@ -11,7 +11,7 @@ test
 none
 ## Goal Pipeline Review
 
-_merged at 2026-06-30T12:11:12Z_
+_merged at 2026-07-02T09:14:00Z_
 
 **goal_result**: not_pass
 **merged_result**: not_pass
@@ -22,4 +22,3 @@ _merged at 2026-06-30T12:11:12Z_
 | ID | Severity | Summary | Root cause |
 |----|----------|---------|------------|
 | CHK-SCOPE | blocker | verify-review scope failed | implement_error |
-| CHK-SECRET | blocker | verify-review secret failed | implement_error |
