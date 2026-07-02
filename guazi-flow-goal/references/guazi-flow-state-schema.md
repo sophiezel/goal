@@ -29,6 +29,7 @@
 
 ```json
 {
+  "project_root": "/abs/path/to/project",
   "guazi_flow_available": true,
   "guazi_flow_task": "docs/guazi-flow/<task>",
   "guazi_flow_profile": "h5",
@@ -43,6 +44,7 @@
 
 ### 字段说明
 
+- `project_root`: 项目根目录绝对路径（Phase 1 Step 5 写入，供 stop hook / goal-advance-stage 匹配 Cursor workspace）
 - `guazi_flow_available`: guazi-flow-* 是否可用（启动时检测）
 - `guazi_flow_task`: guazi-flow 任务目录路径，仅集成时存在
 - `guazi_flow_profile`: 技术栈 profile（h5/react/service/rn 等）

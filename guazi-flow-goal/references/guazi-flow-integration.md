@@ -107,6 +107,18 @@ else:
 ```
 
 
+
+### implement 阶段 Stage Exit 与 chain 校验
+
+implement 业务完成后的 **唯一合法出口**：
+
+```
+gate --post(implement) → validate-pipeline-chain (exit 0) → goal-advance-stage → 立即 smoke/review
+```
+
+- `validate-pipeline-chain` 检测到「执行记录表明 implement 完成但无 handoff/implement.json」→ **error**（failure: implement_gate_pending）
+- Agent 禁止在 chain 报错或 gate 未 exit 0 时输出 `[2/5] implement: ✅`
+
 ### smoke 阶段——gate 对齐
 
 **Step 0**: implement gate --post 通过后 **立即** `runtime-smoke.sh`

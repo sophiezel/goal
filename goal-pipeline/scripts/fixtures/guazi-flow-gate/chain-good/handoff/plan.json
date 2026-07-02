@@ -1,0 +1,30 @@
+{
+  "stage": "plan",
+  "schema_version": 1,
+  "skill_expected": "guazi-flow-plan",
+  "skill_executed": true,
+  "task_dir": "/Users/xuwei/Profession/goal/goal-pipeline/scripts/fixtures/guazi-flow-gate/plan-good",
+  "profile": "h5",
+  "profile_detail": "react",
+  "write_set": [
+    "routes.ts",
+    "src/pages/DiscrepancyVideoAudit/",
+    "src/services/discrepancyVideoAudit/"
+  ],
+  "acceptance_matrix_ids": [
+    "C01",
+    "C02",
+    "V01"
+  ],
+  "index_schema_hash": "d8c8cf3896ad2d1b",
+  "git_head": "16e75cdbf5bb3329",
+  "artifact_paths": [
+    "index.md"
+  ],
+  "warnings": [],
+  "gate": {
+    "script": "gate-guazi-flow-stage.sh",
+    "version": 1,
+    "passed_at": "2026-07-02T12:53:50Z"
+  }
+}

@@ -19,6 +19,7 @@ description: guazi-flow-goal 统一入口。加载 goal-pipeline 管线引擎，
 - **NEVER 在 guazi-flow-plan 产出前修改项目代码**——plan 未完成时改代码会导致 write_set 不匹配，implement 阶段无法正确驱动
 - **NEVER 在 guazi-flow-plan 产出 index.md 前进入 implement**——MUST 先执行 guazi-flow-plan 完整流程（见关键执行协议），验证 index.md 存在且包含必需章节（核心事实/完整伪代码/验收矩阵/执行记录），否则 blocked（failure_code: plan_artifact_missing / plan_schema_incomplete）
 - **NEVER 跳过 [1/5] plan 进度输出**——缺少 [1/5] 输出说明 plan 被跳过，必须立即暂停并报告
+- **NEVER 在 implement 代码/测试完成后跳过 Stage Exit**——MUST 先 gate --post implement → goal-advance-stage → validate-pipeline-chain（exit 0）再输出 [2/5] ✅
 - **NEVER 在 [5/5] complete 前以「如需继续」「需要我跑 review 吗」交还控制权**——implement 完成 ≠ goal 完成，必须自动进入 review → complete
 - **NEVER 跳过 [3/5] smoke 或未跑 gate --post smoke**——runtime-smoke.sh 产出 evidence/runtime-smoke.md 后 MUST gate --stage smoke --post
 - **NEVER 跳过 [4/5] review 或未跑 run-independent-review.sh**——review-run.json provenance 缺失则 gate --post review 失败
@@ -122,6 +123,8 @@ Step 4: 生成 + 确认 Goal 结构
 Step 5: 初始化 state（路径计算见 goal-pipeline/references/goal-state-schema.md）
   ├─ mkdir -p ~/.goal-state/ → 失败则 blocked（failure_code: state_dir_creation_failed）
   ├─ 创建 state.json（project_id/branch/task 路径见 goal-state-schema.md）
+  ├─ 写入 project_root: `git rev-parse --show-toplevel` 绝对路径（供 stop hook / advance 匹配工作区）
+
   ├─ 验证 state.json 可读写 → 失败则 blocked（failure_code: state_json_unwritable）
   └─ 检测并迁移旧路径 .guazi-flow/goal/ 产物（若存在）
 
@@ -188,6 +191,22 @@ gate --pre(<stage>) --mode guazi
 - 询问用户「是否继续 review/complete」
 - 输出「实现完成，如需…」类结束语
 - 在 next_stage != done 且非 blocked 时结束 turn
+
+
+### implement 阶段 Stage Exit（MANDATORY — 结束前重读）
+
+guazi-flow-implement 执行完毕（含测试通过、摘要撰写）**不等于**管线 implement 阶段结束。结束前 **MUST 重读本节**，并按顺序执行：
+
+```
+1. validate-pipeline-chain.sh --task-dir <task> --state-file <state>   # 可选预检；post 后 MUST 再跑
+2. gate-guazi-flow-stage.sh --task-dir <task> --stage implement --post --mode guazi --state-file <state> --project-root <repo>
+3. validate-pipeline-chain.sh --task-dir <task> --state-file <state>   # exit 0 才继续
+4. goal-advance-stage.sh --state-file <state> --task-dir <task> --project-root <repo>
+5. 读 stdout.next_stage → 立即进入 smoke/review（禁止询问用户）
+```
+
+**反例（禁止）**：「implement 已完成，需要我继续跑 review 吗？」「实现摘要如下，如需 review 请告知」
+
 
 Phase 2 每个阶段**开头**亦须运行 `goal-advance-stage.sh`：若 next_stage != 当前阶段 → blocked(wrong_stage)。
 

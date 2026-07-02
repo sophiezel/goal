@@ -336,6 +336,62 @@ fi
 mkdir -p "$HANDOFF_DIR"
 
 
+
+sync_index_current_stage() {
+  local next_stage="$1"
+  [[ -f "$INDEX" ]] || return 0
+  python3 - "$INDEX" "$next_stage" << 'PYSYNC'
+import re, sys
+path, new_stage = sys.argv[1], sys.argv[2]
+text = open(path, encoding="utf-8").read()
+if not text.startswith("---"):
+    sys.exit(0)
+m = re.match(r"^(---\s*\n)(.*?)(\n---\s*\n)(.*)$", text, re.DOTALL)
+if not m:
+    sys.exit(0)
+pre, fm, mid, body = m.groups()
+lines = fm.splitlines()
+out = []
+in_flow = False
+cs_done = False
+for line in lines:
+    if line.strip() == "flow:":
+        in_flow = True
+        out.append(line)
+        continue
+    if in_flow and line.startswith("  ") and line.strip().startswith("current_stage:"):
+        out.append(f"  current_stage: {new_stage}")
+        cs_done = True
+        continue
+    if not in_flow and line.strip().startswith("current_stage:"):
+        out.append(f"current_stage: {new_stage}")
+        cs_done = True
+        continue
+    if in_flow and line and not line.startswith("  ") and line.strip():
+        in_flow = False
+    out.append(line)
+if not cs_done:
+    if any(l.strip() == "flow:" for l in lines):
+        idx = next(i for i, l in enumerate(out) if l.strip() == "flow:")
+        out.insert(idx + 1, f"  current_stage: {new_stage}")
+    else:
+        out.insert(0, f"current_stage: {new_stage}")
+open(path, "w", encoding="utf-8").write(pre + "\n".join(out) + mid + body)
+PYSYNC
+}
+
+stage_to_index_current() {
+  case "$1" in
+    plan) echo "implement" ;;
+    implement) echo "review" ;;
+    smoke) echo "review" ;;
+    review) echo "complete" ;;
+    complete) echo "complete" ;;
+    *) echo "$1" ;;
+  esac
+}
+
+
 update_state_gate() {
   local stage="$1"
   local handoff_file="$HANDOFF_DIR/${stage}.json"
@@ -358,6 +414,8 @@ entry['gate'] = {
     'passed_at': passed_at,
     'handoff_hash': handoff_hash,
 }
+_next = {'plan': 'implement', 'implement': 'review', 'smoke': 'review', 'review': 'complete', 'complete': 'complete'}
+state['current_stage'] = _next.get(stage, stage)
 with open(state_path, 'w', encoding='utf-8') as f:
     json.dump(state, f, indent=2, ensure_ascii=False)
 PYSTATE
@@ -404,6 +462,7 @@ JSON
       py_write_handoff plan "$TMP" >/dev/null
       rm -f "$TMP"
       update_state_gate "plan"
+      sync_index_current_stage "$(stage_to_index_current plan)"
     fi
     pass "plan gate"
     ;;
@@ -446,6 +505,7 @@ JSON
       py_write_handoff implement "$TMP" >/dev/null
       rm -f "$TMP"
       update_state_gate "implement"
+      sync_index_current_stage "$(stage_to_index_current implement)"
     fi
     pass "implement gate"
     ;;
@@ -517,6 +577,7 @@ JSON
       py_write_handoff smoke "$TMP" >/dev/null
       rm -f "$TMP"
       update_state_gate "smoke"
+      sync_index_current_stage "$(stage_to_index_current smoke)"
     fi
     pass "smoke gate"
     ;;
@@ -634,6 +695,7 @@ PYSCHEMA
         fail "review result is not pass: $RESULT_VAL"
       fi
       update_state_gate "review"
+      sync_index_current_stage "$(stage_to_index_current review)"
     fi
     pass "review gate"
     ;;
@@ -672,6 +734,7 @@ JSON
       py_write_handoff complete "$TMP" >/dev/null
       rm -f "$TMP"
       update_state_gate "complete"
+      sync_index_current_stage "$(stage_to_index_current complete)"
     fi
     pass "complete gate"
     ;;

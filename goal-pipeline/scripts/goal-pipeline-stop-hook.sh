@@ -115,7 +115,16 @@ if [[ "$NEXT" == "done" ]]; then
   exit 0
 fi
 
-MSG="Pipeline incomplete (next_stage=$NEXT). Continue guazi-flow-goal: load guazi-flow-$NEXT SKILL.md and run gate --pre/$NEXT. Objective: $OBJECTIVE"
+BLOCKED_REASON=$(echo "$OUT" | python3 -c "import json,sys; print(json.load(sys.stdin).get('blocked_reason') or '')" 2>/dev/null || echo "")
+REQ=$(echo "$OUT" | python3 -c "import json,sys; r=json.load(sys.stdin).get('required_commands',[]); print(' → '.join(r[:4]) if r else '')" 2>/dev/null || echo "")
+
+if [[ "$NEXT" == "implement" && "$BLOCKED_REASON" == "implement_gate_pending" ]]; then
+  MSG="implement 代码已完成但未 gate --post。MUST: gate-guazi-flow-stage.sh --stage implement --post --mode guazi → validate-pipeline-chain → goal-advance-stage。$REQ Objective: $OBJECTIVE"
+elif [[ -n "$REQ" ]]; then
+  MSG="Pipeline incomplete (next_stage=$NEXT${BLOCKED_REASON:+, reason=$BLOCKED_REASON}). Required: $REQ Objective: $OBJECTIVE"
+else
+  MSG="Pipeline incomplete (next_stage=$NEXT). Continue guazi-flow-goal: load guazi-flow-$NEXT SKILL.md and run gate --pre/$NEXT. Objective: $OBJECTIVE"
+fi
 python3 - "$MSG" << 'PY'
 import json, sys
 print(json.dumps({"followup_message": sys.argv[1]}))

@@ -191,7 +191,17 @@ fi
 
 # implement
 if ! handoff_ok "$HANDOFF/implement.json" && ! gate_passed_in_state "implement"; then
-  emit "implement" "" "false" '["guazi-flow-implement","gate-guazi-flow-stage.sh --stage implement --post --mode guazi"]'
+  IMPL_GATE_PENDING=false
+  if [[ -f "$INDEX" ]]; then
+    if grep -qE 'implement.*(完成|complete|pass)|guazi-flow-implement|yarn test|pytest|[0-9]+ passed' "$INDEX" 2>/dev/null; then
+      IMPL_GATE_PENDING=true
+    fi
+  fi
+  if [[ "$IMPL_GATE_PENDING" == "true" ]]; then
+    emit "implement" "implement_gate_pending" "false" '["代码/测试已完成但未 gate --post implement","gate-guazi-flow-stage.sh --task-dir TASK --stage implement --post --mode guazi --state-file STATE --project-root ROOT","validate-pipeline-chain.sh --task-dir TASK --state-file STATE"]'
+    exit 0
+  fi
+  emit "implement" "implement_in_progress" "false" '["guazi-flow-implement","gate-guazi-flow-stage.sh --stage implement --post --mode guazi --state-file STATE --project-root ROOT","validate-pipeline-chain.sh --task-dir TASK --state-file STATE"]'
   exit 0
 fi
 

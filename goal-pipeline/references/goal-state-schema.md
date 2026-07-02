@@ -59,6 +59,7 @@
   "goal_id": "<timestamp>-<8hex>",
   "project_id": "<sha256(项目根绝对路径)[:12]>",
   "project_name": "my-project",
+  "project_root": "/abs/path/to/project",
   "branch": "feature/auth | main | default",
   "objective": "用户目标描述文本（Goal Engineering 产出）",
   "status": "active | paused | complete | blocked | aborted",
