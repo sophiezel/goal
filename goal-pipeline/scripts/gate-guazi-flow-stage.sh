@@ -314,8 +314,8 @@ if not write_set:
     print(json.dumps({"ok": True, "out_of_scope": []}))
     sys.exit(0)
 try:
-    modified = subprocess.check_output(['git', 'diff', '--name-only', 'HEAD'], text=True).splitlines()
-    untracked = subprocess.check_output(['git', 'ls-files', '--others', '--exclude-standard'], text=True).splitlines()
+    modified = subprocess.check_output(['git', '-c', 'core.quotepath=false', 'diff', '--name-only', 'HEAD'], text=True).splitlines()
+    untracked = subprocess.check_output(['git', '-c', 'core.quotepath=false', 'ls-files', '--others', '--exclude-standard'], text=True).splitlines()
     all_files = [f for f in modified + untracked if f.strip()]
 except Exception:
     all_files = []
@@ -335,6 +335,17 @@ fi
 
 mkdir -p "$HANDOFF_DIR"
 
+
+assert_pipeline_chain() {
+  local validator="$SCRIPT_DIR/validate-pipeline-chain.sh"
+  [[ -x "$validator" ]] || fail "validate-pipeline-chain.sh missing"
+  local args=(--task-dir "$TASK_DIR")
+  [[ -n "$STATE_FILE" ]] && args+=(--state-file "$STATE_FILE")
+  if ! "$validator" "${args[@]}" >/dev/null 2>&1; then
+    "$validator" "${args[@]}" 2>&1 | head -20 >&2 || true
+    fail "pipeline chain invalid — fix before gate --post $STAGE"
+  fi
+}
 
 
 sync_index_current_stage() {
@@ -435,6 +446,8 @@ case "$STAGE" in
       fail "plan index schema validation failed"
     fi
     if [[ "$PHASE" == "post" ]]; then
+      assert_pipeline_chain
+      assert_pipeline_chain
       WS=$(echo "$RESULT" | python3 -c "import json,sys; print(json.dumps(json.load(sys.stdin)['write_set']))")
       AM=$(echo "$RESULT" | python3 -c "import json,sys; print(json.dumps(json.load(sys.stdin)['acceptance_matrix_ids']))")
       PROF=$(echo "$RESULT" | python3 -c "import json,sys; print(json.load(sys.stdin).get('profile',''))")
@@ -468,9 +481,7 @@ JSON
     ;;
 
   implement)
-    if [[ "$PHASE" == "pre" ]]; then
-      [[ -f "$HANDOFF_DIR/plan.json" ]] || fail "plan handoff missing — run plan gate --post first"
-    fi
+    [[ -f "$HANDOFF_DIR/plan.json" ]] || fail "plan handoff missing — run gate --post plan first"
     [[ -f "$INDEX" ]] || fail "index.md not found"
     grep -q 'guazi-flow-implement' "$INDEX" || fail "index execution record missing guazi-flow-implement"
     PLAN_WS=$(python3 -c "import json; print(json.dumps(json.load(open('$HANDOFF_DIR/plan.json')).get('write_set',[])))" 2>/dev/null || echo '[]')
@@ -484,6 +495,9 @@ JSON
       fi
     fi
     if [[ "$PHASE" == "post" ]]; then
+      PLAN_WS_LEN=$(python3 -c "import json; print(len(json.load(open('$HANDOFF_DIR/plan.json')).get('write_set',[])))" 2>/dev/null || echo 0)
+      [[ "$PLAN_WS_LEN" != "0" ]] || fail "plan write_set empty — update index.md write_set before implement post"
+      assert_pipeline_chain
       CHANGED=$(check_write_set_subset "$PLAN_WS")
       CF=$(echo "$CHANGED" | python3 -c "import json,sys; print(json.dumps(json.load(sys.stdin).get('changed_files',[])))")
       DH=$(diff_hash)
@@ -597,14 +611,15 @@ JSON
       VOUT=$("$VERIFY_REV" "$TASK_DIR" "$WS" json 2>/dev/null || echo '{"overall":"not_pass"}')
       VOK=$(echo "$VOUT" | python3 -c "import json,sys; print(json.load(sys.stdin).get('overall','not_pass'))" 2>/dev/null || echo "not_pass")
       [[ "$VOK" == "pass" ]] || fail "verify-review pre-check not pass"
-    fi
-    RRESULT=$(py_check_review)
-    ROK=$(echo "$RRESULT" | python3 -c "import json,sys; print(json.load(sys.stdin)['ok'])")
-    if [[ "$ROK" != "True" ]]; then
-      echo "$RRESULT" | python3 -c "import json,sys; [print('  -',e) for e in json.load(sys.stdin)['errors']]" >&2
-      fail "review evidence validation failed"
+      pass "review gate"
     fi
     if [[ "$PHASE" == "post" ]]; then
+      RRESULT=$(py_check_review)
+      ROK=$(echo "$RRESULT" | python3 -c "import json,sys; print(json.load(sys.stdin)['ok'])")
+      if [[ "$ROK" != "True" ]]; then
+        echo "$RRESULT" | python3 -c "import json,sys; [print('  -',e) for e in json.load(sys.stdin)['errors']]" >&2
+        fail "review evidence validation failed"
+      fi
       RESULT_VAL=$(echo "$RRESULT" | python3 -c "import json,sys; print(json.load(sys.stdin).get('result','unknown'))")
       RSH=$(echo "$RRESULT" | python3 -c "import json,sys; print(json.load(sys.stdin).get('review_subject_hash',''))")
       GH=$(git_head_short)
@@ -640,6 +655,7 @@ JSON
 JSON
       py_write_handoff review "$TMP" >/dev/null
       rm -f "$TMP"
+      assert_pipeline_chain
       [[ -f "$EVIDENCE_DIR/review-run.json" ]] || fail "review-run.json missing — run run-independent-review.sh"
       RUN_HASH=$(python3 -c "import json; print(json.load(open('$EVIDENCE_DIR/review-run.json')).get('packet_hash',''))" 2>/dev/null || echo "")
       PKT_HASH=$(shasum -a 256 "$HANDOFF_DIR/review-packet.json" 2>/dev/null | cut -c1-16 || sha256sum "$HANDOFF_DIR/review-packet.json" 2>/dev/null | cut -c1-16 || echo "")
@@ -719,6 +735,7 @@ PYSCHEMA
       fail "evidence/review.md missing for complete"
     fi
     if [[ "$PHASE" == "post" ]]; then
+      assert_pipeline_chain
       TMP=$(mktemp)
       cat > "$TMP" << JSON
 {

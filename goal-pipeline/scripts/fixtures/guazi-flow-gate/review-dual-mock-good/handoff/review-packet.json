@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
-  "assembled_at": "2026-07-02T09:13:59Z",
-  "task_dir": "/Users/xuwei/Profession/goal/goal-pipeline/scripts/fixtures/guazi-flow-gate/review-dual-mock-good",
+  "assembled_at": "2026-07-03T03:57:10Z",
+  "task_dir": "/Users/xuwei/.goal-pipeline-repo/goal-pipeline/scripts/fixtures/guazi-flow-gate/review-dual-mock-good",
   "contract": {
     "goal": "dual mock fixture",
     "scope": "",
@@ -26,34 +26,46 @@
       "scope": {
         "pass": false,
         "modified_files": [
-          "goal-pipeline/SKILL.md",
+          "docs/exec-plans/active/2026-06-review-execution-contract.md",
           "goal-pipeline/scripts/fixtures/guazi-flow-gate/plan-good/handoff/plan.json",
+          "goal-pipeline/scripts/fixtures/guazi-flow-gate/plan-good/index.md",
           "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-dual-mock-good/evidence/review-fix-input.json",
           "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-dual-mock-good/evidence/review-goal.json",
           "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-dual-mock-good/evidence/review-run.json",
-          "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-dual-mock-good/evidence/review-transcript.md",
           "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-dual-mock-good/evidence/review.md",
-          "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-dual-mock-good/handoff/merge-result.json",
           "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-dual-mock-good/handoff/review-packet.json",
           "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-fake-good/handoff/review.json",
           "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-fix-input-good/handoff/review.json",
+          "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-fix-input-good/index.md",
           "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-fix-input-not-pass/handoff/review.json",
-          "goal-pipeline/scripts/fixtures/guazi-flow-gate/smoke-good/handoff/smoke.json"
+          "goal-pipeline/scripts/fixtures/guazi-flow-gate/run-gate-tests.sh",
+          "goal-pipeline/scripts/fixtures/guazi-flow-gate/smoke-good/handoff/smoke.json",
+          "goal-pipeline/scripts/gate-guazi-flow-stage.sh",
+          "goal-pipeline/scripts/goal-pipeline-stop-hook.sh",
+          "goal-pipeline/scripts/run-independent-review.sh",
+          "guazi-flow-goal/SKILL.md",
+          "install.sh"
         ],
         "out_of_scope": [
-          "goal-pipeline/SKILL.md",
+          "docs/exec-plans/active/2026-06-review-execution-contract.md",
           "goal-pipeline/scripts/fixtures/guazi-flow-gate/plan-good/handoff/plan.json",
+          "goal-pipeline/scripts/fixtures/guazi-flow-gate/plan-good/index.md",
           "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-dual-mock-good/evidence/review-fix-input.json",
           "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-dual-mock-good/evidence/review-goal.json",
           "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-dual-mock-good/evidence/review-run.json",
-          "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-dual-mock-good/evidence/review-transcript.md",
           "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-dual-mock-good/evidence/review.md",
-          "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-dual-mock-good/handoff/merge-result.json",
           "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-dual-mock-good/handoff/review-packet.json",
           "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-fake-good/handoff/review.json",
           "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-fix-input-good/handoff/review.json",
+          "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-fix-input-good/index.md",
           "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-fix-input-not-pass/handoff/review.json",
-          "goal-pipeline/scripts/fixtures/guazi-flow-gate/smoke-good/handoff/smoke.json"
+          "goal-pipeline/scripts/fixtures/guazi-flow-gate/run-gate-tests.sh",
+          "goal-pipeline/scripts/fixtures/guazi-flow-gate/smoke-good/handoff/smoke.json",
+          "goal-pipeline/scripts/gate-guazi-flow-stage.sh",
+          "goal-pipeline/scripts/goal-pipeline-stop-hook.sh",
+          "goal-pipeline/scripts/run-independent-review.sh",
+          "guazi-flow-goal/SKILL.md",
+          "install.sh"
         ]
       },
       "secret": {

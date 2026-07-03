@@ -106,10 +106,19 @@ check_tests() {
     local has_test
     has_test=$(node -e "try{const p=require('./package.json');console.log(p.scripts&&p.scripts.test?'yes':'no')}catch(e){console.log('no')}" 2>/dev/null || echo "no")
     if [ "$has_test" = "yes" ]; then
-      if npm test >/dev/null 2>&1; then
-        echo '{"pass":true,"command":"npm test","output":"all passing"}'
+      test_cmd="npm test"
+      test_args=()
+      if [ -n "${GOAL_TEST_PATTERN:-}" ]; then
+        test_args=(-- --testPathPattern="$GOAL_TEST_PATTERN" --watchAll=false)
+        test_cmd="npm test -- --testPathPattern=$GOAL_TEST_PATTERN --watchAll=false"
+      fi
+      if [ -n "${CI:-}" ] || [ -n "${GOAL_TEST_PATTERN:-}" ]; then
+        export CI="${CI:-true}"
+      fi
+      if npm test "${test_args[@]}" >/dev/null 2>&1; then
+        TEST_CMD="$test_cmd" python3 -c "import json,os; print(json.dumps({'pass':True,'command':os.environ['TEST_CMD'],'output':'all passing'}))"
       else
-        echo '{"pass":false,"command":"npm test","output":"tests failed"}'
+        TEST_CMD="$test_cmd" python3 -c "import json,os; print(json.dumps({'pass':False,'command':os.environ['TEST_CMD'],'output':'tests failed'}))"
       fi
     else
       echo '{"pass":true,"command":"skipped","output":"no test script in package.json"}'

@@ -56,6 +56,16 @@ if [[ -z "$PROVIDER" ]]; then
 fi
 PROVIDER="${PROVIDER:-deterministic}"
 
+# Guazi mode: forbid silent deterministic-only downgrade (unless CI override)
+if [[ "${GOAL_REVIEW_FORCE_DETERMINISTIC:-}" != "1" && "$MODE" == "dual" && "$PROVIDER" == "deterministic" ]]; then
+  if [[ -f "$TASK_DIR/handoff/plan.json" ]] || [[ -f "$TASK_DIR/index.md" ]]; then
+    echo "run-independent-review: WARN — dual mode but only deterministic channel available" >&2
+    echo "run-independent-review: configure API key/Ollama or set GOAL_REVIEW_FORCE_DETERMINISTIC=1 for CI" >&2
+    # Mark review_undetermined in output path via provider flag for gate
+    export GOAL_REVIEW_DETERMINISTIC_ONLY=1
+  fi
+fi
+
 # CI fixture override: explicit deterministic only when GOAL_REVIEW_FORCE_DETERMINISTIC=1
 if [[ "${GOAL_REVIEW_FORCE_DETERMINISTIC:-}" == "1" ]]; then
   PROVIDER="deterministic"
@@ -76,7 +86,7 @@ if [[ -x "$ADAPTER" ]]; then
   REVIEW_BODY=$("$ADAPTER" "${ADAPTER_ARGS[@]}" 2>/dev/null || echo "{}")
 fi
 
-export TASK_DIR PACKET PACKET_HASH VERIFY_JSON PROVIDER MODEL MODE START_MS OUT_GOAL OUT_GF OUT_RUN REVIEW_BODY CHANNEL_ARG
+export TASK_DIR PACKET GOAL_REVIEW_FORCE_DETERMINISTIC PACKET_HASH VERIFY_JSON PROVIDER MODEL MODE START_MS OUT_GOAL OUT_GF OUT_RUN REVIEW_BODY CHANNEL_ARG
 python3 << 'PY'
 import json, sys, os, hashlib
 from datetime import datetime, timezone
@@ -178,7 +188,11 @@ gf_result = gf_doc.get("result", "pass" if not issues_gf else "not_pass")
 merged_pass = result_goal == "pass" and gf_result == "pass" and not issues_goal and not issues_gf
 
 separation_confidence = "high" if provider not in ("deterministic",) else "low"
-if separation_confidence == "low" and result_goal == "pass" and mode != "dual":
+deterministic_only = os.environ.get("GOAL_REVIEW_DETERMINISTIC_ONLY") == "1"
+force_det = os.environ.get("GOAL_REVIEW_FORCE_DETERMINISTIC") == "1"
+if deterministic_only and mode == "dual":
+    result_goal = "review_undetermined"
+elif separation_confidence == "low" and result_goal == "pass" and mode != "dual" and not force_det:
     result_goal = "review_undetermined"
 
 end_ms = int(__import__("time").time() * 1000)

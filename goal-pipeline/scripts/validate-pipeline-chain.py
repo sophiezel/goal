@@ -136,10 +136,11 @@ def main():
             if merged == "not_pass" and action == "proceed_complete":
                 errors.append("review: not_pass cannot have action=proceed_complete")
 
-    for stage in ("plan", "implement", "review"):
+    # review.json is produced by gate --post review (not required before that gate)
+    for stage in ("plan", "implement"):
         hf = os.path.join(handoff_dir, stage + ".json")
-        if stage == "review" and os.path.isfile(review_md) and not os.path.isfile(hf):
-            errors.append("review: handoff/review.json missing")
+        if not os.path.isfile(hf):
+            errors.append(f"{stage}: handoff/{stage}.json missing")
 
     out = {
         "ok": len(errors) == 0,

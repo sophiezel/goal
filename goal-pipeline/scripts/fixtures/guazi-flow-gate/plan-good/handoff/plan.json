@@ -3,7 +3,7 @@
   "schema_version": 1,
   "skill_expected": "guazi-flow-plan",
   "skill_executed": true,
-  "task_dir": "/Users/xuwei/Profession/goal/goal-pipeline/scripts/fixtures/guazi-flow-gate/plan-good",
+  "task_dir": "/Users/xuwei/.goal-pipeline-repo/goal-pipeline/scripts/fixtures/guazi-flow-gate/plan-good",
   "profile": "h5",
   "profile_detail": "react",
   "write_set": [
@@ -16,8 +16,8 @@
     "C02",
     "V01"
   ],
-  "index_schema_hash": "d8c8cf3896ad2d1b",
-  "git_head": "58d88c50bf1710da",
+  "index_schema_hash": "561f5fdb9c00bf19",
+  "git_head": "b7b2a09f7a226f66",
   "artifact_paths": [
     "index.md"
   ],
@@ -25,6 +25,6 @@
   "gate": {
     "script": "gate-guazi-flow-stage.sh",
     "version": 1,
-    "passed_at": "2026-07-02T09:13:56Z"
+    "passed_at": "2026-07-03T03:57:07Z"
   }
 }

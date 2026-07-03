@@ -295,7 +295,7 @@ else
 fi
 
 # Deploy scripts
-for script in verify.sh verify-review.sh detect-review-channels detect-platform check-consistency runtime-smoke.sh gate-guazi-flow-stage.sh goal-advance-stage.sh assemble-review-packet.sh merge-review-issues.sh merge_review_core.py run-independent-review.sh platform-review-adapter.sh platform_review_adapter_core.py validate-pipeline-chain.sh validate-pipeline-chain.py goal-pipeline-stop-hook.sh; do
+for script in verify.sh verify-review.sh detect-review-channels detect-platform check-consistency runtime-smoke.sh gate-guazi-flow-stage.sh goal-advance-stage.sh assemble-review-packet.sh merge-review-issues.sh merge_review_core.py run-independent-review.sh platform-review-adapter.sh platform_review_adapter_core.py validate-pipeline-chain.sh validate-pipeline-chain.py goal-pipeline-stop-hook.sh goal-stage-driver.sh goal-run-review-chain.sh goal-pipeline-recover.sh goal-pipeline-doctor.sh goal-pipeline-session-start-hook.sh; do
   src="$REPO_DIR/goal-pipeline/scripts/$script"
   dst="$GOAL_STATE_HOME/scripts/$script"
   if [ -f "$src" ]; then
@@ -370,7 +370,7 @@ with open(path) as f:
     data = json.load(f)
 hooks = data.setdefault("hooks", {})
 stop = hooks.setdefault("stop", [])
-cmd = {"command": "./hooks/goal-pipeline-stop-hook.sh", "loop_limit": 3}
+cmd = {"command": "./hooks/goal-pipeline-stop-hook.sh", "loop_limit": 10}
 if not any(h.get("command","").endswith("goal-pipeline-stop-hook.sh") for h in stop):
     stop.append(cmd)
 with open(path, "w") as f:
@@ -386,7 +386,7 @@ PYMERGE
     "stop": [
       {
         "command": "./hooks/goal-pipeline-stop-hook.sh",
-        "loop_limit": 3
+        "loop_limit": 10
       }
     ]
   }

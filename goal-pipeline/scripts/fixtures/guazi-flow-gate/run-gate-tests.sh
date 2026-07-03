@@ -25,6 +25,14 @@ else
 fi
 
 
+
+echo "=== implement-post-without-plan should FAIL ==="
+if "$GATE" --task-dir "$SCRIPT_DIR/implement-post-without-plan" --stage implement --post --mode guazi; then
+  echo "FAIL implement-post-without-plan expected fail"; exit 1
+else
+  echo "OK implement-post-without-plan rejected"
+fi
+
 echo "=== smoke-good should PASS post ==="
 if "$GATE" --task-dir "$SCRIPT_DIR/smoke-good" --stage smoke --post --mode guazi; then
   echo "OK smoke-good"

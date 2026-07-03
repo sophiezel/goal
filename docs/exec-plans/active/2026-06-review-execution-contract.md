@@ -269,3 +269,17 @@ flowchart LR
 - `review-dual-mock-good` + `test-review-dual-mock.sh`
 - `review-run.json` 增加 `gf_rubric_source`
 - gate `--post review` 校验 `review-fix-input.json` 必填字段与 action 一致性
+
+## Phase M5：Stage Driver & Gate Closure（2026-07-03）
+
+**目标**：堵住 implement 绕过 plan、gate post 跳过 chain 校验；引入 `goal-stage-driver.sh` 工单协议；强化 Stop Hook。
+
+| 子项 | 交付 |
+|------|------|
+| M5.1 | `implement --post` 强制 `handoff/plan.json` |
+| M5.2 | 各阶段 `--post` 内联 `assert_pipeline_chain` |
+| M5.3 | `goal-stage-driver.sh` + `goal-run-review-chain.sh` |
+| M5.4 | `goal-pipeline-stop-hook.sh` 使用 `gate --assert-complete` + driver followup |
+| M5.5 | `goal-pipeline-recover.sh` + fixtures |
+
+**验收**：`run-all-gate-tests.sh` 全绿；`implement-post-without-plan` fixture FAIL。

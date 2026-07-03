@@ -142,7 +142,7 @@ def main():
         new_fm = re.sub(r"merged_result:\s*\S+", "merged_result: %s" % merged_result, new_fm)
         if "merged_result:" not in new_fm:
             new_fm = new_fm.rstrip() + "\nmerged_result: %s\n" % merged_result
-        text = "---\n" + new_fm + "---" + text[body_m.end():]
+        text = "---\n" + new_fm + "\n---\n" + text[body_m.end():]
     with open(review_path, "w", encoding="utf-8") as f:
         f.write(text)
 

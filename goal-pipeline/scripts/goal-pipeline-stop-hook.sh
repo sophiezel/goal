@@ -1,20 +1,15 @@
 #!/bin/bash
 # goal-pipeline-stop-hook.sh — Cursor stop hook: block early exit when pipeline incomplete
-# Installed to ~/.cursor/hooks/ and ~/.goal-state/scripts/
-# Exit 0 always; outputs followup_message JSON on stdout when pipeline incomplete
+# Uses gate --assert-complete + goal-stage-driver for followup work orders
 
 set -euo pipefail
 
 GOAL_STATE_HOME="${GOAL_STATE_HOME:-$HOME/.goal-state}"
 GATE="$GOAL_STATE_HOME/scripts/gate-guazi-flow-stage.sh"
-ADVANCE="$GOAL_STATE_HOME/scripts/goal-advance-stage.sh"
+DRIVER="$GOAL_STATE_HOME/scripts/goal-stage-driver.sh"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 [[ -x "$GATE" ]] || GATE="$SCRIPT_DIR/gate-guazi-flow-stage.sh"
-[[ -x "$ADVANCE" ]] || ADVANCE="$SCRIPT_DIR/goal-advance-stage.sh"
-
-VALIDATOR="$GOAL_STATE_HOME/scripts/validate-pipeline-chain.sh"
-[[ -x "$VALIDATOR" ]] || VALIDATOR="$SCRIPT_DIR/validate-pipeline-chain.sh"
-
+[[ -x "$DRIVER" ]] || DRIVER="$SCRIPT_DIR/goal-stage-driver.sh"
 
 INPUT=$(cat)
 WORKSPACE=$(echo "$INPUT" | python3 -c "
@@ -45,15 +40,15 @@ except Exception:
 if st.get("status") not in ("active", "blocked"):
     sys.exit(0)
 root = st.get("project_root") or st.get("repo_root") or ""
-if ws and root and os.path.normpath(root) != os.path.normpath(ws):
-    sys.exit(0)
-task = st.get("guazi_flow_task") or ""
+if ws:
+    if not root or os.path.normpath(root) != os.path.normpath(ws):
+        sys.exit(0)
+task = st.get("guazi_flow_task") or st.get("task_dir") or ""
 print(json.dumps({"state_file": sf, "task": task, "objective": st.get("objective","")[:80]}))
 PY
   done
 }
 
-# Also detect incomplete guazi-flow index in workspace without state
 find_incomplete_tasks() {
   local ws="$1"
   [[ -n "$ws" && -d "$ws" ]] || return 0
@@ -69,64 +64,63 @@ find_incomplete_tasks() {
 
 INCOMPLETE=""
 if [[ -n "$WORKSPACE" ]]; then
-  INCOMPLETE=$( { find_active_states "$WORKSPACE"; find_incomplete_tasks "$WORKSPACE"; } | head -1 )
+  INCOMPLETE=$(find_active_states "$WORKSPACE" | head -1 || true)
+  [[ -z "$INCOMPLETE" ]] && INCOMPLETE=$(find_incomplete_tasks "$WORKSPACE" | head -1 || true)
 fi
-
-if [[ -z "$INCOMPLETE" ]]; then
-  INCOMPLETE=$(find_active_states "" | head -1)
-fi
-
-if [[ -z "$INCOMPLETE" ]]; then
-  exit 0
-fi
+[[ -z "$INCOMPLETE" ]] && INCOMPLETE=$(find_active_states "" | head -1 || true)
+[[ -z "$INCOMPLETE" ]] && exit 0
 
 STATE_FILE=$(echo "$INCOMPLETE" | python3 -c "import json,sys; print(json.load(sys.stdin).get('state_file',''))")
 TASK=$(echo "$INCOMPLETE" | python3 -c "import json,sys; print(json.load(sys.stdin).get('task',''))")
 OBJECTIVE=$(echo "$INCOMPLETE" | python3 -c "import json,sys; print(json.load(sys.stdin).get('objective',''))")
 
-NEXT="unknown"
-if [[ -x "$ADVANCE" && -n "$STATE_FILE" && -f "$STATE_FILE" ]]; then
-  ARGS=(--state-file "$STATE_FILE" --format json)
-  [[ -n "$TASK" && -n "$WORKSPACE" ]] && ARGS+=(--task-dir "$TASK" --project-root "$WORKSPACE")
-  OUT=$("$ADVANCE" "${ARGS[@]}" 2>/dev/null) || true
-  NEXT=$(echo "$OUT" | python3 -c "import json,sys; print(json.load(sys.stdin).get('next_stage','unknown'))" 2>/dev/null || echo "unknown")
-elif [[ -n "$TASK" ]]; then
-  NEXT="review"
+# assert-complete when we have full context
+ASSERT_RC=0
+if [[ -n "$STATE_FILE" && -f "$STATE_FILE" && -n "$WORKSPACE" && -n "$TASK" && -x "$GATE" ]]; then
+  "$GATE" --assert-complete --state-file "$STATE_FILE" --task-dir "$TASK" --project-root "$WORKSPACE" >/dev/null 2>&1 || ASSERT_RC=$?
+  [[ "$ASSERT_RC" == "0" ]] && exit 0
 fi
 
+# Build followup via stage driver when possible
+WORK_ORDER=""
+if [[ -x "$DRIVER" && -n "$STATE_FILE" && -f "$STATE_FILE" && -n "$WORKSPACE" && -n "$TASK" ]]; then
+  WORK_ORDER=$("$DRIVER" --state-file "$STATE_FILE" --task-dir "$TASK" --project-root "$WORKSPACE" --format json 2>/dev/null || true)
+fi
 
-if [[ -n "$WORKSPACE" && -n "$TASK" ]]; then
-  TASK_DIR_ABS="$WORKSPACE/$TASK"
-  if [[ -x "$VALIDATOR" && -d "$TASK_DIR_ABS" ]]; then
-    if ! "$VALIDATOR" --task-dir "$TASK_DIR_ABS" >/dev/null 2>&1; then
-      CHAIN_ERR=$("$VALIDATOR" --task-dir "$TASK_DIR_ABS" 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); print('; '.join(d.get('errors',[])[:2]))" 2>/dev/null || echo "chain invalid")
-      MSG="Pipeline chain invalid: $CHAIN_ERR. Fix provenance before stopping."
-      python3 - "$MSG" << 'PYMSG'
+python3 - "$OBJECTIVE" "$WORK_ORDER" << 'PY'
 import json, sys
-print(json.dumps({"followup_message": sys.argv[1]}))
-PYMSG
-      exit 0
-    fi
-  fi
-fi
 
+objective = sys.argv[1]
+wo_s = sys.argv[2] if len(sys.argv) > 2 else ""
+wo = {}
+if wo_s.strip():
+    try:
+        wo = json.loads(wo_s)
+    except json.JSONDecodeError:
+        wo = {}
 
-if [[ "$NEXT" == "done" ]]; then
-  exit 0
-fi
+next_stage = wo.get("next_stage", "unknown")
+blocked_reason = wo.get("blocked_reason") or ""
+cmds = wo.get("mandatory_commands") or []
+skill = wo.get("skill_to_load") or ""
+never = wo.get("never") or []
 
-BLOCKED_REASON=$(echo "$OUT" | python3 -c "import json,sys; print(json.load(sys.stdin).get('blocked_reason') or '')" 2>/dev/null || echo "")
-REQ=$(echo "$OUT" | python3 -c "import json,sys; r=json.load(sys.stdin).get('required_commands',[]); print(' → '.join(r[:4]) if r else '')" 2>/dev/null || echo "")
+lines = [
+    f"Pipeline incomplete — MUST continue guazi-flow-goal (next_stage={next_stage}",
+]
+if blocked_reason:
+    lines[0] += f", reason={blocked_reason}"
+lines[0] += ")."
 
-if [[ "$NEXT" == "implement" && "$BLOCKED_REASON" == "implement_gate_pending" ]]; then
-  MSG="implement 代码已完成但未 gate --post。MUST: gate-guazi-flow-stage.sh --stage implement --post --mode guazi → validate-pipeline-chain → goal-advance-stage。$REQ Objective: $OBJECTIVE"
-elif [[ -n "$REQ" ]]; then
-  MSG="Pipeline incomplete (next_stage=$NEXT${BLOCKED_REASON:+, reason=$BLOCKED_REASON}). Required: $REQ Objective: $OBJECTIVE"
-else
-  MSG="Pipeline incomplete (next_stage=$NEXT). Continue guazi-flow-goal: load guazi-flow-$NEXT SKILL.md and run gate --pre/$NEXT. Objective: $OBJECTIVE"
-fi
-python3 - "$MSG" << 'PY'
-import json, sys
-print(json.dumps({"followup_message": sys.argv[1]}))
+if skill:
+    lines.append(f"Load skill: {skill}")
+for i, c in enumerate(cmds[:3], 1):
+    lines.append(f"cmd{i}: {c}")
+if never:
+    lines.append(f"禁止: {never[0]}")
+
+lines.append(f"Objective: {objective}")
+msg = " ".join(lines)
+print(json.dumps({"followup_message": msg}))
 PY
 exit 0

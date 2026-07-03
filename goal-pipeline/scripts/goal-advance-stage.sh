@@ -218,9 +218,7 @@ if [[ -x "$SMOKE_SCRIPT" ]]; then
   SMOKE_RESULT=$(python3 - "$EVIDENCE/runtime-smoke.md" << 'PYSR'
 import re, sys
 t = open(sys.argv[1]).read()
-m = re.match(r"^---\s*
-(.*?)
----", t, re.DOTALL)
+m = re.match(r"^---\s*\n(.*?)\n---", t, re.DOTALL)
 if not m:
     print("unknown"); sys.exit(0)
 for line in m.group(1).splitlines():

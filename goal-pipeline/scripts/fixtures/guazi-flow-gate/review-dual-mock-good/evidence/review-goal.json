@@ -40,6 +40,6 @@
   "separation_confidence": "high",
   "provider": "mock-dual",
   "model": "mock-dual",
-  "packet_hash": "95456fb7cbd39da7",
-  "generated_at": "2026-07-02T09:13:59Z"
+  "packet_hash": "2d6987201be499c3",
+  "generated_at": "2026-07-03T03:57:10Z"
 }

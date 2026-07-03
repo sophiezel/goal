@@ -1,5 +1,5 @@
 ---
-current_stage: review
+current_stage: complete
 ---
 ## 目标
 fixture pass

@@ -99,14 +99,18 @@ Step 1: 环境初始化
 Step 1.5: Pre-flight（MANDATORY，Phase 2 前亦须可用）
   ├─ 检查 ~/.goal-state/scripts/gate-guazi-flow-stage.sh 存在
   ├─ 检查 ~/.goal-state/scripts/goal-advance-stage.sh 存在
+  ├─ 检查 ~/.goal-state/scripts/goal-stage-driver.sh 存在
   ├─ 检查 ~/.goal-state/references/guazi-flow-artifact-schema/ 存在
   │   任一缺失 → 运行 `bash <goal-repo>/install.sh --agent <detected>` 或 blocked(failure_code: infra_missing)
+  ├─ detect-review-channels --json（guazi_flow_available=true 时）
+  │   若仅 deterministic → warning + 引导配置 API key/Ollama；CI 可设 GOAL_REVIEW_FORCE_DETERMINISTIC=1
   └─ 输出: "pre-flight: scripts=OK|MISSING"
 
 Fast-path（用户已提供 JIRA + 明确验收标准时）:
   ├─ Step 2-3 缩减为自动推断（跳过 interview 追问）
   ├─ 仍 MUST 执行 Step 5 创建 state.json
   ├─ 仍 MUST 输出 Goal 结构摘要（1 屏以内，默认确认，用户可打断）
+  ├─ 可跳过访谈，不可跳过 gate --post plan 与完整 index.md schema
   └─ 不得因「需求清晰」跳过 Phase 1 entirely
 
 Step 2-3: 意图采集 + 自动推断 (interview-protocol.md)
@@ -141,6 +145,30 @@ Step 6: GATE Check（全部满足才进入 Phase 2）
 ---
 
 ## Phase 2: Pipeline Execution
+
+### Turn Protocol（MANDATORY — 每个 Agent turn）
+
+**Resume（`/guazi-flow-goal` 无参）**：先 `goal-pipeline-recover.sh` → `goal-stage-driver.sh`，再执行 work_order。
+
+每个 Agent turn **第一步**（MANDATORY）:
+```
+goal-stage-driver.sh --state-file <state> --task-dir <task> --project-root <repo>
+```
+- 若 `blocked` 或 `wrong_stage` → 按 `mandatory_commands` 执行，**不得**实现新功能
+- 唯一进度真相：`work_order.next_stage` + handoff 链，禁止自行推断
+
+每个阶段结束（MANDATORY）:
+```
+gate --post <stage> → validate-pipeline-chain → goal-advance-stage → goal-stage-driver（立即进入下一阶段）
+```
+
+Turn 结束条件（MANDATORY）:
+```
+gate-guazi-flow-stage.sh --assert-complete --state-file <state> --task-dir <task> --project-root <repo>  # exit 0
+```
+未通过 **禁止** 输出总结性结束语。
+
+**review 阶段**：推荐 `Task` 子 agent `readonly=true`，prompt 仅含 `review-packet.json` + rubric；或 `GOAL_REVIEW_CURSOR_TASK=1` + `platform-review-adapter cursor-task`。
 
 管线流程详见 `goal-pipeline/SKILL.md`。本层在每个阶段注入 GATE 检查和 guazi-flow-* 调度：
 
@@ -208,7 +236,7 @@ guazi-flow-implement 执行完毕（含测试通过、摘要撰写）**不等于
 **反例（禁止）**：「implement 已完成，需要我继续跑 review 吗？」「实现摘要如下，如需 review 请告知」
 
 
-Phase 2 每个阶段**开头**亦须运行 `goal-advance-stage.sh`：若 next_stage != 当前阶段 → blocked(wrong_stage)。
+Phase 2 每个阶段**开头**亦须运行 `goal-stage-driver.sh`（内含 advance 语义）：若 `wrong_stage=true` → blocked(wrong_stage)，按 work_order 纠正。
 
 
 **各阶段调度细节**:
