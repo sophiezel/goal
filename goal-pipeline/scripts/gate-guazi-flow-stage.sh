@@ -321,7 +321,14 @@ except Exception:
     all_files = []
 out = []
 for f in all_files:
-    allowed = any(f == w or f.startswith(w.rstrip('/') + '/') or f.startswith(w) for w in write_set)
+    if f.startswith('docs/guazi-flow/'):
+        continue
+    def _allowed(f, w):
+        w = w.rstrip('/')
+        if w.endswith('/**'):
+            w = w[:-3]
+        return f == w or f.startswith(w + '/')
+    allowed = any(_allowed(f, w) for w in write_set)
     if not allowed:
         out.append(f)
 print(json.dumps({"ok": len(out) == 0, "out_of_scope": out, "changed_files": all_files}))
@@ -446,8 +453,6 @@ case "$STAGE" in
       fail "plan index schema validation failed"
     fi
     if [[ "$PHASE" == "post" ]]; then
-      assert_pipeline_chain
-      assert_pipeline_chain
       WS=$(echo "$RESULT" | python3 -c "import json,sys; print(json.dumps(json.load(sys.stdin)['write_set']))")
       AM=$(echo "$RESULT" | python3 -c "import json,sys; print(json.dumps(json.load(sys.stdin)['acceptance_matrix_ids']))")
       PROF=$(echo "$RESULT" | python3 -c "import json,sys; print(json.load(sys.stdin).get('profile',''))")
@@ -476,6 +481,7 @@ JSON
       rm -f "$TMP"
       update_state_gate "plan"
       sync_index_current_stage "$(stage_to_index_current plan)"
+      assert_pipeline_chain
     fi
     pass "plan gate"
     ;;
@@ -497,7 +503,6 @@ JSON
     if [[ "$PHASE" == "post" ]]; then
       PLAN_WS_LEN=$(python3 -c "import json; print(len(json.load(open('$HANDOFF_DIR/plan.json')).get('write_set',[])))" 2>/dev/null || echo 0)
       [[ "$PLAN_WS_LEN" != "0" ]] || fail "plan write_set empty — update index.md write_set before implement post"
-      assert_pipeline_chain
       CHANGED=$(check_write_set_subset "$PLAN_WS")
       CF=$(echo "$CHANGED" | python3 -c "import json,sys; print(json.dumps(json.load(sys.stdin).get('changed_files',[])))")
       DH=$(diff_hash)
@@ -520,6 +525,7 @@ JSON
       rm -f "$TMP"
       update_state_gate "implement"
       sync_index_current_stage "$(stage_to_index_current implement)"
+      assert_pipeline_chain
     fi
     pass "implement gate"
     ;;

@@ -39,6 +39,8 @@ except Exception:
     sys.exit(0)
 if st.get("status") not in ("active", "blocked"):
     sys.exit(0)
+if st.get("current_stage") in ("complete", "done") or st.get("status") == "complete":
+    sys.exit(0)
 root = st.get("project_root") or st.get("repo_root") or ""
 if ws:
     if not root or os.path.normpath(root) != os.path.normpath(ws):
@@ -74,17 +76,28 @@ STATE_FILE=$(echo "$INCOMPLETE" | python3 -c "import json,sys; print(json.load(s
 TASK=$(echo "$INCOMPLETE" | python3 -c "import json,sys; print(json.load(sys.stdin).get('task',''))")
 OBJECTIVE=$(echo "$INCOMPLETE" | python3 -c "import json,sys; print(json.load(sys.stdin).get('objective',''))")
 
+PROJECT_ROOT=""
+if [[ -n "$STATE_FILE" && -f "$STATE_FILE" ]]; then
+  PROJECT_ROOT=$(python3 - "$STATE_FILE" << 'PYROOT'
+import json, sys
+st = json.load(open(sys.argv[1]))
+print(st.get("project_root") or st.get("repo_root") or "")
+PYROOT
+)
+fi
+[[ -n "$PROJECT_ROOT" ]] || PROJECT_ROOT="$WORKSPACE"
+
 # assert-complete when we have full context
 ASSERT_RC=0
-if [[ -n "$STATE_FILE" && -f "$STATE_FILE" && -n "$WORKSPACE" && -n "$TASK" && -x "$GATE" ]]; then
-  "$GATE" --assert-complete --state-file "$STATE_FILE" --task-dir "$TASK" --project-root "$WORKSPACE" >/dev/null 2>&1 || ASSERT_RC=$?
+if [[ -n "$STATE_FILE" && -f "$STATE_FILE" && -n "$PROJECT_ROOT" && -n "$TASK" && -x "$GATE" ]]; then
+  "$GATE" --assert-complete --state-file "$STATE_FILE" --task-dir "$TASK" --project-root "$PROJECT_ROOT" >/dev/null 2>&1 || ASSERT_RC=$?
   [[ "$ASSERT_RC" == "0" ]] && exit 0
 fi
 
 # Build followup via stage driver when possible
 WORK_ORDER=""
-if [[ -x "$DRIVER" && -n "$STATE_FILE" && -f "$STATE_FILE" && -n "$WORKSPACE" && -n "$TASK" ]]; then
-  WORK_ORDER=$("$DRIVER" --state-file "$STATE_FILE" --task-dir "$TASK" --project-root "$WORKSPACE" --format json 2>/dev/null || true)
+if [[ -x "$DRIVER" && -n "$STATE_FILE" && -f "$STATE_FILE" && -n "$PROJECT_ROOT" && -n "$TASK" ]]; then
+  WORK_ORDER=$("$DRIVER" --state-file "$STATE_FILE" --task-dir "$TASK" --project-root "$PROJECT_ROOT" --format json 2>/dev/null || true)
 fi
 
 python3 - "$OBJECTIVE" "$WORK_ORDER" << 'PY'

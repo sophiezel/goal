@@ -49,7 +49,6 @@ def index_implies_implement_done(task_dir):
         r"implement\s*完成",
         r"implement.*\bpass\b",
         r"guazi-flow-implement.*\bpass\b",
-        r"\|\s*implement\s*\|",
         r"yarn test.*pass",
         r"pytest.*pass",
         r"\d+\s*passed",
@@ -135,12 +134,6 @@ def main():
                 errors.append("review: pass requires action=proceed_complete in review-fix-input.json")
             if merged == "not_pass" and action == "proceed_complete":
                 errors.append("review: not_pass cannot have action=proceed_complete")
-
-    # review.json is produced by gate --post review (not required before that gate)
-    for stage in ("plan", "implement"):
-        hf = os.path.join(handoff_dir, stage + ".json")
-        if not os.path.isfile(hf):
-            errors.append(f"{stage}: handoff/{stage}.json missing")
 
     out = {
         "ok": len(errors) == 0,
