@@ -50,6 +50,7 @@ guazi_flow_available = true 时，plan 阶段执行方式：
 | `references/bridge-contract.md` | 桥接契约（goal-pipeline ↔ guazi-flow 映射规则、扩展字段、降级策略） |
 | `references/guazi-flow-integration.md` | guazi-flow 调度规则（MUST + 条件触发） |
 | `references/guazi-flow-state-schema.md` | guazi-flow 扩展字段定义和写入边界 |
+| `references/artifact-tier-policy.md` | Tier-G / Tier-R 产物分层与 MR 提交策略 |
 | `goal-pipeline/references/interview-protocol.md` | 三步收敛访谈协议 |
 | `goal-pipeline/references/platform-detection.md` | 平台检测和能力矩阵 |
 | `goal-pipeline/references/separation-strategies.md` | 审核模型多通道探测策略 |
@@ -285,11 +286,14 @@ Phase 2 每个阶段**开头**亦须运行 `goal-stage-driver.sh`（内含 advan
 | 文件 | 操作 |
 |------|------|
 | `~/.goal-state/config.json` | 创建骨架 + 写 api_keys |
-| `~/.goal-state/projects/<pid>/<branch>/<task>/state.json` | 读/写 |
+| `~/.goal-state/projects/<pid>/<branch>/<task>/state.json` | 读/写（含 `artifact_layout`） |
+| `~/.goal-state/projects/<pid>/<branch>/<task>/artifacts/**` | Tier-R：handoff + goal review annex |
 | `~/.goal-state/projects/<pid>/<branch>/<task>/.lock` | 读/写 |
 | `~/.goal-state/archive/<pid>/goal_<id>.json` | 写入 |
 | `~/.goal-state/scripts/` | 首次部署 |
-| `docs/guazi-flow/<task>/**` | 委托 guazi-flow-plan/implement/review/complete |
+| `docs/guazi-flow/<task>/index.md` 等 **Tier-G** | 委托 guazi-flow-*；进 git |
+| `docs/guazi-flow/<task>/handoff/**` | ❌ split 模式下不写 repo（Tier-R 在 goal-state） |
+| `docs/guazi-flow/.gitignore` | Phase 1 调用 `inject-docs-gitignore.sh` 注入 Tier-R 忽略规则 |
 | `docs/guazi-flow/<task>/index.md` | 桥接层追加 Goal 契约字段（allowed_patterns/exclusions/stop_conditions 子 section） |
 | 业务代码 | 委托 guazi-flow-implement 或 goal-pipeline 通用 implement |
 | `<project>/.guazi-flow/` | ❌ 不写入 goal 产物 |

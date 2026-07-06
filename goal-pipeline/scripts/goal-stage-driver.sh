@@ -102,7 +102,8 @@ def build_mandatory(stage):
         ]
     if stage == "runtime_smoke":
         return [
-            f"{script_dir}/runtime-smoke.sh --repo-root {project_root!r} --task-dir {task_dir!r}",
+            f"{script_dir}/runtime-smoke.sh --repo-root {project_root!r} --task-dir {task_dir!r} "
+            f"--state-file {state_file!r} --project-root {project_root!r}",
             gate_cmd("smoke", "post"),
             f"{script_dir}/goal-advance-stage.sh --state-file {state_file!r} --task-dir {task_dir!r} --project-root {project_root!r}",
         ]

@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "stage": "plan",
+  "action": "fix_and_rerun",
+  "issues": [
+    {
+      "id": "G001",
+      "severity": "blocker",
+      "summary": "frontmatter missing: current_stage",
+      "root_cause": "plan_gap",
+      "criterion_ref": "unified-doc-contract §章节顺序"
+    },
+    {
+      "id": "G002",
+      "severity": "blocker",
+      "summary": "frontmatter missing: profile_detail",
+      "root_cause": "plan_gap",
+      "criterion_ref": "unified-doc-contract §章节顺序"
+    },
+    {
+      "id": "G003",
+      "severity": "blocker",
+      "summary": "缺少必填章节: ## 概览",
+      "root_cause": "plan_gap",
+      "criterion_ref": "unified-doc-contract §章节顺序"
+    },
+    {
+      "id": "G004",
+      "severity": "blocker",
+      "summary": "缺少必填章节: ## 任务目标",
+      "root_cause": "plan_gap",
+      "criterion_ref": "unified-doc-contract §章节顺序"
+    },
+    {
+      "id": "G005",
+      "severity": "blocker",
+      "summary": "缺少必填章节: ## 范围与非目标",
+      "root_cause": "plan_gap",
+      "criterion_ref": "unified-doc-contract §章节顺序"
+    },
+    {
+      "id": "G006",
+      "severity": "blocker",
+      "summary": "缺少必填章节: ## 核心事实",
+      "root_cause": "plan_gap",
+      "criterion_ref": "unified-doc-contract §章节顺序"
+    },
+    {
+      "id": "G007",
+      "severity": "blocker",
+      "summary": "缺少必填章节: ## 完整伪代码",
+      "root_cause": "plan_gap",
+      "criterion_ref": "unified-doc-contract §章节顺序"
+    },
+    {
+      "id": "G008",
+      "severity": "blocker",
+      "summary": "缺少必填章节: ## 验收与验证矩阵",
+      "root_cause": "plan_gap",
+      "criterion_ref": "unified-doc-contract §章节顺序"
+    },
+    {
+      "id": "G009",
+      "severity": "blocker",
+      "summary": "pseudocode section not found",
+      "root_cause": "plan_gap",
+      "criterion_ref": "unified-doc-contract §章节顺序"
+    },
+    {
+      "id": "G010",
+      "severity": "blocker",
+      "summary": "execution record missing skill marker: guazi-flow-plan",
+      "root_cause": "plan_gap",
+      "criterion_ref": "unified-doc-contract §章节顺序"
+    }
+  ],
+  "next_steps": [
+    "修 index.md 必填章节与 write_set 后重跑 gate --post plan"
+  ],
+  "subject_hash": "8bb00dac1e8461d3",
+  "gate_script": "gate-guazi-flow-stage.sh"
+}

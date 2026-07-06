@@ -2,6 +2,7 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GATE="$SCRIPT_DIR/../../gate-guazi-flow-stage.sh"
+export GOAL_ARTIFACT_MODE=repo_full
 
 echo "=== plan-good should PASS ==="
 if "$GATE" --task-dir "$SCRIPT_DIR/plan-good" --stage plan --post --mode guazi; then
@@ -107,5 +108,36 @@ fi
 
 echo "=== verify-review JSON validity ==="
 python3 -c "import json,subprocess; r=subprocess.run(['bash','/Users/xuwei/Profession/goal/goal-pipeline/scripts/verify-review.sh','$SCRIPT_DIR/plan-good','src/', 'json'],capture_output=True,text=True); json.loads(r.stdout); print('OK verify-review JSON valid')"
+
+echo "=== split mode review-dual-mock (Tier-R in runtime) ==="
+SPLIT_TMP=$(mktemp -d)
+RUNTIME="$SPLIT_TMP/runtime"
+TASK="$SPLIT_TMP/task"
+STATE="$SPLIT_TMP/state.json"
+FIXTURE="$SCRIPT_DIR/review-fix-input-good"
+mkdir -p "$RUNTIME/handoff" "$RUNTIME/evidence" "$TASK/evidence"
+cp "$FIXTURE/index.md" "$TASK/"
+cp "$FIXTURE/evidence/review.md" "$TASK/evidence/"
+cp "$FIXTURE/handoff/"*.json "$RUNTIME/handoff/"
+cp "$FIXTURE/evidence/review-"*.json "$RUNTIME/evidence/" 2>/dev/null || true
+[[ -f "$FIXTURE/evidence/review-transcript.md" ]] && cp "$FIXTURE/evidence/review-transcript.md" "$RUNTIME/evidence/"
+python3 - << PY
+import json
+state = {
+    "guazi_flow_task": "task",
+    "artifact_layout": {
+        "mode": "split",
+        "repo_task_dir": "$TASK",
+        "runtime_root": "$RUNTIME",
+    },
+}
+open("$STATE", "w").write(json.dumps(state, indent=2))
+PY
+if GOAL_ARTIFACT_MODE=split "$GATE" --task-dir "$TASK" --stage review --post --mode guazi --state-file "$STATE"; then
+  echo "OK split mode review post"
+else
+  echo "FAIL split mode review expected pass"; rm -rf "$SPLIT_TMP"; exit 1
+fi
+rm -rf "$SPLIT_TMP"
 
 echo "All gate fixture tests passed"

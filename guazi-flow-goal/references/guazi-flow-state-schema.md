@@ -18,9 +18,15 @@
 ├── .guazi-flow/
 │   └── config.local.json                    ← JIRA_TOKEN / repos（goal 不碰）
 └── docs/guazi-flow/<task>/
-    ├── index.md
-    ├── evidence/*.md                        ← 任务产物（在项目中，进 git）
+    ├── index.md                             ← Tier-G（进 git）
+    ├── evidence/review.md                   ← Tier-G gate 产物
+    ├── evidence/complete.md                 ← Tier-G
+    ├── evidence/cwiki/**                    ← Tier-G
     └── units/*.md
+
+~/.goal-state/projects/<pid>/<branch>/<task>/artifacts/   ← Tier-R（不进 git）
+├── handoff/*.json
+└── evidence/review-goal.json, review-run.json, ...
 ```
 
 ## guazi-flow 扩展字段
@@ -38,9 +44,25 @@
     "implement": {"used": true},
     "review": {"used": true},
     "complete": {"used": true}
+  },
+  "artifact_layout": {
+    "mode": "split",
+    "repo_task_dir": "docs/guazi-flow/<task>",
+    "runtime_root": "/Users/you/.goal-state/projects/<pid>/<branch>/<task>/artifacts"
   }
 }
 ```
+
+### artifact_layout
+
+| 字段 | 说明 |
+|------|------|
+| `mode` | `split`（默认，新 goal）或 `repo_full`（兼容旧行为） |
+| `repo_task_dir` | Tier-G 任务目录（相对或绝对路径） |
+| `runtime_root` | Tier-R 根目录（handoff + goal evidence annex） |
+
+路径解析见 `references/artifact-tier-policy.md` 与 `resolve-artifact-paths.py`。
+Phase 1 创建 goal 时写入；已有 task 用 `goal-pipeline-doctor.sh --migrate-artifacts` 迁移。
 
 ### 字段说明
 
@@ -74,6 +96,9 @@ Agent 禁止手改 `gate.passed_at` 或 `handoff/*.json`。
 
 - 扩展字段只能**追加**到 state.json，不覆盖 `pipeline` / `platform` / `review_config` 等管线字段
 - `.guazi-flow/config.local.json` 只存 JIRA_TOKEN / FIGMA_ACCESS_TOKEN / repos 等 guazi-flow 自身字段，**不含任何 goal 产物**
+- **Tier-G**（guazi-flow 契约）：写入 `docs/guazi-flow/<task>/` — `index.md`、`evidence/review.md`、`evidence/complete.md`、`evidence/cwiki/**`
+- **Tier-R**（goal 运行时）：写入 `artifact_layout.runtime_root` — `handoff/**`、review annex JSON、fix-input、runtime-smoke
+- goal **禁止**把 Tier-R 写入 `<project>/.guazi-flow/`
 
 ## 兼容迁移
 

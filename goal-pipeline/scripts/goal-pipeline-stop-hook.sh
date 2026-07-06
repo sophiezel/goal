@@ -25,7 +25,7 @@ for k in ('workspace_roots','workspaceRoot','cwd','root'):
 print('')
 " 2>/dev/null || echo "")
 
-find_active_states() {
+find_workspace_goal_states() {
   local ws="$1"
   local states_dir="$GOAL_STATE_HOME/projects"
   [[ -d "$states_dir" ]] || return 0
@@ -39,19 +39,47 @@ except Exception:
     sys.exit(0)
 if st.get("status") not in ("active", "blocked"):
     sys.exit(0)
-if st.get("current_stage") in ("complete", "done") or st.get("status") == "complete":
-    sys.exit(0)
 root = st.get("project_root") or st.get("repo_root") or ""
 if ws:
     if not root or os.path.normpath(root) != os.path.normpath(ws):
         sys.exit(0)
 task = st.get("guazi_flow_task") or st.get("task_dir") or ""
-print(json.dumps({"state_file": sf, "task": task, "objective": st.get("objective","")[:80]}))
+print(json.dumps({
+    "state_file": sf,
+    "task": task,
+    "objective": (st.get("objective") or "")[:80],
+    "current_stage": st.get("current_stage") or "",
+}))
 PY
   done
 }
 
-find_incomplete_tasks() {
+mark_state_complete() {
+  local sf="$1"
+  [[ -f "$sf" ]] || return 0
+  python3 - "$sf" << 'PY'
+import json, sys
+from datetime import datetime, timezone
+path = sys.argv[1]
+with open(path, encoding="utf-8") as f:
+    state = json.load(f)
+if state.get("status") == "complete":
+    sys.exit(0)
+state["status"] = "complete"
+state["current_stage"] = "complete"
+state["updated_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+pipe = state.setdefault("pipeline", {})
+for stage in ("plan", "implement", "runtime_smoke", "review", "complete"):
+    entry = pipe.setdefault(stage, {})
+    entry["status"] = "passed"
+    entry["evidence_fresh"] = True
+with open(path, "w", encoding="utf-8") as f:
+    json.dump(state, f, indent=2, ensure_ascii=False)
+    f.write("\n")
+PY
+}
+
+find_orphan_incomplete_tasks() {
   local ws="$1"
   [[ -n "$ws" && -d "$ws" ]] || return 0
   find "$ws/docs/guazi-flow" -maxdepth 2 -name index.md 2>/dev/null | while read -r idx; do
@@ -60,16 +88,71 @@ find_incomplete_tasks() {
     fi
     task_dir=$(dirname "$idx")
     rel="${task_dir#"$ws"/}"
-    echo "{\"state_file\":\"\",\"task\":\"$rel\",\"objective\":\"incomplete index.md\"}"
+    # Only flag orphan plans (no goal-state binding for this task)
+    if find "$GOAL_STATE_HOME/projects" -name state.json 2>/dev/null | while read -r sf; do
+      python3 - "$sf" "$rel" << 'PY'
+import json, sys, os
+sf, rel = sys.argv[1], sys.argv[2]
+try:
+    st = json.load(open(sf))
+except Exception:
+    sys.exit(1)
+task = (st.get("guazi_flow_task") or st.get("task_dir") or "").strip("/")
+if task == rel.strip("/") or task.endswith(rel):
+    sys.exit(0)
+sys.exit(1)
+PY
+    done; then
+      continue
+    fi
+    echo "{\"state_file\":\"\",\"task\":\"$rel\",\"objective\":\"incomplete index.md (orphan plan)\"}"
   done
+}
+
+pick_incomplete_goal() {
+  local ws="$1"
+  local states
+  states=$(find_workspace_goal_states "$ws" || true)
+  [[ -n "$states" ]] || return 0
+  while IFS= read -r row; do
+    [[ -z "$row" ]] && continue
+    local sf task objective project_root assert_rc
+    sf=$(echo "$row" | python3 -c "import json,sys; print(json.load(sys.stdin).get('state_file',''))")
+    task=$(echo "$row" | python3 -c "import json,sys; print(json.load(sys.stdin).get('task',''))")
+    objective=$(echo "$row" | python3 -c "import json,sys; print(json.load(sys.stdin).get('objective',''))")
+    [[ -n "$sf" && -f "$sf" && -n "$task" && -x "$GATE" ]] || {
+      echo "$row"
+      return 0
+    }
+    project_root=$(python3 - "$sf" << 'PYROOT'
+import json, sys
+st = json.load(open(sys.argv[1]))
+print(st.get("project_root") or st.get("repo_root") or "")
+PYROOT
+)
+    [[ -n "$project_root" ]] || project_root="$ws"
+    assert_rc=0
+    "$GATE" --assert-complete --state-file "$sf" --task-dir "$task" --project-root "$project_root" >/dev/null 2>&1 || assert_rc=$?
+    if [[ "$assert_rc" == "0" ]]; then
+      mark_state_complete "$sf"
+      continue
+    fi
+    echo "$row"
+    return 0
+  done <<< "$states"
 }
 
 INCOMPLETE=""
 if [[ -n "$WORKSPACE" ]]; then
-  INCOMPLETE=$(find_active_states "$WORKSPACE" | head -1 || true)
-  [[ -z "$INCOMPLETE" ]] && INCOMPLETE=$(find_incomplete_tasks "$WORKSPACE" | head -1 || true)
+  GOAL_COUNT=$(find_workspace_goal_states "$WORKSPACE" 2>/dev/null | grep -c . || true)
+  INCOMPLETE=$(pick_incomplete_goal "$WORKSPACE" || true)
+  # Orphan index.md scan only when this workspace has no bound goal-state at all
+  if [[ -z "$INCOMPLETE" && "${GOAL_COUNT:-0}" -eq 0 && "${GOAL_STOP_HOOK_ORPHAN:-0}" == "1" ]]; then
+    INCOMPLETE=$(find_orphan_incomplete_tasks "$WORKSPACE" | head -1 || true)
+  fi
+elif [[ -z "$WORKSPACE" ]]; then
+  INCOMPLETE=$(pick_incomplete_goal "" || true)
 fi
-[[ -z "$INCOMPLETE" ]] && INCOMPLETE=$(find_active_states "" | head -1 || true)
 [[ -z "$INCOMPLETE" ]] && exit 0
 
 STATE_FILE=$(echo "$INCOMPLETE" | python3 -c "import json,sys; print(json.load(sys.stdin).get('state_file',''))")

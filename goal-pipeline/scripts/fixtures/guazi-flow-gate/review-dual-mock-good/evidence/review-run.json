@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "run_id": "f7977dfa36cc1f19",
+  "run_id": "15d90148fc41f0c0",
   "provider": "mock-dual",
   "model": "mock-dual",
   "mode": "dual",
@@ -10,11 +10,11 @@
   ],
   "gf_skill_attested": true,
   "gf_rubric_source": "952cc5200d905df7",
-  "packet_hash": "d667df7afee655b7",
+  "packet_hash": "565246f873e6495e",
   "packet_path": "handoff/review-packet.json",
-  "latency_ms": 296,
+  "latency_ms": 316,
   "tokens": {},
-  "output_hash": "5920610486a1cd8d",
-  "started_at": "2026-07-06T07:15:03Z",
-  "finished_at": "2026-07-06T07:15:03Z"
+  "output_hash": "97c37966c325720d",
+  "started_at": "2026-07-06T09:53:48Z",
+  "finished_at": "2026-07-06T09:53:48Z"
 }

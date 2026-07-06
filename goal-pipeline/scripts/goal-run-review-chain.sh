@@ -25,34 +25,48 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ -n "$TASK_DIR" ]] || { echo "review-chain: --task-dir required" >&2; exit 2; }
+[[ "$TASK_DIR" != /* ]] && TASK_DIR="$(pwd)/$TASK_DIR"
+TASK_DIR="$(cd "$TASK_DIR" && pwd)"
 
-resolve() {
+resolve_script() {
   local name="$1"
   local p="$GOAL_STATE_HOME/scripts/$name"
-  [[ -x "$p" ]] || p="$SCRIPT_DIR/$name"
+  [[ -f "$p" ]] || p="$SCRIPT_DIR/$name"
   echo "$p"
 }
 
-ASSEMBLE=$(resolve assemble-review-packet.sh)
-REVIEW=$(resolve run-independent-review.sh)
-MERGE=$(resolve merge-review-issues.sh)
+RESOLVER=$(resolve_script resolve-artifact-paths.py)
+_RESOLVE_ARGS=(--task-dir "$TASK_DIR" --format shell --ensure-state)
+[[ -n "$STATE_FILE" ]] && _RESOLVE_ARGS+=(--state-file "$STATE_FILE")
+[[ -n "$PROJECT_ROOT" ]] && _RESOLVE_ARGS+=(--project-root "$PROJECT_ROOT")
+eval "$(python3 "$RESOLVER" "${_RESOLVE_ARGS[@]}")"
 
-[[ -x "$ASSEMBLE" ]] || { echo "review-chain: assemble-review-packet.sh missing" >&2; exit 1; }
-[[ -x "$REVIEW" ]] || { echo "review-chain: run-independent-review.sh missing" >&2; exit 1; }
-[[ -x "$MERGE" ]] || { echo "review-chain: merge-review-issues.sh missing" >&2; exit 1; }
+COMMON_ARGS=(--task-dir "$REPO_TASK_DIR")
+[[ -n "$STATE_FILE" ]] && COMMON_ARGS+=(--state-file "$STATE_FILE")
+[[ -n "$PROJECT_ROOT" ]] && COMMON_ARGS+=(--project-root "$PROJECT_ROOT")
+[[ -n "$GOAL_STATE_FILE" && -z "$STATE_FILE" ]] && COMMON_ARGS+=(--state-file "$GOAL_STATE_FILE")
 
-echo "review-chain [1/4] assemble-review-packet"
-"$ASSEMBLE" --task-dir "$TASK_DIR"
+ASSEMBLE=$(resolve_script assemble-review-packet.sh)
+REVIEW=$(resolve_script run-independent-review.sh)
+MERGE=$(resolve_script merge-review-issues.sh)
+
+[[ -f "$ASSEMBLE" ]] || { echo "review-chain: assemble-review-packet.sh missing" >&2; exit 1; }
+[[ -f "$REVIEW" ]] || { echo "review-chain: run-independent-review.sh missing" >&2; exit 1; }
+[[ -f "$MERGE" ]] || { echo "review-chain: merge-review-issues.sh missing" >&2; exit 1; }
+
+echo "review-chain [1/4] assemble-review-packet (artifact_mode=$ARTIFACT_MODE)"
+bash "$ASSEMBLE" "${COMMON_ARGS[@]}"
 
 echo "review-chain [2/4] run-independent-review --mode $MODE"
 if [[ "${GOAL_REVIEW_FORCE_DETERMINISTIC:-}" == "1" ]]; then
-  "$REVIEW" --task-dir "$TASK_DIR" --mode goal --provider deterministic
+  bash "$REVIEW" "${COMMON_ARGS[@]}" --mode goal --provider deterministic
 else
-  "$REVIEW" --task-dir "$TASK_DIR" --mode "$MODE"
+  bash "$REVIEW" "${COMMON_ARGS[@]}" --mode "$MODE"
 fi
 
-echo "review-chain [3/4] merge-review-issues"
-"$MERGE" --task-dir "$TASK_DIR" --goal-json "$TASK_DIR/evidence/review-goal.json"
+GOAL_JSON="$GOAL_EVIDENCE_DIR/review-goal.json"
+echo "review-chain [3/4] merge-review-issues -> $GOAL_JSON"
+bash "$MERGE" "${COMMON_ARGS[@]}" --goal-json "$GOAL_JSON"
 
 echo "review-chain [4/4] done — run gate --post review next"
 exit 0

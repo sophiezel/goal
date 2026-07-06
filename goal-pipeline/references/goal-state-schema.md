@@ -134,6 +134,14 @@
 - `human_review_accepted`: 用户是否已接受人工审核模式（全局偏好，非单 goal 决定）
 - `channel_cache`: 通道探测结果，每次 Goal 启动刷新
 
+## artifact_layout（guazi-flow 集成，state.json 扩展）
+
+详见 `guazi-flow-goal/references/guazi-flow-state-schema.md` 与 `guazi-flow-goal/references/artifact-tier-policy.md`。
+
+- `mode: split` — Tier-G 在 repo `docs/guazi-flow/<task>/`，Tier-R 在 `~/.goal-state/.../artifacts/`
+- `mode: repo_full` — 全部在 task_dir（兼容旧项目）
+- 环境变量 `GOAL_ARTIFACT_MODE` 可覆盖
+
 ## 状态转换规则
 
 ### 创建

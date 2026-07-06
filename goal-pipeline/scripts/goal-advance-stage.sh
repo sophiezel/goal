@@ -172,10 +172,24 @@ fi
 INDEX=""
 HANDOFF=""
 EVIDENCE=""
+GOAL_EVIDENCE=""
 if [[ -n "$TASK_DIR" && -d "$TASK_DIR" ]]; then
-  INDEX="$TASK_DIR/index.md"
-  HANDOFF="$TASK_DIR/handoff"
-  EVIDENCE="$TASK_DIR/evidence"
+  RESOLVER="$SCRIPT_DIR/resolve-artifact-paths.py"
+  if [[ -f "$RESOLVER" ]]; then
+    _RESOLVE_ARGS=(--task-dir "$TASK_DIR" --format shell)
+    [[ -n "$STATE_FILE" ]] && _RESOLVE_ARGS+=(--state-file "$STATE_FILE")
+    [[ -n "$PROJECT_ROOT" ]] && _RESOLVE_ARGS+=(--project-root "$PROJECT_ROOT")
+    eval "$(python3 "$RESOLVER" "${_RESOLVE_ARGS[@]}")"
+    INDEX="$REPO_TASK_DIR/index.md"
+    HANDOFF="$HANDOFF_DIR"
+    EVIDENCE="$REPO_EVIDENCE_DIR"
+    GOAL_EVIDENCE="$GOAL_EVIDENCE_DIR"
+  else
+    INDEX="$TASK_DIR/index.md"
+    HANDOFF="$TASK_DIR/handoff"
+    EVIDENCE="$TASK_DIR/evidence"
+    GOAL_EVIDENCE="$TASK_DIR/evidence"
+  fi
 fi
 
 # plan
@@ -211,11 +225,11 @@ SMOKE_SCRIPT="$GOAL_STATE_HOME/scripts/runtime-smoke.sh"
 GATE_SCRIPT="$GOAL_STATE_HOME/scripts/gate-guazi-flow-stage.sh"
 [[ -x "$GATE_SCRIPT" ]] || GATE_SCRIPT="$SCRIPT_DIR/gate-guazi-flow-stage.sh"
 if [[ -x "$SMOKE_SCRIPT" ]]; then
-  if [[ ! -f "$EVIDENCE/runtime-smoke.md" ]]; then
+  if [[ ! -f "$GOAL_EVIDENCE/runtime-smoke.md" ]]; then
     emit "runtime_smoke" "" "false" '["runtime-smoke.sh --repo-root PROJECT --task-dir TASK","gate-guazi-flow-stage.sh --stage smoke --post"]'
     exit 0
   fi
-  SMOKE_RESULT=$(python3 - "$EVIDENCE/runtime-smoke.md" << 'PYSR'
+  SMOKE_RESULT=$(python3 - "$GOAL_EVIDENCE/runtime-smoke.md" << 'PYSR'
 import re, sys
 t = open(sys.argv[1]).read()
 m = re.match(r"^---\s*\n(.*?)\n---", t, re.DOTALL)
@@ -255,7 +269,7 @@ print("unknown")
 PY
 )
 if [[ "$REVIEW_RESULT" != "pass" ]]; then
-  FIX_INPUT="$EVIDENCE/review-fix-input.json"
+  FIX_INPUT="$GOAL_EVIDENCE/review-fix-input.json"
   if [[ -f "$FIX_INPUT" ]]; then
     NEXT=$(python3 -c "import json; print(json.dumps(json.load(open('$FIX_INPUT')).get('next_steps',[])))" 2>/dev/null || echo '[]')
     ACTION=$(python3 -c "import json; print(json.load(open('$FIX_INPUT')).get('action',''))" 2>/dev/null || echo "")

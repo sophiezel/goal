@@ -7,6 +7,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TASK_DIR=""
 STATE_DIR=""
+STATE_FILE=""
+PROJECT_ROOT=""
 MAX_DIFF_BYTES=80000
 MAX_PSEUDOCODE_CHARS=4000
 
@@ -14,6 +16,8 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --task-dir) TASK_DIR="$2"; shift 2 ;;
     --state-dir) STATE_DIR="$2"; shift 2 ;;
+    --state-file) STATE_FILE="$2"; shift 2 ;;
+    --project-root) PROJECT_ROOT="$2"; shift 2 ;;
     --max-diff-bytes) MAX_DIFF_BYTES="$2"; shift 2 ;;
     *) echo "Unknown: $1" >&2; exit 2 ;;
   esac
@@ -23,15 +27,23 @@ done
 [[ "$TASK_DIR" != /* ]] && TASK_DIR="$(pwd)/$TASK_DIR"
 TASK_DIR="$(cd "$TASK_DIR" && pwd)"
 
-INDEX="$TASK_DIR/index.md"
-HANDOFF_PLAN="$TASK_DIR/handoff/plan.json"
-HANDOFF_IMPL="$TASK_DIR/handoff/implement.json"
-EVIDENCE="$TASK_DIR/evidence"
-OUT="$TASK_DIR/handoff/review-packet.json"
-GIT_ROOT=$(git -C "$TASK_DIR" rev-parse --show-toplevel 2>/dev/null || echo "")
+RESOLVER="$SCRIPT_DIR/resolve-artifact-paths.py"
+_RESOLVE_ARGS=(--task-dir "$TASK_DIR" --format shell)
+[[ -n "$STATE_FILE" ]] && _RESOLVE_ARGS+=(--state-file "$STATE_FILE")
+[[ -n "$PROJECT_ROOT" ]] && _RESOLVE_ARGS+=(--project-root "$PROJECT_ROOT")
+eval "$(python3 "$RESOLVER" "${_RESOLVE_ARGS[@]}")"
+
+INDEX="$REPO_TASK_DIR/index.md"
+HANDOFF_PLAN="$HANDOFF_DIR/plan.json"
+HANDOFF_IMPL="$HANDOFF_DIR/implement.json"
+EVIDENCE="$REPO_EVIDENCE_DIR"
+OUT="$HANDOFF_DIR/review-packet.json"
+GIT_ROOT=$(git -C "$REPO_TASK_DIR" rev-parse --show-toplevel 2>/dev/null || echo "")
 VERIFY_SCRIPT="$SCRIPT_DIR/verify-review.sh"
 
-export VERIFY_SCRIPT TASK_DIR INDEX HANDOFF_PLAN HANDOFF_IMPL EVIDENCE OUT MAX_DIFF_BYTES MAX_PSEUDOCODE_CHARS GIT_ROOT STATE_DIR
+mkdir -p "$HANDOFF_DIR"
+
+export VERIFY_SCRIPT TASK_DIR INDEX HANDOFF_PLAN HANDOFF_IMPL EVIDENCE OUT MAX_DIFF_BYTES MAX_PSEUDOCODE_CHARS GIT_ROOT STATE_DIR REPO_TASK_DIR HANDOFF_DIR
 
 python3 << 'PY'
 import json, re, os, sys, subprocess, hashlib

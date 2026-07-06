@@ -6,6 +6,8 @@ set -uo pipefail
 
 REPO_ROOT=""
 TASK_DIR=""
+STATE_FILE=""
+PROJECT_ROOT=""
 TIMEOUT=120
 SKIP_INSTALL=false
 PORT=""
@@ -16,6 +18,8 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --repo-root) REPO_ROOT="$2"; shift 2 ;;
     --task-dir) TASK_DIR="$2"; shift 2 ;;
+    --state-file) STATE_FILE="$2"; shift 2 ;;
+    --project-root) PROJECT_ROOT="$2"; shift 2 ;;
     --timeout) TIMEOUT="$2"; shift 2 ;;
     --port) PORT="$2"; shift 2 ;;
     --health-path) HEALTH_PATH="$2"; shift 2 ;;
@@ -36,6 +40,17 @@ cd "$REPO_ROOT"
 GIT_HEAD=$(git rev-parse HEAD 2>/dev/null | cut -c1-16 || echo "no-git")
 STDOUT_LOG="/tmp/runtime-smoke-stdout-$$.log"
 STDERR_LOG="/tmp/runtime-smoke-stderr-$$.log"
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd || echo "")"
+if [[ -n "$SCRIPT_DIR" && -f "$SCRIPT_DIR/resolve-artifact-paths.py" ]]; then
+  _RESOLVE_ARGS=(--task-dir "$TASK_DIR" --format shell)
+  [[ -n "$STATE_FILE" ]] && _RESOLVE_ARGS+=(--state-file "$STATE_FILE")
+  [[ -n "$PROJECT_ROOT" ]] && _RESOLVE_ARGS+=(--project-root "$PROJECT_ROOT")
+  eval "$(python3 "$SCRIPT_DIR/resolve-artifact-paths.py" "${_RESOLVE_ARGS[@]}")"
+  SMOKE_EVIDENCE_DIR="$GOAL_EVIDENCE_DIR"
+else
+  SMOKE_EVIDENCE_DIR="$TASK_DIR/evidence"
+fi
 
 apply_smoke_config() {
   local cfg="$1"
@@ -205,10 +220,10 @@ RESOLVE_JSON=$(resolve)
 INSTALL_CMD=$(echo "$RESOLVE_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin).get('install_cmd',''))" 2>/dev/null || echo "")
 DEV_CMD="${CFG_OVERRIDE:-$(echo "$RESOLVE_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin).get('dev_cmd',''))" 2>/dev/null || echo "")}"
 
-mkdir -p "$TASK_DIR/evidence"
+mkdir -p "$SMOKE_EVIDENCE_DIR"
 
 if [ -z "$DEV_CMD" ]; then
-  cat > "$TASK_DIR/evidence/runtime-smoke.md" << EOF
+  cat > "$SMOKE_EVIDENCE_DIR/runtime-smoke.md" << EOF
 ---
 stage: runtime_smoke
 result: skipped
@@ -240,7 +255,7 @@ DURATION=$(echo "$SMOKE_JSON" | python3 -c "import sys,json; print(json.load(sys
 SMOKE_PORT=$(echo "$SMOKE_JSON" | python3 -c "import sys,json; print(json.load(sys.stdin).get('port',0))" 2>/dev/null || echo "0")
 ERRORS=$(echo "$SMOKE_JSON" | python3 -c "import sys,json; print(json.dumps(json.load(sys.stdin).get('errors',[])))" 2>/dev/null || echo "[]")
 
-python3 - "$TASK_DIR/evidence/runtime-smoke.md" "$GIT_HEAD" "$RESULT" "$CLASSIFICATION" "$DEV_CMD" "$INSTALL_RUN" "$SMOKE_PORT" "$HEALTH_PATH" "$SMOKE_URL" "$DURATION" "$FAILURE_CODE" "$ERRORS" "$SMOKE_JSON" << 'PY'
+python3 - "$SMOKE_EVIDENCE_DIR/runtime-smoke.md" "$GIT_HEAD" "$RESULT" "$CLASSIFICATION" "$DEV_CMD" "$INSTALL_RUN" "$SMOKE_PORT" "$HEALTH_PATH" "$SMOKE_URL" "$DURATION" "$FAILURE_CODE" "$ERRORS" "$SMOKE_JSON" << 'PY'
 import json, sys
 path, git_head, result, classification, dev_cmd, install_run, port, health_path, smoke_url, duration, failure_code, errors_json, smoke_json = sys.argv[1:]
 errors = json.loads(errors_json)

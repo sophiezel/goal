@@ -5,13 +5,13 @@
   "classification": "none",
   "dev_cmd": "",
   "duration_ms": 0,
-  "git_head": "8e253eb1eaeba0c2",
+  "git_head": "a21cc91d549c1176",
   "artifact_paths": [
     "evidence/runtime-smoke.md"
   ],
   "gate": {
     "script": "gate-guazi-flow-stage.sh",
     "version": 1,
-    "passed_at": "2026-07-06T07:15:00Z"
+    "passed_at": "2026-07-06T09:53:46Z"
   }
 }

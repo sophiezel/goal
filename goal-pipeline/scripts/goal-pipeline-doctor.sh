@@ -1,11 +1,46 @@
 #!/bin/bash
-# goal-pipeline-doctor.sh — Pipeline infra diagnostics (VERSION drift, hooks, channels, active goal)
+# goal-pipeline-doctor.sh — Pipeline infra diagnostics + artifact migration
 set -euo pipefail
 
 GOAL_STATE_HOME="${GOAL_STATE_HOME:-$HOME/.goal-state}"
 REPO_DIR="${GOAL_PIPELINE_REPO:-$HOME/.goal-pipeline-repo}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="${1:-$(pwd)}"
+PROJECT_ROOT=""
+MIGRATE=false
+MIGRATE_TASK_DIR=""
+MIGRATE_STATE_FILE=""
+MIGRATE_DRY_RUN=false
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --migrate-artifacts) MIGRATE=true; shift ;;
+    --task-dir) MIGRATE_TASK_DIR="$2"; shift 2 ;;
+    --state-file) MIGRATE_STATE_FILE="$2"; shift 2 ;;
+    --dry-run) MIGRATE_DRY_RUN=true; shift ;;
+    -h|--help)
+      echo "Usage: $0 [PROJECT_ROOT]"
+      echo "       $0 --migrate-artifacts --task-dir PATH [--state-file PATH] [--dry-run]"
+      exit 0
+      ;;
+    *)
+      PROJECT_ROOT="$1"
+      shift
+      ;;
+  esac
+done
+
+PROJECT_ROOT="${PROJECT_ROOT:-$(pwd)}"
+
+if [[ "$MIGRATE" == "true" ]]; then
+  [[ -n "$MIGRATE_TASK_DIR" ]] || { echo "migrate requires --task-dir" >&2; exit 2; }
+  MIGRATE_SCRIPT="$SCRIPT_DIR/migrate-artifacts.py"
+  [[ -f "$MIGRATE_SCRIPT" ]] || MIGRATE_SCRIPT="$GOAL_STATE_HOME/scripts/migrate-artifacts.py"
+  ARGS=(--task-dir "$MIGRATE_TASK_DIR")
+  [[ -n "$MIGRATE_STATE_FILE" ]] && ARGS+=(--state-file "$MIGRATE_STATE_FILE")
+  [[ "$MIGRATE_DRY_RUN" == "true" ]] && ARGS+=(--dry-run)
+  python3 "$MIGRATE_SCRIPT" "${ARGS[@]}"
+  exit 0
+fi
 
 GATE_REPO="$REPO_DIR/goal-pipeline/scripts/gate-guazi-flow-stage.sh"
 GATE_INST="$GOAL_STATE_HOME/scripts/gate-guazi-flow-stage.sh"
@@ -13,6 +48,7 @@ VERSION_FILE="$GOAL_STATE_HOME/VERSION"
 HOOKS_JSON="$HOME/.cursor/hooks.json"
 DETECT="$GOAL_STATE_HOME/scripts/detect-review-channels"
 DRIVER="$GOAL_STATE_HOME/scripts/goal-stage-driver.sh"
+RESOLVER="$GOAL_STATE_HOME/scripts/resolve-artifact-paths.py"
 
 python3 << PY
 import json, os, hashlib, subprocess
@@ -25,6 +61,7 @@ version_file = Path("${VERSION_FILE}")
 hooks_json = Path("${HOOKS_JSON}")
 gate_repo = Path("${GATE_REPO}")
 gate_inst = Path("${GATE_INST}")
+resolver = Path("${RESOLVER}")
 
 checks = []
 
@@ -45,11 +82,15 @@ if version_file.is_file() and gate_repo.is_file():
 else:
     status("version_gate_hash", False, "VERSION or gate script missing")
 
+# Artifact path resolver
+status("resolve_artifact_paths", resolver.is_file(), str(resolver))
+
 # Required scripts
 for s in ("goal-stage-driver.sh", "goal-run-review-chain.sh", "goal-pipeline-recover.sh",
-          "gate-guazi-flow-stage.sh", "goal-pipeline-stop-hook.sh"):
+          "gate-guazi-flow-stage.sh", "goal-pipeline-stop-hook.sh", "resolve-artifact-paths.py",
+          "migrate-artifacts.py", "source-artifact-paths.sh"):
     p = goal_home / "scripts" / s
-    status(f"script_{s}", p.is_file() and os.access(p, os.X_OK), str(p))
+    status(f"script_{s}", p.is_file(), str(p))
 
 # hooks.json stop hook + loop_limit
 if hooks_json.is_file():
@@ -96,8 +137,10 @@ if states_dir.is_dir():
             if st.get("status") in ("active", "blocked"):
                 root = st.get("project_root") or ""
                 if root and Path(root).resolve() == project_root:
+                    layout = st.get("artifact_layout") or {}
                     active.append({"state_file": str(sf), "task": st.get("guazi_flow_task",""),
-                                   "current_stage": st.get("current_stage","")})
+                                   "current_stage": st.get("current_stage",""),
+                                   "artifact_mode": layout.get("mode", "repo_full")})
         except Exception:
             pass
 

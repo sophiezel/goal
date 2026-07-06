@@ -594,6 +594,21 @@ guazi-flow 可用时，每个管线阶段开始前 **MUST 加载**对应 SKILL.m
 
 ### 9.5 Handoff Bundle 与 Review 并集
 
+**split 模式（默认）** — 产物分两列存储：
+
+| 步骤 | Tier-G（repo，进 git） | Tier-R（~/.goal-state/artifacts，不进 git） |
+|------|------------------------|---------------------------------------------|
+| gate --post(plan) | index.md | handoff/plan.json |
+| gate --post(implement) | index.md | handoff/implement.json |
+| assemble-review-packet | 读 index + write_set | handoff/review-packet.json |
+| guazi-flow-review | evidence/review.md | — |
+| goal-pipeline Step 2 | — | evidence/review-goal.json |
+| merge-review-issues | 更新 evidence/review.md annex | evidence/review-fix-input.json |
+| gate --post(review) | 校验 review.md | handoff/review.json |
+| gate --post(complete) | index.md | handoff/complete.json |
+
+路径由 `resolve-artifact-paths.py` 解析；`repo_full` 模式下列合并为单列（兼容旧行为）。
+
 ```
 gate --post(plan)      → handoff/plan.json      (index schema hash)
 gate --post(implement) → handoff/implement.json (candidate_diff_hash)

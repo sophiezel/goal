@@ -72,11 +72,24 @@ def check_state_handoff_consistency(state, handoff_dir, errors):
             )
 
 
+def resolve_paths(task_dir, state_file=""):
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    resolver = os.path.join(script_dir, "resolve-artifact-paths.py")
+    import subprocess
+    args = [sys.executable, resolver, "--task-dir", task_dir, "--format", "json"]
+    if state_file:
+        args.extend(["--state-file", state_file])
+    r = subprocess.run(args, capture_output=True, text=True, check=True)
+    return json.loads(r.stdout)
+
+
 def main():
     args = parse_args()
-    task_dir = os.path.abspath(args.task_dir)
-    handoff_dir = os.path.join(task_dir, "handoff")
-    evidence_dir = os.path.join(task_dir, "evidence")
+    paths = resolve_paths(args.task_dir, args.state_file)
+    task_dir = paths["repo_task_dir"]
+    handoff_dir = paths["handoff_dir"]
+    repo_evidence_dir = paths["repo_evidence_dir"]
+    goal_evidence_dir = paths["goal_evidence_dir"]
     errors, warnings = [], []
     state = load_state(args.state_file)
 
@@ -100,7 +113,7 @@ def main():
         if current in ("review", "runtime_smoke", "smoke", "complete"):
             errors.append("implement: handoff/implement.json missing for current_stage=" + str(current))
 
-    sm_path = os.path.join(evidence_dir, "runtime-smoke.md")
+    sm_path = os.path.join(goal_evidence_dir, "runtime-smoke.md")
     if os.path.isfile(impl):
         if os.path.isfile(sm_path):
             if not os.path.isfile(os.path.join(handoff_dir, "smoke.json")):
@@ -110,20 +123,20 @@ def main():
             if fm(sm_path, "result") == "not_pass" and not fm(sm_path, "classification"):
                 warnings.append("smoke: not_pass without classification")
 
-    review_md = os.path.join(evidence_dir, "review.md")
+    review_md = os.path.join(repo_evidence_dir, "review.md")
     if os.path.isfile(review_md):
-        if not os.path.isfile(os.path.join(evidence_dir, "review-run.json")):
+        if not os.path.isfile(os.path.join(goal_evidence_dir, "review-run.json")):
             errors.append("review: review-run.json missing (anti-forgery)")
-        if not os.path.isfile(os.path.join(evidence_dir, "review-goal.json")):
+        if not os.path.isfile(os.path.join(goal_evidence_dir, "review-goal.json")):
             errors.append("review: review-goal.json missing")
         rp = os.path.join(handoff_dir, "review-packet.json")
-        rr = os.path.join(evidence_dir, "review-run.json")
+        rr = os.path.join(goal_evidence_dir, "review-run.json")
         if os.path.isfile(rp) and os.path.isfile(rr):
             run = json.load(open(rr, encoding="utf-8"))
             ph = hashlib.sha256(open(rp, "rb").read()).hexdigest()[:16]
             if run.get("packet_hash") and run["packet_hash"] != ph:
                 errors.append("review: review-run packet_hash mismatch")
-        fix_in = os.path.join(evidence_dir, "review-fix-input.json")
+        fix_in = os.path.join(goal_evidence_dir, "review-fix-input.json")
         if not os.path.isfile(fix_in):
             errors.append("review: review-fix-input.json missing (execution contract)")
         else:

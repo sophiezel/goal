@@ -52,6 +52,27 @@ if [[ "$ASSERT_COMPLETE" == "true" ]]; then
   RC=${RC:-0}
   NEXT=$(echo "$OUT" | python3 -c "import json,sys; print(json.load(sys.stdin).get('next_stage','unknown'))" 2>/dev/null || echo "unknown")
   if [[ "$NEXT" == "done" ]]; then
+    if [[ -n "$STATE_FILE" && -f "$STATE_FILE" ]]; then
+      python3 - "$STATE_FILE" << 'PYDONE'
+import json, sys
+from datetime import datetime, timezone
+path = sys.argv[1]
+with open(path, encoding="utf-8") as f:
+    state = json.load(f)
+if state.get("status") != "complete":
+    state["status"] = "complete"
+    state["current_stage"] = "complete"
+    state["updated_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    pipe = state.setdefault("pipeline", {})
+    for stage in ("plan", "implement", "runtime_smoke", "review", "complete"):
+        entry = pipe.setdefault(stage, {})
+        entry["status"] = "passed"
+        entry["evidence_fresh"] = True
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump(state, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+PYDONE
+    fi
     echo "gate assert-complete: pipeline complete"
     exit 0
   fi
@@ -69,10 +90,16 @@ if [[ "$TASK_DIR" != /* ]]; then
 fi
 TASK_DIR="$(cd "$TASK_DIR" 2>/dev/null && pwd)" || { echo "gate: task dir not found: $TASK_DIR" >&2; exit 1; }
 
-INDEX="$TASK_DIR/index.md"
-HANDOFF_DIR="$TASK_DIR/handoff"
-EVIDENCE_DIR="$TASK_DIR/evidence"
-GIT_ROOT=$(git -C "$TASK_DIR" rev-parse --show-toplevel 2>/dev/null || git -C "$(dirname "$TASK_DIR")" rev-parse --show-toplevel 2>/dev/null || echo "")
+RESOLVER="$SCRIPT_DIR/resolve-artifact-paths.py"
+_RESOLVE_ARGS=(--task-dir "$TASK_DIR" --format shell --ensure-state)
+[[ -n "$STATE_FILE" ]] && _RESOLVE_ARGS+=(--state-file "$STATE_FILE")
+[[ -n "$PROJECT_ROOT" ]] && _RESOLVE_ARGS+=(--project-root "$PROJECT_ROOT")
+eval "$(python3 "$RESOLVER" "${_RESOLVE_ARGS[@]}")"
+
+INDEX="$REPO_TASK_DIR/index.md"
+# HANDOFF_DIR, REPO_EVIDENCE_DIR, GOAL_EVIDENCE_DIR from resolver
+EVIDENCE_DIR="$REPO_EVIDENCE_DIR"
+GIT_ROOT=$(git -C "$REPO_TASK_DIR" rev-parse --show-toplevel 2>/dev/null || git -C "$(dirname "$REPO_TASK_DIR")" rev-parse --show-toplevel 2>/dev/null || echo "")
 
 FORMAT_ISSUES="$SCRIPT_DIR/format-gate-issues.sh"
 
@@ -99,7 +126,7 @@ PYBLOCK
 check_noop_ratchet() {
   local stage="$1"
   local subject_hash="$2"
-  local fix_path="$EVIDENCE_DIR/${stage}-gate-fix-input.json"
+  local fix_path="$GOAL_EVIDENCE_DIR/${stage}-gate-fix-input.json"
   [[ -f "$fix_path" ]] || return 0
   local prev
   prev=$(python3 -c "import json; print(json.load(open('$fix_path')).get('subject_hash',''))" 2>/dev/null || echo "")
@@ -123,8 +150,8 @@ write_gate_fix_input() {
   local subject_hash="$2"
   local action="$3"
   local issues_json="$4"
-  mkdir -p "$EVIDENCE_DIR"
-  local out="$EVIDENCE_DIR/${stage}-gate-fix-input.json"
+  mkdir -p "$GOAL_EVIDENCE_DIR"
+  local out="$GOAL_EVIDENCE_DIR/${stage}-gate-fix-input.json"
   GATE_ISSUES_JSON="$issues_json" python3 - "$out" "$stage" "$subject_hash" "$action" << 'PYWFI'
 import json, os, sys
 out, stage, subject_hash, action = sys.argv[1:5]
@@ -194,7 +221,7 @@ PYETI
 }
 
 show_review_issue_board() {
-  local fix_path="$EVIDENCE_DIR/review-fix-input.json"
+  local fix_path="$GOAL_EVIDENCE_DIR/review-fix-input.json"
   [[ -f "$fix_path" && -x "$FORMAT_ISSUES" ]] || return 0
   "$FORMAT_ISSUES" --stage-label "REVIEW" --fix-input "$fix_path" >&2
 }
@@ -336,7 +363,7 @@ PY
 
 
 read_gf_issues_count() {
-  local gf_json="$EVIDENCE_DIR/review-gf.json"
+  local gf_json="$GOAL_EVIDENCE_DIR/review-gf.json"
   if [[ -f "$gf_json" ]]; then
     python3 -c "import json; d=json.load(open('$gf_json')); print(len(d.get('issues',[])))" 2>/dev/null || echo 0
     return
@@ -360,7 +387,7 @@ PYGF
 }
 
 py_check_review() {
-  python3 - "$EVIDENCE_DIR/review.md" "$SCHEMA_DIR/review-evidence-rules.json" "$EVIDENCE_DIR/review-goal.json" << 'PY'
+  python3 - "$REPO_EVIDENCE_DIR/review.md" "$SCHEMA_DIR/review-evidence-rules.json" "$GOAL_EVIDENCE_DIR/review-goal.json" << 'PY'
 import json, re, sys, os
 review_path, rules_path, goal_json = sys.argv[1], sys.argv[2], sys.argv[3]
 errors = []
@@ -466,7 +493,7 @@ if [[ "$MODE" == "degraded" ]]; then
   pass "degraded mode — guazi handoff not required"
 fi
 
-mkdir -p "$HANDOFF_DIR"
+mkdir -p "$HANDOFF_DIR" "$REPO_EVIDENCE_DIR" "$GOAL_EVIDENCE_DIR"
 
 
 assert_pipeline_chain() {
@@ -668,7 +695,7 @@ JSON
     if [[ "$PHASE" == "pre" ]]; then
       [[ -f "$HANDOFF_DIR/implement.json" ]] || fail "implement handoff missing — run implement gate --post first"
     fi
-    SMOKE_MD="$EVIDENCE_DIR/runtime-smoke.md"
+    SMOKE_MD="$GOAL_EVIDENCE_DIR/runtime-smoke.md"
     [[ -f "$SMOKE_MD" ]] || fail "evidence/runtime-smoke.md missing — run runtime-smoke.sh"
     SRESULT=$(python3 - "$SMOKE_MD" << 'PYSMOKE'
 import re, sys
@@ -770,12 +797,12 @@ JSON
         fail "review stale — candidate_diff_hash changed since implement handoff"
       fi
       GOAL_COUNT=0
-      if [[ -f "$EVIDENCE_DIR/review-goal.json" ]]; then
-        GOAL_COUNT=$(python3 -c "import json; d=json.load(open('$EVIDENCE_DIR/review-goal.json')); print(len(d.get('issues', d.get('issues_goal', []))))" 2>/dev/null || echo 0)
+      if [[ -f "$GOAL_EVIDENCE_DIR/review-goal.json" ]]; then
+        GOAL_COUNT=$(python3 -c "import json; d=json.load(open('$GOAL_EVIDENCE_DIR/review-goal.json')); print(len(d.get('issues', d.get('issues_goal', []))))" 2>/dev/null || echo 0)
       fi
       GF_COUNT=$(read_gf_issues_count)
-      GF_ATTESTED=$(python3 -c "import json; d=json.load(open('$EVIDENCE_DIR/review-fix-input.json')); print(str(d.get('provenance',{}).get('gf_skill_attested',False)).lower())" 2>/dev/null || echo "false")
-      RUN_ID=$(python3 -c "import json; print(json.load(open('$EVIDENCE_DIR/review-run.json')).get('run_id',''))" 2>/dev/null || echo "")
+      GF_ATTESTED=$(python3 -c "import json; d=json.load(open('$GOAL_EVIDENCE_DIR/review-fix-input.json')); print(str(d.get('provenance',{}).get('gf_skill_attested',False)).lower())" 2>/dev/null || echo "false")
+      RUN_ID=$(python3 -c "import json; print(json.load(open('$GOAL_EVIDENCE_DIR/review-run.json')).get('run_id',''))" 2>/dev/null || echo "")
       TMP=$(mktemp)
       cat > "$TMP" << JSON
 {
@@ -796,17 +823,17 @@ JSON
       py_write_handoff review "$TMP" >/dev/null
       rm -f "$TMP"
       assert_pipeline_chain
-      [[ -f "$EVIDENCE_DIR/review-run.json" ]] || fail "review-run.json missing — run run-independent-review.sh"
-      RUN_HASH=$(python3 -c "import json; print(json.load(open('$EVIDENCE_DIR/review-run.json')).get('packet_hash',''))" 2>/dev/null || echo "")
+      [[ -f "$GOAL_EVIDENCE_DIR/review-run.json" ]] || fail "review-run.json missing — run run-independent-review.sh"
+      RUN_HASH=$(python3 -c "import json; print(json.load(open('$GOAL_EVIDENCE_DIR/review-run.json')).get('packet_hash',''))" 2>/dev/null || echo "")
       PKT_HASH=$(shasum -a 256 "$HANDOFF_DIR/review-packet.json" 2>/dev/null | cut -c1-16 || sha256sum "$HANDOFF_DIR/review-packet.json" 2>/dev/null | cut -c1-16 || echo "")
       if [[ -n "$RUN_HASH" && -n "$PKT_HASH" && "$RUN_HASH" != "$PKT_HASH" ]]; then
         fail "review-run packet_hash does not match review-packet.json"
       fi
-      GOAL_RES=$(python3 -c "import json; print(json.load(open('$EVIDENCE_DIR/review-goal.json')).get('result',''))" 2>/dev/null || echo "")
+      GOAL_RES=$(python3 -c "import json; print(json.load(open('$GOAL_EVIDENCE_DIR/review-goal.json')).get('result',''))" 2>/dev/null || echo "")
       if [[ "$GOAL_RES" == "review_undetermined" ]]; then
         fail "review separation_confidence low — use cursor-task/claude-native provider"
       fi
-      MERGED=$(python3 - "$EVIDENCE_DIR/review.md" << 'PYMG'
+      MERGED=$(python3 - "$REPO_EVIDENCE_DIR/review.md" << 'PYMG'
 import re, sys
 t = open(sys.argv[1]).read()
 m = re.search(r"merged_result:\s*(\S+)", t)
@@ -819,9 +846,9 @@ PYMG
         check_noop_ratchet "review" "$CUR_DH" || exit 1
         fail "merged_result is not pass: $MERGED"
       fi
-      CLEN=$(python3 -c "import json; d=json.load(open('$EVIDENCE_DIR/review-goal.json')); print(len(d.get('checklist',[])))" 2>/dev/null || echo 0)
-      [[ -f "$EVIDENCE_DIR/review-fix-input.json" ]] || fail "review-fix-input.json missing — run merge-review-issues.sh"
-      python3 - "$EVIDENCE_DIR/review-fix-input.json" << 'PYSCHEMA' || fail "review-fix-input.json schema invalid"
+      CLEN=$(python3 -c "import json; d=json.load(open('$GOAL_EVIDENCE_DIR/review-goal.json')); print(len(d.get('checklist',[])))" 2>/dev/null || echo 0)
+      [[ -f "$GOAL_EVIDENCE_DIR/review-fix-input.json" ]] || fail "review-fix-input.json missing — run merge-review-issues.sh"
+      python3 - "$GOAL_EVIDENCE_DIR/review-fix-input.json" << 'PYSCHEMA' || fail "review-fix-input.json schema invalid"
 import json, sys
 d = json.load(open(sys.argv[1], encoding="utf-8"))
 required = ["schema_version", "round", "merged_result", "action", "issues", "next_steps", "provenance"]
@@ -839,8 +866,8 @@ if d["merged_result"] == "not_pass" and d["action"] == "proceed_complete":
     raise SystemExit("not_pass cannot proceed_complete")
 PYSCHEMA
 
-      FIX_ACTION=$(python3 -c "import json; print(json.load(open('$EVIDENCE_DIR/review-fix-input.json')).get('action',''))" 2>/dev/null || echo "")
-      FIX_MERGED=$(python3 -c "import json; print(json.load(open('$EVIDENCE_DIR/review-fix-input.json')).get('merged_result',''))" 2>/dev/null || echo "")
+      FIX_ACTION=$(python3 -c "import json; print(json.load(open('$GOAL_EVIDENCE_DIR/review-fix-input.json')).get('action',''))" 2>/dev/null || echo "")
+      FIX_MERGED=$(python3 -c "import json; print(json.load(open('$GOAL_EVIDENCE_DIR/review-fix-input.json')).get('merged_result',''))" 2>/dev/null || echo "")
       if [[ "$FIX_MERGED" != "$MERGED" && -n "$MERGED" && -n "$FIX_MERGED" ]]; then
         fail "review-fix-input merged_result mismatch with review.md"
       fi

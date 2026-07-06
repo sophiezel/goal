@@ -6,6 +6,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TASK_DIR=""
+STATE_FILE=""
+PROJECT_ROOT=""
 PROVIDER="${GOAL_REVIEW_PROVIDER:-}"
 MODE="${GOAL_REVIEW_MODE:-dual}"
 PACKET=""
@@ -18,6 +20,8 @@ VERIFY="$SCRIPT_DIR/verify-review.sh"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --task-dir) TASK_DIR="$2"; shift 2 ;;
+    --state-file) STATE_FILE="$2"; shift 2 ;;
+    --project-root) PROJECT_ROOT="$2"; shift 2 ;;
     --provider) PROVIDER="$2"; shift 2 ;;
     --mode) MODE="$2"; shift 2 ;;
     --model) MODEL="$2"; shift 2 ;;
@@ -30,8 +34,14 @@ done
 [[ "$TASK_DIR" != /* ]] && TASK_DIR="$(pwd)/$TASK_DIR"
 TASK_DIR="$(cd "$TASK_DIR" && pwd)"
 
-EVIDENCE="$TASK_DIR/evidence"
-HANDOFF="$TASK_DIR/handoff"
+RESOLVER="$SCRIPT_DIR/resolve-artifact-paths.py"
+_RESOLVE_ARGS=(--task-dir "$TASK_DIR" --format shell)
+[[ -n "$STATE_FILE" ]] && _RESOLVE_ARGS+=(--state-file "$STATE_FILE")
+[[ -n "$PROJECT_ROOT" ]] && _RESOLVE_ARGS+=(--project-root "$PROJECT_ROOT")
+eval "$(python3 "$RESOLVER" "${_RESOLVE_ARGS[@]}")"
+
+EVIDENCE="$GOAL_EVIDENCE_DIR"
+HANDOFF="$HANDOFF_DIR"
 PACKET="${PACKET:-$HANDOFF/review-packet.json}"
 OUT_GOAL="$EVIDENCE/review-goal.json"
 OUT_GF="$EVIDENCE/review-gf.json"
@@ -42,7 +52,10 @@ START_MS=$(python3 -c "import time; print(int(time.time()*1000))")
 
 if [[ ! -f "$PACKET" ]]; then
   [[ -x "$ASSEMBLE" ]] || { echo "review-packet missing and assemble script not found" >&2; exit 1; }
-  "$ASSEMBLE" --task-dir "$TASK_DIR" >/dev/null
+  ASSEMBLE_ARGS=(--task-dir "$REPO_TASK_DIR")
+  [[ -n "$STATE_FILE" ]] && ASSEMBLE_ARGS+=(--state-file "$STATE_FILE")
+  [[ -n "$PROJECT_ROOT" ]] && ASSEMBLE_ARGS+=(--project-root "$PROJECT_ROOT")
+  "$ASSEMBLE" "${ASSEMBLE_ARGS[@]}" >/dev/null
 fi
 [[ -f "$PACKET" ]] || { echo "review-packet.json missing" >&2; exit 1; }
 
@@ -58,7 +71,7 @@ PROVIDER="${PROVIDER:-deterministic}"
 
 # Guazi mode: forbid silent deterministic-only downgrade (unless CI override)
 if [[ "${GOAL_REVIEW_FORCE_DETERMINISTIC:-}" != "1" && "$MODE" == "dual" && "$PROVIDER" == "deterministic" ]]; then
-  if [[ -f "$TASK_DIR/handoff/plan.json" ]] || [[ -f "$TASK_DIR/index.md" ]]; then
+  if [[ -f "$HANDOFF_DIR/plan.json" ]] || [[ -f "$REPO_TASK_DIR/index.md" ]]; then
     echo "run-independent-review: WARN — dual mode but only deterministic channel available" >&2
     echo "run-independent-review: configure API key/Ollama or set GOAL_REVIEW_FORCE_DETERMINISTIC=1 for CI" >&2
     # Mark review_undetermined in output path via provider flag for gate
@@ -73,8 +86,8 @@ if [[ "${GOAL_REVIEW_FORCE_DETERMINISTIC:-}" == "1" ]]; then
 fi
 
 PACKET_HASH=$(shasum -a 256 "$PACKET" 2>/dev/null | cut -c1-16 || sha256sum "$PACKET" 2>/dev/null | cut -c1-16)
-WRITE_SET=$(python3 -c "import json; print(chr(44).join(json.load(open(\"$TASK_DIR/handoff/plan.json\")).get(\"write_set\",[])))" 2>/dev/null || echo "")
-VERIFY_JSON=$("$VERIFY" "$TASK_DIR" "$WRITE_SET" json 2>/dev/null || echo "{\"overall\":\"not_pass\"}")
+WRITE_SET=$(python3 -c "import json; print(chr(44).join(json.load(open(\"$HANDOFF_DIR/plan.json\")).get(\"write_set\",[])))" 2>/dev/null || echo "")
+VERIFY_JSON=$("$VERIFY" "$REPO_TASK_DIR" "$WRITE_SET" json 2>/dev/null || echo "{\"overall\":\"not_pass\"}")
 
 CHANNEL_ARG="goal"
 [[ "$MODE" == "dual" ]] && CHANNEL_ARG="dual"
@@ -86,7 +99,7 @@ if [[ -x "$ADAPTER" ]]; then
   REVIEW_BODY=$("$ADAPTER" "${ADAPTER_ARGS[@]}" 2>/dev/null || echo "{}")
 fi
 
-export TASK_DIR PACKET GOAL_REVIEW_FORCE_DETERMINISTIC PACKET_HASH VERIFY_JSON PROVIDER MODEL MODE START_MS OUT_GOAL OUT_GF OUT_RUN REVIEW_BODY CHANNEL_ARG
+export TASK_DIR="$REPO_TASK_DIR" PACKET GOAL_REVIEW_FORCE_DETERMINISTIC PACKET_HASH VERIFY_JSON PROVIDER MODEL MODE START_MS OUT_GOAL OUT_GF OUT_RUN REVIEW_BODY CHANNEL_ARG
 python3 << 'PY'
 import json, sys, os, hashlib
 from datetime import datetime, timezone

@@ -1,0 +1,11 @@
+# goal-pipeline Tier-R runtime (split mode — also under ~/.goal-state/projects/.../artifacts/)
+# Tier-G evidence (review.md, complete.md, cwiki/) is NOT ignored.
+
+handoff/
+evidence/review-goal.json
+evidence/review-gf.json
+evidence/review-run.json
+evidence/review-fix-input.json
+evidence/review-transcript.md
+evidence/*-gate-fix-input.json
+evidence/runtime-smoke.md
