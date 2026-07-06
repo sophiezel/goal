@@ -3,6 +3,7 @@
 
 Usage:
   resolve-artifact-paths.py --task-dir <path> [--state-file PATH] [--project-root PATH] [--format json|shell]
+  resolve-artifact-paths.py --purge-repo-tier-r --task-dir <path> [--state-file PATH]
 """
 from __future__ import annotations
 
@@ -10,6 +11,7 @@ import argparse
 import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 from datetime import datetime, timezone
@@ -46,6 +48,25 @@ def project_id(project_root: Path) -> str:
     return hashlib.sha256(str(project_root.resolve()).encode()).hexdigest()[:12]
 
 
+def task_rel_path(repo_task_dir: Path, project_root: Path | None) -> str:
+    if project_root is None:
+        project_root = git_root(repo_task_dir)
+    if project_root is None:
+        return ""
+    try:
+        return str(repo_task_dir.resolve().relative_to(project_root.resolve())).replace("\\", "/")
+    except ValueError:
+        return ""
+
+
+def is_guazi_flow_task_dir(repo_task_dir: Path, project_root: Path | None) -> bool:
+    rel = task_rel_path(repo_task_dir, project_root)
+    if not rel:
+        return False
+    parts = rel.split("/")
+    return len(parts) >= 2 and parts[0] == "docs" and parts[1] == "guazi-flow"
+
+
 def find_state_file(task_dir: Path, project_root: Path | None) -> Path | None:
     task_dir = task_dir.resolve()
     if project_root is None:
@@ -57,11 +78,7 @@ def find_state_file(task_dir: Path, project_root: Path | None) -> Path | None:
     if not base.is_dir():
         return None
     task_name = task_dir.name
-    try:
-        rel = task_dir.relative_to(project_root.resolve())
-        rel_str = str(rel).replace("\\", "/")
-    except ValueError:
-        rel_str = ""
+    rel_str = task_rel_path(task_dir, project_root)
     candidates: list[Path] = []
     for sf in base.rglob("state.json"):
         try:
@@ -106,7 +123,94 @@ def runtime_has_tier_r(paths: dict) -> bool:
     for name in TIER_R_EVIDENCE_FILES:
         if (goal_ev / name).is_file():
             return True
+    if goal_ev.is_dir() and any(goal_ev.glob("*-gate-fix-input.json")):
+        return True
     return False
+
+
+def purge_repo_tier_r(repo_task_dir: Path) -> list[str]:
+    """Remove Tier-R artifacts from repo task dir; preserve Tier-G evidence."""
+    purged: list[str] = []
+    repo = repo_task_dir.resolve()
+    handoff = repo / "handoff"
+    if handoff.is_dir():
+        shutil.rmtree(handoff)
+        purged.append("handoff/")
+    evidence = repo / "evidence"
+    if evidence.is_dir():
+        for name in TIER_R_EVIDENCE_FILES:
+            p = evidence / name
+            if p.is_file():
+                p.unlink()
+                purged.append(f"evidence/{name}")
+        for p in list(evidence.glob("*-gate-fix-input.json")):
+            p.unlink()
+            purged.append(f"evidence/{p.name}")
+    return purged
+
+
+def sync_repo_tier_r_to_runtime(repo_task_dir: Path, paths: dict) -> list[str]:
+    """Move repo Tier-R into runtime (overwrite runtime copies), then purge repo."""
+    moved: list[str] = []
+    repo = repo_task_dir.resolve()
+    runtime = Path(paths["runtime_root"])
+    handoff_src = repo / "handoff"
+    handoff_dest = runtime / "handoff"
+    evidence_src = repo / "evidence"
+    evidence_dest = runtime / "evidence"
+
+    runtime.mkdir(parents=True, exist_ok=True)
+    if handoff_src.is_dir():
+        handoff_dest.mkdir(parents=True, exist_ok=True)
+        for item in sorted(handoff_src.iterdir()):
+            target = handoff_dest / item.name
+            if target.exists():
+                if target.is_dir():
+                    shutil.rmtree(target)
+                else:
+                    target.unlink()
+            shutil.move(str(item), str(target))
+            moved.append(f"handoff/{item.name}")
+        if not any(handoff_src.iterdir()):
+            handoff_src.rmdir()
+            moved.append("handoff/ (removed empty dir)")
+
+    if evidence_src.is_dir():
+        evidence_dest.mkdir(parents=True, exist_ok=True)
+        for name in TIER_R_EVIDENCE_FILES:
+            src = evidence_src / name
+            if src.is_file():
+                dest = evidence_dest / name
+                if dest.exists():
+                    dest.unlink()
+                shutil.move(str(src), str(dest))
+                moved.append(f"evidence/{name}")
+        for p in list(evidence_src.glob("*-gate-fix-input.json")):
+            dest = evidence_dest / p.name
+            if dest.exists():
+                dest.unlink()
+            shutil.move(str(p), str(dest))
+            moved.append(f"evidence/{p.name}")
+
+    return moved
+
+
+def default_mode(
+    env_mode: str,
+    layout: dict,
+    state: dict,
+    repo_task_dir: Path,
+    project_root: Path | None,
+) -> str:
+    if env_mode:
+        return env_mode
+    if layout.get("mode"):
+        return str(layout["mode"])
+    if state.get("guazi_flow_task"):
+        return "split"
+    if is_guazi_flow_task_dir(repo_task_dir, project_root):
+        return "split"
+    return "repo_full"
 
 
 def inject_gitignore(project_root: str) -> None:
@@ -133,7 +237,7 @@ def inject_gitignore(project_root: str) -> None:
 
 
 def ensure_artifact_layout(paths: dict) -> dict:
-    """Persist artifact_layout to state.json; auto-migrate Tier-R from repo once."""
+    """Persist artifact_layout to state.json; sync/migrate Tier-R; purge repo leaks."""
     sf_s = paths.get("state_file") or ""
     if not sf_s:
         return {"ensured": False, "reason": "no_state_file"}
@@ -145,6 +249,9 @@ def ensure_artifact_layout(paths: dict) -> dict:
     state = json.loads(sf.read_text(encoding="utf-8"))
     layout = dict(state.get("artifact_layout") or {})
     changed = False
+    migrated = False
+    purged: list[str] = []
+    synced: list[str] = []
 
     if layout.get("mode") != paths["mode"]:
         layout["mode"] = paths["mode"]
@@ -156,30 +263,25 @@ def ensure_artifact_layout(paths: dict) -> dict:
         layout["runtime_root"] = paths["runtime_root"]
         changed = True
 
-    migrated = False
     repo = Path(paths["repo_task_dir"])
-    if paths["mode"] == "split" and not layout.get("migrated_at"):
-        if repo_has_tier_r(repo) and not runtime_has_tier_r(paths):
-            migrate_py = Path(__file__).resolve().parent / "migrate-artifacts.py"
-            alt = GOAL_STATE_HOME / "scripts" / "migrate-artifacts.py"
-            script = migrate_py if migrate_py.is_file() else alt
-            if script.is_file():
-                subprocess.run(
-                    [
-                        sys.executable,
-                        str(script),
-                        "--task-dir",
-                        paths["repo_task_dir"],
-                        "--state-file",
-                        str(sf),
-                        *(["--project-root", paths["project_root"]] if paths.get("project_root") else []),
-                    ],
-                    check=True,
-                )
+    if paths["mode"] == "split":
+        if repo_has_tier_r(repo):
+            synced = sync_repo_tier_r_to_runtime(repo, paths)
+            if synced:
                 migrated = True
-                layout["migrated_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-                changed = True
-                paths = resolve(paths["repo_task_dir"], state_file=str(sf), project_root=paths.get("project_root") or None)
+                if not layout.get("migrated_at"):
+                    layout["migrated_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+                    changed = True
+            paths = resolve(
+                paths["repo_task_dir"],
+                state_file=str(sf),
+                project_root=paths.get("project_root") or None,
+            )
+
+        purged = purge_repo_tier_r(repo)
+        if purged and not layout.get("migrated_at"):
+            layout["migrated_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            changed = True
 
     if changed:
         state["artifact_layout"] = layout
@@ -197,6 +299,8 @@ def ensure_artifact_layout(paths: dict) -> dict:
         "mode": paths["mode"],
         "runtime_root": paths["runtime_root"],
         "migrated": migrated,
+        "synced": synced,
+        "purged": purged,
         "state_updated": changed,
     }
 
@@ -225,7 +329,7 @@ def resolve(
         except (json.JSONDecodeError, OSError):
             pass
 
-    mode = env_mode or layout.get("mode") or ("split" if state.get("guazi_flow_task") else "repo_full")
+    mode = default_mode(env_mode, layout, state, repo_task_dir, proj)
     if mode not in ("split", "repo_full"):
         mode = "repo_full"
 
@@ -268,7 +372,6 @@ def shell_export(paths: dict) -> str:
         "GOAL_STATE_FILE": paths.get("state_file", ""),
     }
     lines = [f"export {k}={sh_quote(v)}" for k, v in exports.items()]
-    # Legacy aliases
     lines.append(f"export TASK_DIR={sh_quote(paths['repo_task_dir'])}")
     lines.append(f"export EVIDENCE_DIR={sh_quote(paths['repo_evidence_dir'])}")
     return "\n".join(lines)
@@ -283,7 +386,12 @@ def main() -> None:
     ap.add_argument(
         "--ensure-state",
         action="store_true",
-        help="Write artifact_layout to state.json, auto-migrate Tier-R once, inject gitignore",
+        help="Write artifact_layout to state.json, sync/migrate Tier-R, purge repo leaks, inject gitignore",
+    )
+    ap.add_argument(
+        "--purge-repo-tier-r",
+        action="store_true",
+        help="Remove Tier-R files from repo task dir (split hygiene); prints JSON report",
     )
     args = ap.parse_args()
 
@@ -292,6 +400,14 @@ def main() -> None:
         state_file=args.state_file or None,
         project_root=args.project_root or None,
     )
+
+    if args.purge_repo_tier_r:
+        if paths["mode"] != "split":
+            print(json.dumps({"purged": [], "skipped": True, "reason": "not split mode"}, indent=2))
+            return
+        purged = purge_repo_tier_r(Path(paths["repo_task_dir"]))
+        print(json.dumps({"purged": purged, "repo_task_dir": paths["repo_task_dir"]}, indent=2, ensure_ascii=False))
+        return
 
     ensure_report = None
     if args.ensure_state:

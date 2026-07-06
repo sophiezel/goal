@@ -131,9 +131,14 @@ Step 5: 初始化 state（路径计算见 goal-pipeline/references/goal-state-sc
   ├─ mkdir -p ~/.goal-state/ → 失败则 blocked（failure_code: state_dir_creation_failed）
   ├─ 创建 state.json（project_id/branch/task 路径见 goal-state-schema.md）
   ├─ 写入 project_root: `git rev-parse --show-toplevel` 绝对路径（供 stop hook / advance 匹配工作区）
-
+  ├─ **MUST** 若 task 路径已知，同步写入：
+  │     guazi_flow_task: docs/guazi-flow/<task>
+  │     artifact_layout.mode: split
+  │     artifact_layout.runtime_root: ~/.goal-state/projects/<pid>/<branch>/<task>/artifacts
+  │     artifact_layout.repo_task_dir: <abs path to task dir>
   ├─ 验证 state.json 可读写 → 失败则 blocked（failure_code: state_json_unwritable）
   └─ 检测并迁移旧路径 .guazi-flow/goal/ 产物（若存在）
+  **NEVER** 在 Phase 2 任意 gate 之前留空 guazi_flow_task + artifact_layout（否则首屏可能 persist repo_full）
 
 Step 6: GATE Check（全部满足才进入 Phase 2）
   ├─ [✓] state.json 已创建且 schema 校验通过

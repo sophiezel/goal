@@ -41,8 +41,21 @@ if [[ "$TASK_DIR" != /* ]]; then TASK_DIR="$PROJECT_ROOT/$TASK_DIR"; fi
 TASK_DIR="$(cd "$TASK_DIR" && pwd)"
 PROJECT_ROOT="$(cd "$PROJECT_ROOT" && pwd)"
 HANDOFF="$TASK_DIR/handoff"
+GOAL_EVIDENCE="$TASK_DIR/evidence"
+ARTIFACT_MODE="repo_full"
 
-export STATE_FILE TASK_DIR PROJECT_ROOT HANDOFF GATE CHAIN CHECK DRIVER FORMAT
+RESOLVER="$SCRIPT_DIR/resolve-artifact-paths.py"
+if [[ -f "$RESOLVER" ]]; then
+  _RESOLVE_ARGS=(--task-dir "$TASK_DIR" --format shell)
+  [[ -n "$STATE_FILE" ]] && _RESOLVE_ARGS+=(--state-file "$STATE_FILE")
+  [[ -n "$PROJECT_ROOT" ]] && _RESOLVE_ARGS+=(--project-root "$PROJECT_ROOT")
+  eval "$(python3 "$RESOLVER" "${_RESOLVE_ARGS[@]}")"
+  HANDOFF="$HANDOFF_DIR"
+  GOAL_EVIDENCE="$GOAL_EVIDENCE_DIR"
+  ARTIFACT_MODE="$ARTIFACT_MODE"
+fi
+
+export STATE_FILE TASK_DIR PROJECT_ROOT HANDOFF GOAL_EVIDENCE ARTIFACT_MODE GATE CHAIN CHECK DRIVER FORMAT
 python3 << 'PY'
 import json, os, re, subprocess
 from pathlib import Path
@@ -141,9 +154,9 @@ if not has_handoff("plan.json"):
     resume_path.append("gate --post plan")
 if has_handoff("plan.json") and not has_handoff("implement.json"):
     resume_path.append("implement phase")
-elif has_handoff("implement.json") and not (task_dir / "evidence/runtime-smoke.md").is_file():
+elif has_handoff("implement.json") and not Path(os.environ.get("GOAL_EVIDENCE", str(task_dir / "evidence")) + "/runtime-smoke.md").is_file():
     resume_path.append("runtime-smoke.sh + gate --post smoke")
-elif (task_dir / "evidence/runtime-smoke.md").is_file() and not has_handoff("review.json"):
+elif Path(os.environ.get("GOAL_EVIDENCE", str(task_dir / "evidence")) + "/runtime-smoke.md").is_file() and not has_handoff("review.json"):
     resume_path.append("goal-run-review-chain.sh + gate --post review")
 elif has_handoff("review.json") and not has_handoff("complete.json"):
     resume_path.append("guazi-flow-complete + gate --post complete")

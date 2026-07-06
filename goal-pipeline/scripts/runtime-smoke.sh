@@ -43,7 +43,7 @@ STDERR_LOG="/tmp/runtime-smoke-stderr-$$.log"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd || echo "")"
 if [[ -n "$SCRIPT_DIR" && -f "$SCRIPT_DIR/resolve-artifact-paths.py" ]]; then
-  _RESOLVE_ARGS=(--task-dir "$TASK_DIR" --format shell)
+  _RESOLVE_ARGS=(--task-dir "$TASK_DIR" --format shell --ensure-state)
   [[ -n "$STATE_FILE" ]] && _RESOLVE_ARGS+=(--state-file "$STATE_FILE")
   [[ -n "$PROJECT_ROOT" ]] && _RESOLVE_ARGS+=(--project-root "$PROJECT_ROOT")
   eval "$(python3 "$SCRIPT_DIR/resolve-artifact-paths.py" "${_RESOLVE_ARGS[@]}")"

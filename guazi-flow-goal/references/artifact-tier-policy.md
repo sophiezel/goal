@@ -95,12 +95,20 @@ MR 审查者无需打开 goal-state 即可看到审核结论。
 - guazi-flow-* skill **不修改**；路径分流由 goal 脚本完成
 - `merge-review-issues` 的 merged 结果仍写 **repo** `evidence/review.md`
 
-## 迁移
+## 迁移与清理
 
 已有 task 目录含 `handoff/` 时：
 
 ```bash
 goal-pipeline-doctor.sh --migrate-artifacts --task-dir docs/guazi-flow/<task> --state-file ~/.goal-state/.../state.json
+```
+
+split 模式下每次 `resolve-artifact-paths.py --ensure-state` 或 `gate --post` 成功后会 **purge** repo 中误写的 Tier-R（`handoff/`、review annex JSON 等），Tier-G 不受影响。
+
+手动清理：
+
+```bash
+goal-pipeline-doctor.sh --purge-repo-tier-r --task-dir docs/guazi-flow/<task> --state-file ~/.goal-state/.../state.json
 ```
 
 ## gitignore 注入

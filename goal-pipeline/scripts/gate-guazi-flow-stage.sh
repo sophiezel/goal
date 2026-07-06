@@ -104,7 +104,18 @@ GIT_ROOT=$(git -C "$REPO_TASK_DIR" rev-parse --show-toplevel 2>/dev/null || git 
 FORMAT_ISSUES="$SCRIPT_DIR/format-gate-issues.sh"
 
 fail() { echo "gate FAIL [$STAGE/$PHASE]: $*" >&2; exit 1; }
-pass() { echo "gate PASS [$STAGE/$PHASE]: $*"; exit 0; }
+purge_split_repo_tier_r() {
+  [[ "${ARTIFACT_MODE:-}" == "split" ]] || return 0
+  local _purge_args=(--task-dir "$REPO_TASK_DIR" --purge-repo-tier-r)
+  [[ -n "$STATE_FILE" ]] && _purge_args+=(--state-file "$STATE_FILE")
+  [[ -n "$PROJECT_ROOT" ]] && _purge_args+=(--project-root "$PROJECT_ROOT")
+  python3 "$RESOLVER" "${_purge_args[@]}" >/dev/null 2>&1 || true
+}
+pass() {
+  [[ "$PHASE" == "post" ]] && purge_split_repo_tier_r
+  echo "gate PASS [$STAGE/$PHASE]: $*"
+  exit 0
+}
 
 write_state_blocked() {
   local code="$1"
@@ -751,7 +762,8 @@ PYMETA
   "dev_cmd": "$DEV_CMD",
   "duration_ms": $DURATION,
   "git_head": "$GH",
-  "artifact_paths": ["evidence/runtime-smoke.md"]
+  "artifact_paths": [],
+  "runtime_artifact_paths": ["evidence/runtime-smoke.md"]
 }
 JSON
       py_write_handoff smoke "$TMP" >/dev/null
@@ -817,7 +829,8 @@ JSON
   "gf_skill_attested": $GF_ATTESTED,
   "review_run_id": "$RUN_ID",
   "root_cause_summary": {},
-  "artifact_paths": ["evidence/review.md", "evidence/review-goal.json", "evidence/review-fix-input.json"]
+  "artifact_paths": ["evidence/review.md"],
+  "runtime_artifact_paths": ["evidence/review-goal.json", "evidence/review-fix-input.json", "evidence/review-run.json"]
 }
 JSON
       py_write_handoff review "$TMP" >/dev/null

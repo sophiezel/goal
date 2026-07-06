@@ -12,11 +12,14 @@ def load_json(path, default=None):
     return default if default is not None else {}
 
 
-def resolve_paths(task_dir, state_file=""):
+def resolve_paths(task_dir, state_file="", project_root=""):
     resolver = os.path.join(SCRIPT_DIR, "resolve-artifact-paths.py")
-    args = [sys.executable, resolver, "--task-dir", task_dir, "--format", "json"]
+    args = [sys.executable, resolver, "--task-dir", task_dir, "--format", "json", "--ensure-state"]
     if state_file:
         args.extend(["--state-file", state_file])
+    proj = project_root or os.environ.get("GOAL_PROJECT_ROOT", "")
+    if proj:
+        args.extend(["--project-root", proj])
     r = subprocess.run(args, capture_output=True, text=True, check=True)
     return json.loads(r.stdout)
 

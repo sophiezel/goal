@@ -2,7 +2,20 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GATE="$SCRIPT_DIR/../../gate-guazi-flow-stage.sh"
+CHECK="$SCRIPT_DIR/../../check-consistency"
 export GOAL_ARTIFACT_MODE=repo_full
+
+assert_no_repo_tier_r() {
+  local task="$1"
+  if [[ -d "$task/handoff" ]]; then
+    echo "FAIL repo Tier-R leak: $task/handoff/ exists"; exit 1
+  fi
+  for f in review-goal.json review-gf.json review-run.json review-fix-input.json review-transcript.md runtime-smoke.md; do
+    if [[ -f "$task/evidence/$f" ]]; then
+      echo "FAIL repo Tier-R leak: $task/evidence/$f exists"; exit 1
+    fi
+  done
+}
 
 echo "=== plan-good should PASS ==="
 if "$GATE" --task-dir "$SCRIPT_DIR/plan-good" --stage plan --post --mode guazi; then
@@ -137,6 +150,16 @@ if GOAL_ARTIFACT_MODE=split "$GATE" --task-dir "$TASK" --stage review --post --m
   echo "OK split mode review post"
 else
   echo "FAIL split mode review expected pass"; rm -rf "$SPLIT_TMP"; exit 1
+fi
+assert_no_repo_tier_r "$TASK"
+echo "OK split mode repo has no Tier-R artifacts"
+
+echo "=== check-consistency split (review-run in runtime only) ==="
+CONSIST_OUT=$(GOAL_ARTIFACT_MODE=split "$CHECK" "$TASK" "$STATE" 2>/dev/null || echo '{}')
+if echo "$CONSIST_OUT" | python3 -c "import json,sys; d=json.load(sys.stdin); issues=[i for i in d.get('issues',[]) if i.get('rule')=='review_provenance']; sys.exit(1 if issues else 0)"; then
+  echo "OK check-consistency split no review_provenance false positive"
+else
+  echo "FAIL check-consistency split reported review_provenance"; echo "$CONSIST_OUT"; rm -rf "$SPLIT_TMP"; exit 1
 fi
 rm -rf "$SPLIT_TMP"
 

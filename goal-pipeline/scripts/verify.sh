@@ -231,7 +231,17 @@ EOF
 # === Handoff gate status (guazi-flow tasks) ===
 handoff_status_json() {
   local task_dir="$1"
+  local state_file="${GOAL_STATE_FILE:-${VERIFY_STATE_FILE:-}}"
   local handoff_dir="$task_dir/handoff"
+  local resolver_dir
+  resolver_dir="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd || echo "")"
+  if [[ -n "$resolver_dir" && -f "$resolver_dir/resolve-artifact-paths.py" ]]; then
+    local _args=(--task-dir "$task_dir" --format shell)
+    [[ -n "$state_file" ]] && _args+=(--state-file "$state_file")
+    [[ -n "${GIT_ROOT:-}" ]] && _args+=(--project-root "$GIT_ROOT")
+    eval "$(python3 "$resolver_dir/resolve-artifact-paths.py" "${_args[@]}")"
+    handoff_dir="$HANDOFF_DIR"
+  fi
   if [ ! -d "$handoff_dir" ]; then
     echo '{"present":false,"stages":{}}'
     return

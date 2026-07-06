@@ -12,14 +12,39 @@ guazi-flow-goal 阶段衔接的单一事实来源。硬约束：**不修改 guaz
 | review | guazi-flow-review **+** goal-pipeline 独立审核（并集） | 仅 goal-pipeline review |
 | complete | guazi-flow-complete + goal-pipeline 质量报告 | 仅 goal-pipeline complete |
 
-## Handoff 路径
+## Handoff 路径（split 模式，默认）
+
+Tier-R handoff **不在 repo**。路径由 `resolve-artifact-paths.py` 解析为 `HANDOFF_DIR`：
 
 ```
-docs/guazi-flow/<task>/handoff/plan.json
-docs/guazi-flow/<task>/handoff/implement.json
-docs/guazi-flow/<task>/handoff/review.json
-docs/guazi-flow/<task>/handoff/review-packet.json
+~/.goal-state/projects/<pid>/<branch>/<task>/artifacts/handoff/
+├── plan.json
+├── implement.json
+├── smoke.json
+├── review.json
+├── review-packet.json
+├── merge-result.json
+└── complete.json
 ```
+
+repo（Tier-G）仅保留：
+
+```
+docs/guazi-flow/<task>/
+├── index.md
+└── evidence/review.md | complete.md | cwiki/** ...
+```
+
+`repo_full` 兼容模式：handoff 仍在 `docs/guazi-flow/<task>/handoff/`（旧行为，新 goal 禁止默认使用）。
+
+## handoff JSON 路径字段
+
+| 字段 | 含义 |
+|------|------|
+| `artifact_paths` | **Tier-G**，相对 `docs/guazi-flow/<task>/`（进 git） |
+| `runtime_artifact_paths` | **Tier-R**，相对 `artifacts/` 根（goal-state，不进 git） |
+
+示例：`review.json` 中 `artifact_paths: ["evidence/review.md"]`，`runtime_artifact_paths: ["evidence/review-run.json", ...]`。
 
 ## Orchestrator 顺序（guazi-flow-goal Phase 2）
 
@@ -84,7 +109,8 @@ gate --pre(<stage>)
   "issues_gf_count": 0,
   "issues_goal_count": 0,
   "root_cause_summary": {},
-  "artifact_paths": ["evidence/review.md", "evidence/review-goal.json"],
+  "artifact_paths": ["evidence/review.md"],
+  "runtime_artifact_paths": ["evidence/review-goal.json", "evidence/review-fix-input.json", "evidence/review-run.json"],
   "gate": { "script": "gate-guazi-flow-stage.sh", "version": 1, "passed_at": "" }
 }
 ```
@@ -95,7 +121,7 @@ gate --pre(<stage>)
 |------|-------------|
 | plan | index.md：frontmatter 四字段 + 核心事实/完整伪代码/验收与验证矩阵/执行记录 |
 | implement | index 执行记录含 guazi-flow-implement；diff ⊆ write_set |
-| review | evidence/review.md 标准 frontmatter + 章节；review-goal annex 或 review-goal.json |
+| review | evidence/review.md（repo Tier-G）；review-goal/review-run 等 annex 在 goal-state `artifacts/evidence/` |
 | complete | index flow.current_stage=complete；执行记录含 guazi-flow-complete；review pass+fresh |
 
 ## ReviewPacket

@@ -7,6 +7,7 @@ REPO_DIR="${GOAL_PIPELINE_REPO:-$HOME/.goal-pipeline-repo}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT=""
 MIGRATE=false
+PURGE_REPO=false
 MIGRATE_TASK_DIR=""
 MIGRATE_STATE_FILE=""
 MIGRATE_DRY_RUN=false
@@ -14,12 +15,14 @@ MIGRATE_DRY_RUN=false
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --migrate-artifacts) MIGRATE=true; shift ;;
+    --purge-repo-tier-r) PURGE_REPO=true; shift ;;
     --task-dir) MIGRATE_TASK_DIR="$2"; shift 2 ;;
     --state-file) MIGRATE_STATE_FILE="$2"; shift 2 ;;
     --dry-run) MIGRATE_DRY_RUN=true; shift ;;
     -h|--help)
       echo "Usage: $0 [PROJECT_ROOT]"
       echo "       $0 --migrate-artifacts --task-dir PATH [--state-file PATH] [--dry-run]"
+      echo "       $0 --purge-repo-tier-r --task-dir PATH [--state-file PATH] [--project-root PATH]"
       exit 0
       ;;
     *)
@@ -30,6 +33,17 @@ while [[ $# -gt 0 ]]; do
 done
 
 PROJECT_ROOT="${PROJECT_ROOT:-$(pwd)}"
+
+if [[ "$PURGE_REPO" == "true" ]]; then
+  [[ -n "$MIGRATE_TASK_DIR" ]] || { echo "purge requires --task-dir" >&2; exit 2; }
+  RESOLVER="$SCRIPT_DIR/resolve-artifact-paths.py"
+  [[ -f "$RESOLVER" ]] || RESOLVER="$GOAL_STATE_HOME/scripts/resolve-artifact-paths.py"
+  PURGE_ARGS=(--task-dir "$MIGRATE_TASK_DIR" --purge-repo-tier-r)
+  [[ -n "$MIGRATE_STATE_FILE" ]] && PURGE_ARGS+=(--state-file "$MIGRATE_STATE_FILE")
+  [[ -n "$PROJECT_ROOT" ]] && PURGE_ARGS+=(--project-root "$PROJECT_ROOT")
+  python3 "$RESOLVER" "${PURGE_ARGS[@]}"
+  exit 0
+fi
 
 if [[ "$MIGRATE" == "true" ]]; then
   [[ -n "$MIGRATE_TASK_DIR" ]] || { echo "migrate requires --task-dir" >&2; exit 2; }

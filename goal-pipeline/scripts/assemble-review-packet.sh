@@ -28,7 +28,7 @@ done
 TASK_DIR="$(cd "$TASK_DIR" && pwd)"
 
 RESOLVER="$SCRIPT_DIR/resolve-artifact-paths.py"
-_RESOLVE_ARGS=(--task-dir "$TASK_DIR" --format shell)
+_RESOLVE_ARGS=(--task-dir "$TASK_DIR" --format shell --ensure-state)
 [[ -n "$STATE_FILE" ]] && _RESOLVE_ARGS+=(--state-file "$STATE_FILE")
 [[ -n "$PROJECT_ROOT" ]] && _RESOLVE_ARGS+=(--project-root "$PROJECT_ROOT")
 eval "$(python3 "$RESOLVER" "${_RESOLVE_ARGS[@]}")"

@@ -5,10 +5,12 @@
 
 set -uo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd || echo "")"
 TASK_DIR="${1:-.}"
+STATE_ARG="${2:-}"
 GIT_ROOT=$(git -C "$TASK_DIR" rev-parse --show-toplevel 2>/dev/null || echo ".")
 
-# === New path resolution ===
+# === Path resolution (split: Tier-G in repo, Tier-R in goal-state) ===
 GOAL_STATE_HOME="${GOAL_STATE_HOME:-${GUAZI_GOAL_HOME:-$HOME/.goal-state}}"
 PROJECT_ID=$(echo -n "$(cd "$GIT_ROOT" && pwd)" | python3 -c "import sys,hashlib; print(hashlib.sha256(sys.stdin.read().encode()).hexdigest()[:12])" 2>/dev/null || echo "unknown")
 BRANCH=$(git -C "$GIT_ROOT" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "default")
@@ -18,6 +20,21 @@ STATE_FILE="$GOAL_STATE_HOME/projects/$PROJECT_ID/$BRANCH/$TASK_SLUG/state.json"
 LOCK_FILE="$GOAL_STATE_HOME/projects/$PROJECT_ID/$BRANCH/$TASK_SLUG/.lock"
 INDEX_FILE="$TASK_DIR/index.md"
 EVIDENCE_DIR="$TASK_DIR/evidence"
+HANDOFF_DIR="$TASK_DIR/handoff"
+GOAL_EVIDENCE_DIR="$TASK_DIR/evidence"
+ARTIFACT_MODE="repo_full"
+
+if [[ -n "$SCRIPT_DIR" && -f "$SCRIPT_DIR/resolve-artifact-paths.py" ]]; then
+  _RESOLVE_ARGS=(--task-dir "$TASK_DIR" --format shell)
+  [[ -n "$STATE_ARG" ]] && _RESOLVE_ARGS+=(--state-file "$STATE_ARG")
+  eval "$(python3 "$SCRIPT_DIR/resolve-artifact-paths.py" "${_RESOLVE_ARGS[@]}")"
+  EVIDENCE_DIR="$REPO_EVIDENCE_DIR"
+  HANDOFF_DIR="$HANDOFF_DIR"
+  GOAL_EVIDENCE_DIR="$GOAL_EVIDENCE_DIR"
+  ARTIFACT_MODE="$ARTIFACT_MODE"
+  [[ -n "$GOAL_STATE_FILE" ]] && STATE_FILE="$GOAL_STATE_FILE"
+  [[ -n "$GOAL_STATE_FILE" ]] && LOCK_FILE="$(dirname "$GOAL_STATE_FILE")/.lock"
+fi
 
 issues=()
 
@@ -163,7 +180,7 @@ check_handoff() {
   if [ "$gf_avail" != "True" ]; then
     return
   fi
-  local handoff_dir="$TASK_DIR/handoff"
+  local handoff_dir="$HANDOFF_DIR"
   for stage in plan implement review complete; do
     local used
     used=$(python3 -c "import json; d=json.load(open('$STATE_FILE')); print(d.get('guazi_flow_stages',{}).get('$stage',{}).get('used', False))" 2>/dev/null || echo "False")
@@ -185,20 +202,20 @@ check_handoff() {
 
 # === Rule 7: Smoke/review provenance ===
 check_provenance() {
-  local smoke_md="$EVIDENCE_DIR/runtime-smoke.md"
+  local smoke_md="$GOAL_EVIDENCE_DIR/runtime-smoke.md"
   if [ -f "$smoke_md" ]; then
     local sr
     sr=$(parse_fm "$smoke_md" "result")
-    if [ "$sr" != "skipped" ] && [ ! -f "$TASK_DIR/handoff/smoke.json" ]; then
+    if [ "$sr" != "skipped" ] && [ ! -f "$HANDOFF_DIR/smoke.json" ]; then
       issues+=('{"rule":"smoke_provenance","issue":"runtime-smoke.md without handoff/smoke.json","action":"run_smoke_gate"}')
     fi
   fi
   if [ -f "$EVIDENCE_DIR/review.md" ]; then
-    if [ ! -f "$EVIDENCE_DIR/review-run.json" ]; then
-      issues+=('{"rule":"review_provenance","issue":"review.md without review-run.json","action":"run_independent_review"}')
+    if [ ! -f "$GOAL_EVIDENCE_DIR/review-run.json" ]; then
+      issues+=('{"rule":"review_provenance","issue":"review.md without goal-runtime review-run.json","action":"run_independent_review"}')
     fi
-    if [ ! -f "$EVIDENCE_DIR/review-goal.json" ]; then
-      issues+=('{"rule":"review_provenance","issue":"review.md without review-goal.json","action":"run_independent_review"}')
+    if [ ! -f "$GOAL_EVIDENCE_DIR/review-goal.json" ]; then
+      issues+=('{"rule":"review_provenance","issue":"review.md without goal-runtime review-goal.json","action":"run_independent_review"}')
     fi
   fi
 }
@@ -224,8 +241,8 @@ main() {
 
   # Provenance panel for status consumers
   local prov_smoke="missing" prov_review_run="missing"
-  [ -f "$EVIDENCE_DIR/runtime-smoke.md" ] && prov_smoke=$(parse_fm "$EVIDENCE_DIR/runtime-smoke.md" "result")
-  [ -f "$EVIDENCE_DIR/review-run.json" ] && prov_review_run="present"
+  [ -f "$GOAL_EVIDENCE_DIR/runtime-smoke.md" ] && prov_smoke=$(parse_fm "$GOAL_EVIDENCE_DIR/runtime-smoke.md" "result")
+  [ -f "$GOAL_EVIDENCE_DIR/review-run.json" ] && prov_review_run="present"
   # Output
   local issues_json="[]"
   if [ ${#issues[@]} -gt 0 ]; then
