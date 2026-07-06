@@ -1,0 +1,27 @@
+{
+  "stage": "plan",
+  "schema_version": 1,
+  "skill_expected": "guazi-flow-plan",
+  "skill_executed": true,
+  "task_dir": "/Users/xuwei/Profession/goal/goal-pipeline/scripts/fixtures/guazi-flow-gate/plan-write-set-xieji",
+  "profile": "h5",
+  "profile_detail": "react",
+  "write_set": [
+    "src/pages/Foo/",
+    "src/services/foo/"
+  ],
+  "acceptance_matrix_ids": [
+    "C01"
+  ],
+  "index_schema_hash": "539a32c7e19216ec",
+  "git_head": "8e253eb1eaeba0c2",
+  "artifact_paths": [
+    "index.md"
+  ],
+  "warnings": [],
+  "gate": {
+    "script": "gate-guazi-flow-stage.sh",
+    "version": 1,
+    "passed_at": "2026-07-06T07:14:59Z"
+  }
+}

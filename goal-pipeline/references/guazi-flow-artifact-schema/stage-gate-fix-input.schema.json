@@ -1,0 +1,29 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "stage-gate-fix-input",
+  "type": "object",
+  "required": ["schema_version", "stage", "action", "issues", "next_steps", "subject_hash"],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "stage": { "type": "string", "enum": ["plan", "implement", "smoke", "review", "complete"] },
+    "action": { "type": "string", "enum": ["fix_and_rerun", "blocked_noop_fix", "blocked_user_decision"] },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "severity", "summary"],
+        "properties": {
+          "id": { "type": "string" },
+          "severity": { "type": "string", "enum": ["blocker", "warning"] },
+          "summary": { "type": "string" },
+          "root_cause": { "type": "string" },
+          "criterion_ref": { "type": "string" },
+          "location": { "type": "string" }
+        }
+      }
+    },
+    "next_steps": { "type": "array", "items": { "type": "string" } },
+    "subject_hash": { "type": "string" },
+    "gate_script": { "type": "string" }
+  }
+}

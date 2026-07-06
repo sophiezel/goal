@@ -5,6 +5,18 @@ profile: h5
 profile_detail: react
 ---
 
+## 概览
+
+CTB-43532 B2C discrepancy video audit — list and detail UI changes.
+
+## 任务目标
+
+Remove audit log column from list; show submit time on detail page.
+
+## 范围与非目标
+
+In scope: DiscrepancyVideoAudit pages and services. Out of scope: backend API changes.
+
 ## 核心事实
 
 Task CTB-43532: B2C discrepancy video audit list and detail pages.

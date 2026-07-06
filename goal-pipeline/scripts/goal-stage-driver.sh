@@ -147,6 +147,8 @@ work_order = {
     "never": [
         "询问用户是否继续 review",
         "在未读 evidence/review-fix-input.json 时修复 review 问题",
+        "在未读 evidence/<stage>-gate-fix-input.json 时修复 plan/implement gate 失败",
+        "gate 失败时由 Judge 会话直接改 index.md 或 diff（须读 fix-input 后由 Executor 修）",
         "gate --post 未 exit 0 时输出阶段 ✅",
         "手写 handoff/*.json",
     ],

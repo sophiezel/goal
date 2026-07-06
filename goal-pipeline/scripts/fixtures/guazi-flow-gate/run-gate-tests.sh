@@ -11,13 +11,32 @@ else
 fi
 
 echo "=== plan-bad should FAIL ==="
+rm -f "$SCRIPT_DIR/plan-bad/evidence/plan-gate-fix-input.json"
 if "$GATE" --task-dir "$SCRIPT_DIR/plan-bad" --stage plan --post --mode guazi; then
   echo "FAIL plan-bad expected fail"; exit 1
 else
   echo "OK plan-bad rejected"
 fi
+if [[ ! -f "$SCRIPT_DIR/plan-bad/evidence/plan-gate-fix-input.json" ]]; then
+  echo "FAIL plan-bad missing plan-gate-fix-input.json"; exit 1
+fi
+echo "OK plan-bad wrote plan-gate-fix-input.json"
+
+echo "=== plan-write-set-xieji (## 写集) should PASS ==="
+rm -f "$SCRIPT_DIR/plan-write-set-xieji/evidence/plan-gate-fix-input.json"
+rm -rf "$SCRIPT_DIR/plan-write-set-xieji/handoff"
+if "$GATE" --task-dir "$SCRIPT_DIR/plan-write-set-xieji" --stage plan --post --mode guazi; then
+  WS=$(python3 -c "import json; print(len(json.load(open('$SCRIPT_DIR/plan-write-set-xieji/handoff/plan.json')).get('write_set',[])))")
+  if [[ "$WS" -lt 1 ]]; then
+    echo "FAIL plan-write-set-xieji write_set empty"; exit 1
+  fi
+  echo "OK plan-write-set-xieji write_set=$WS"
+else
+  echo "FAIL plan-write-set-xieji expected pass"; exit 1
+fi
 
 echo "=== ctb-43532-simplified should FAIL ==="
+rm -f "$SCRIPT_DIR/ctb-43532-simplified/evidence/plan-gate-fix-input.json"
 if "$GATE" --task-dir "$SCRIPT_DIR/ctb-43532-simplified" --stage plan --post --mode guazi; then
   echo "FAIL ctb-43532 expected fail"; exit 1
 else

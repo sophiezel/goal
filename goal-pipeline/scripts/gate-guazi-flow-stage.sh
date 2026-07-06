@@ -74,8 +74,130 @@ HANDOFF_DIR="$TASK_DIR/handoff"
 EVIDENCE_DIR="$TASK_DIR/evidence"
 GIT_ROOT=$(git -C "$TASK_DIR" rev-parse --show-toplevel 2>/dev/null || git -C "$(dirname "$TASK_DIR")" rev-parse --show-toplevel 2>/dev/null || echo "")
 
+FORMAT_ISSUES="$SCRIPT_DIR/format-gate-issues.sh"
+
 fail() { echo "gate FAIL [$STAGE/$PHASE]: $*" >&2; exit 1; }
 pass() { echo "gate PASS [$STAGE/$PHASE]: $*"; exit 0; }
+
+write_state_blocked() {
+  local code="$1"
+  [[ -n "$STATE_FILE" && -f "$STATE_FILE" ]] || return 0
+  python3 - "$STATE_FILE" "$code" << 'PYBLOCK'
+import json, sys
+from datetime import datetime, timezone
+path, code = sys.argv[1], sys.argv[2]
+with open(path, encoding="utf-8") as f:
+    state = json.load(f)
+state["status"] = "blocked"
+state["failure_code"] = code
+state["blocked_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+with open(path, "w", encoding="utf-8") as f:
+    json.dump(state, f, indent=2, ensure_ascii=False)
+PYBLOCK
+}
+
+check_noop_ratchet() {
+  local stage="$1"
+  local subject_hash="$2"
+  local fix_path="$EVIDENCE_DIR/${stage}-gate-fix-input.json"
+  [[ -f "$fix_path" ]] || return 0
+  local prev
+  prev=$(python3 -c "import json; print(json.load(open('$fix_path')).get('subject_hash',''))" 2>/dev/null || echo "")
+  if [[ -n "$prev" && "$prev" == "$subject_hash" ]]; then
+    write_state_blocked "noop_fix"
+    local noop_issues='[{"id":"G000","severity":"blocker","summary":"subject_hash 未变化，修复无效（noop_fix）","root_cause":"implement_error"}]'
+    fix_path=$(write_gate_fix_input "$stage" "$subject_hash" "blocked_noop_fix" "$noop_issues")
+    local label
+    label=$(echo "$stage" | tr '[:lower:]' '[:upper:]')
+    if [[ -x "$FORMAT_ISSUES" ]]; then
+      "$FORMAT_ISSUES" --stage-label "$label" --fix-input "$fix_path" >&2
+    fi
+    echo "gate FAIL [$stage/$PHASE]: blocked(noop_fix) — subject_hash unchanged" >&2
+    exit 1
+  fi
+  return 0
+}
+
+write_gate_fix_input() {
+  local stage="$1"
+  local subject_hash="$2"
+  local action="$3"
+  local issues_json="$4"
+  mkdir -p "$EVIDENCE_DIR"
+  local out="$EVIDENCE_DIR/${stage}-gate-fix-input.json"
+  GATE_ISSUES_JSON="$issues_json" python3 - "$out" "$stage" "$subject_hash" "$action" << 'PYWFI'
+import json, os, sys
+out, stage, subject_hash, action = sys.argv[1:5]
+issues = json.loads(os.environ.get("GATE_ISSUES_JSON", "[]"))
+next_steps = {
+    "plan": ["修 index.md 必填章节与 write_set 后重跑 gate --post plan"],
+    "implement": ["在 write_set 范围内修改代码后重跑 gate --post implement"],
+    "smoke": ["修复 runtime-smoke 问题后重跑 gate --post smoke"],
+    "review": ["读 evidence/review-fix-input.json 修复后重跑 review 链"],
+}.get(stage, [f"修产物后重跑 gate --post {stage}"])
+payload = {
+    "schema_version": 1,
+    "stage": stage,
+    "action": action,
+    "issues": issues,
+    "next_steps": next_steps,
+    "subject_hash": subject_hash,
+    "gate_script": "gate-guazi-flow-stage.sh",
+}
+with open(out, "w", encoding="utf-8") as f:
+    json.dump(payload, f, indent=2, ensure_ascii=False)
+print(out)
+PYWFI
+}
+
+gate_fail_with_issues() {
+  local stage="$1"
+  local subject_hash="$2"
+  local action="$3"
+  local issues_json="$4"
+  local msg="${5:-gate validation failed}"
+  check_noop_ratchet "$stage" "$subject_hash" || exit 1
+  local fix_path
+  fix_path=$(write_gate_fix_input "$stage" "$subject_hash" "$action" "$issues_json")
+  local label
+  label=$(echo "$stage" | tr '[:lower:]' '[:upper:]')
+  if [[ -x "$FORMAT_ISSUES" && -f "$fix_path" ]]; then
+    "$FORMAT_ISSUES" --stage-label "$label" --fix-input "$fix_path" >&2
+  fi
+  echo "gate FAIL [$stage/$PHASE]: $msg" >&2
+  exit 1
+}
+
+errors_to_issues_json() {
+  python3 - << 'PYETI'
+import json, os, re
+errors = json.loads(os.environ.get("GATE_ERRORS_JSON", "[]"))
+issues = []
+for i, e in enumerate(errors, 1):
+    iid = f"G{i:03d}"
+    root = "plan_gap"
+    if "write_set" in e.lower():
+        root = "plan_gap"
+    m = re.search(r"missing section: (## .+)", e)
+    summary = m.group(1) if m else e
+    if m:
+        summary = f"缺少必填章节: {m.group(1)}"
+    issues.append({
+        "id": iid,
+        "severity": "blocker",
+        "summary": summary,
+        "root_cause": root,
+        "criterion_ref": "unified-doc-contract §章节顺序",
+    })
+print(json.dumps(issues, ensure_ascii=False))
+PYETI
+}
+
+show_review_issue_board() {
+  local fix_path="$EVIDENCE_DIR/review-fix-input.json"
+  [[ -f "$fix_path" && -x "$FORMAT_ISSUES" ]] || return 0
+  "$FORMAT_ISSUES" --stage-label "REVIEW" --fix-input "$fix_path" >&2
+}
 
 git_head_short() {
   if [[ -n "$GIT_ROOT" ]]; then
@@ -172,9 +294,13 @@ skill = rules['execution_record_skill'].get('plan', 'guazi-flow-plan')
 if skill not in text:
     errors.append(f"execution record missing skill marker: {skill}")
 
-# extract write_set from markdown tables or bullet lists
+# extract write_set from markdown tables or bullet lists (section header at line start only)
 write_set = []
-ws_sec = re.search(r'##\s*(?:write[_\s-]?set|写集)[^\n]*\n(.*?)(?=\n## |\Z)', text, re.IGNORECASE | re.DOTALL)
+ws_matches = list(re.finditer(
+    r'^##\s*(?:范围与写集|write[_\s-]?set|写集)\s*\n(.*?)(?=\n## |\Z)',
+    text, re.IGNORECASE | re.DOTALL | re.MULTILINE
+))
+ws_sec = ws_matches[-1] if ws_matches else None
 if ws_sec:
     block = ws_sec.group(1)
     for line in block.splitlines():
@@ -449,8 +575,11 @@ case "$STAGE" in
     RESULT=$(py_check_index)
     OK=$(echo "$RESULT" | python3 -c "import json,sys; print(json.load(sys.stdin)['ok'])")
     if [[ "$OK" != "True" ]]; then
-      echo "$RESULT" | python3 -c "import json,sys; [print('  -',e) for e in json.load(sys.stdin)['errors']]" >&2
-      fail "plan index schema validation failed"
+      ERRS=$(echo "$RESULT" | python3 -c "import json,sys; print(json.dumps(json.load(sys.stdin)['errors']))")
+      IH=$(content_hash "$INDEX")
+      export GATE_ERRORS_JSON="$ERRS"
+      ISSUES=$(errors_to_issues_json)
+      gate_fail_with_issues "plan" "$IH" "fix_and_rerun" "$ISSUES" "plan index schema validation failed"
     fi
     if [[ "$PHASE" == "post" ]]; then
       WS=$(echo "$RESULT" | python3 -c "import json,sys; print(json.dumps(json.load(sys.stdin)['write_set']))")
@@ -502,7 +631,11 @@ JSON
     fi
     if [[ "$PHASE" == "post" ]]; then
       PLAN_WS_LEN=$(python3 -c "import json; print(len(json.load(open('$HANDOFF_DIR/plan.json')).get('write_set',[])))" 2>/dev/null || echo 0)
-      [[ "$PLAN_WS_LEN" != "0" ]] || fail "plan write_set empty — update index.md write_set before implement post"
+      if [[ "$PLAN_WS_LEN" == "0" ]]; then
+        DH=$(diff_hash)
+        ISSUES='[{"id":"G001","severity":"blocker","summary":"write_set 为空 — 在 index.md ## 范围与写集 或 ## 写集 中声明路径","root_cause":"plan_gap","criterion_ref":"unified-doc-contract §write_set"}]'
+        gate_fail_with_issues "implement" "$DH" "fix_and_rerun" "$ISSUES" "plan write_set empty — update index.md before implement post"
+      fi
       CHANGED=$(check_write_set_subset "$PLAN_WS")
       CF=$(echo "$CHANGED" | python3 -c "import json,sys; print(json.dumps(json.load(sys.stdin).get('changed_files',[])))")
       DH=$(diff_hash)
@@ -624,6 +757,7 @@ JSON
       ROK=$(echo "$RRESULT" | python3 -c "import json,sys; print(json.load(sys.stdin)['ok'])")
       if [[ "$ROK" != "True" ]]; then
         echo "$RRESULT" | python3 -c "import json,sys; [print('  -',e) for e in json.load(sys.stdin)['errors']]" >&2
+        show_review_issue_board
         fail "review evidence validation failed"
       fi
       RESULT_VAL=$(echo "$RRESULT" | python3 -c "import json,sys; print(json.load(sys.stdin).get('result','unknown'))")
@@ -680,6 +814,9 @@ print(m.group(1) if m else "")
 PYMG
 )
       if [[ -n "$MERGED" && "$MERGED" != "pass" ]]; then
+        show_review_issue_board
+        CUR_DH=$(diff_hash)
+        check_noop_ratchet "review" "$CUR_DH" || exit 1
         fail "merged_result is not pass: $MERGED"
       fi
       CLEN=$(python3 -c "import json; d=json.load(open('$EVIDENCE_DIR/review-goal.json')); print(len(d.get('checklist',[])))" 2>/dev/null || echo 0)
@@ -714,6 +851,9 @@ PYSCHEMA
         fail "review pass requires non-empty checklist in review-goal.json"
       fi
       if [[ "$RESULT_VAL" != "pass" ]]; then
+        show_review_issue_board
+        CUR_DH=$(diff_hash)
+        check_noop_ratchet "review" "$CUR_DH" || exit 1
         fail "review result is not pass: $RESULT_VAL"
       fi
       update_state_gate "review"

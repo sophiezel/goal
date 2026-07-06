@@ -206,8 +206,22 @@ state.json 中 `guazi_flow_task` 字段记录此路径。goal-pipeline 通过此
 | 脚本 | 用途 |
 |------|------|
 | `gate-guazi-flow-stage.sh` | plan/implement/review/complete `--pre`/`--post` |
+| `format-gate-issues.sh` | gate 失败时 Issue Board 终端输出 |
 | `assemble-review-packet.sh` | review Step 2 输入包 |
 | `merge-review-issues.sh` | 合并 issues_gf + issues_goal |
+
+### plan/implement gate 契约（对齐 unified-doc，零 audit 依赖）
+
+plan `--post` 除 index schema 外 **显式**校验：
+
+- 必填章节：`## 概览`、`## 任务目标`、`## 范围与非目标`、`## 核心事实`、`## 完整伪代码`、`## 验收与验证矩阵`、`## 执行记录`
+- `write_set` 提取兼容：`## 范围与写集`、`## 写集`、`## write_set`
+
+implement `--post`：`write_set` 为空 → fail（消息指向 index.md 章节）。
+
+gate 失败时写入 `evidence/<stage>-gate-fix-input.json`（机器路由）；Agent **只读** fix-input 修复，禁止 Judge 会话直接改产物。
+
+`subject_hash` 与上轮 fix-input 相同且仍 fail → `blocked(noop_fix)`。
 
 implement `--post`: diff ⊆ write_set + 执行记录含 guazi-flow-implement。
 review `--post`: evidence/review.md frontmatter + Goal annex；merged result=pass 才过。
