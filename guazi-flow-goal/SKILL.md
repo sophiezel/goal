@@ -106,7 +106,8 @@ Step 1.5: Pre-flight（MANDATORY，Phase 2 前亦须可用）
   ├─ 检查 ~/.goal-state/references/guazi-flow-artifact-schema/ 存在
 │   任一缺失 → 立即输出 blocked(failure_code: infra_missing)，不得进入 Phase 2；然后运行 `bash <goal-repo>/install.sh --agent <detected>` 修复部署，或提示用户手动部署
   ├─ detect-review-channels --json（guazi_flow_available=true 时）
-  │   若仅 deterministic → warning + 引导配置 API key/Ollama；CI 可设 GOAL_REVIEW_FORCE_DETERMINISTIC=1
+  │   若仅 deterministic → warning + 引导配置 API key/Ollama；CI 无配置时可设 GOAL_REVIEW_FORCE_DETERMINISTIC=1
+  │   **已配置 api_keys/review_model 时禁止降级**：run-independent-review / goal-run-review-chain / gate --post review 均会 hard fail
   └─ 输出: "pre-flight: scripts=OK|MISSING"
 
 Fast-path（用户已提供 JIRA + 明确验收标准时）:

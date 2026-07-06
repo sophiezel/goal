@@ -48,6 +48,7 @@ COMMON_ARGS=(--task-dir "$REPO_TASK_DIR")
 
 ASSEMBLE=$(resolve_script assemble-review-packet.sh)
 REVIEW=$(resolve_script run-independent-review.sh)
+GUARD=$(resolve_script review-channel-guard.py)
 MERGE=$(resolve_script merge-review-issues.sh)
 
 [[ -f "$ASSEMBLE" ]] || { echo "review-chain: assemble-review-packet.sh missing" >&2; exit 1; }
@@ -59,6 +60,8 @@ bash "$ASSEMBLE" "${COMMON_ARGS[@]}"
 
 echo "review-chain [2/4] run-independent-review --mode $MODE"
 if [[ "${GOAL_REVIEW_FORCE_DETERMINISTIC:-}" == "1" ]]; then
+  [[ -f "$GUARD" ]] || { echo "review-chain: review-channel-guard.py missing" >&2; exit 1; }
+  python3 "$GUARD" --check --force-det 1 --provider deterministic
   bash "$REVIEW" "${COMMON_ARGS[@]}" --mode goal --provider deterministic
 else
   bash "$REVIEW" "${COMMON_ARGS[@]}" --mode "$MODE"

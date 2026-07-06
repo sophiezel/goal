@@ -837,6 +837,21 @@ JSON
       rm -f "$TMP"
       assert_pipeline_chain
       [[ -f "$GOAL_EVIDENCE_DIR/review-run.json" ]] || fail "review-run.json missing — run run-independent-review.sh"
+      RUN_DOWNGRADE=$(python3 - << 'PY' "$GOAL_EVIDENCE_DIR/review-run.json"
+import json, sys
+run = json.load(open(sys.argv[1], encoding="utf-8"))
+guard = run.get("channel_guard") or {}
+if not guard:
+    print("skip")
+elif guard.get("has_candidates") and run.get("provider") == "deterministic":
+    print("blocked")
+else:
+    print("ok")
+PY
+)
+      if [[ "$RUN_DOWNGRADE" == "blocked" ]]; then
+        fail "review provider downgrade blocked — review-run.json provider=deterministic but channel_guard.has_candidates=true; rerun goal-run-review-chain.sh"
+      fi
       RUN_HASH=$(python3 -c "import json; print(json.load(open('$GOAL_EVIDENCE_DIR/review-run.json')).get('packet_hash',''))" 2>/dev/null || echo "")
       PKT_HASH=$(shasum -a 256 "$HANDOFF_DIR/review-packet.json" 2>/dev/null | cut -c1-16 || sha256sum "$HANDOFF_DIR/review-packet.json" 2>/dev/null | cut -c1-16 || echo "")
       if [[ -n "$RUN_HASH" && -n "$PKT_HASH" && "$RUN_HASH" != "$PKT_HASH" ]]; then

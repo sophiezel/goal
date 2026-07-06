@@ -95,6 +95,9 @@ echo "=== review-dual-mock gf_skill_attested ==="
 echo "=== review-gf-count (no table inflation) ==="
 "$SCRIPT_DIR/test-review-gf-count.sh"
 
+echo "=== review-channel-guard anti-downgrade ==="
+bash "$SCRIPT_DIR/test-review-channel-guard.sh"
+
 echo "=== validate-pipeline-chain chain-good ==="
 VALIDATOR="$SCRIPT_DIR/../../validate-pipeline-chain.sh"
 if "$VALIDATOR" --task-dir "$SCRIPT_DIR/chain-good"; then

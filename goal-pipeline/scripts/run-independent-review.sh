@@ -13,7 +13,7 @@ MODE="${GOAL_REVIEW_MODE:-dual}"
 PACKET=""
 MODEL=""
 ADAPTER="$SCRIPT_DIR/platform-review-adapter.sh"
-DETECT="$SCRIPT_DIR/detect-review-channels"
+GUARD="$SCRIPT_DIR/review-channel-guard.py"
 ASSEMBLE="$SCRIPT_DIR/assemble-review-packet.sh"
 VERIFY="$SCRIPT_DIR/verify-review.sh"
 
@@ -59,28 +59,22 @@ if [[ ! -f "$PACKET" ]]; then
 fi
 [[ -f "$PACKET" ]] || { echo "review-packet.json missing" >&2; exit 1; }
 
-# Channel / provider selection
-if [[ -z "$PROVIDER" ]]; then
-  if [[ -x "$DETECT" ]] || [[ -f "$DETECT" ]]; then
-    SEL=$(python3 "$DETECT" --json 2>/dev/null | python3 -c "import json,sys; d=json.load(sys.stdin); s=d.get('selected') or {}; print(s.get('provider','deterministic')+':'+s.get('model',''))" 2>/dev/null || echo "deterministic:")
-    PROVIDER="${SEL%%:*}"
-    [[ -z "$MODEL" ]] && MODEL="${SEL#*:}"
-  fi
-fi
-PROVIDER="${PROVIDER:-deterministic}"
+# Channel / provider selection — hard block downgrade when API/Ollama is configured
+[[ -f "$GUARD" ]] || { echo "run-independent-review: review-channel-guard.py missing" >&2; exit 1; }
+_FORCE_DET="${GOAL_REVIEW_FORCE_DETERMINISTIC:-0}"
+eval "$(python3 "$GUARD" --resolve --provider "${PROVIDER}" --model "${MODEL}" --force-det "$_FORCE_DET" --mode "$MODE")"
+PROVIDER="$RESOLVED_REVIEW_PROVIDER"
+[[ -n "$MODEL" ]] || MODEL="$RESOLVED_REVIEW_MODEL"
 
-# Guazi mode: forbid silent deterministic-only downgrade (unless CI override)
-if [[ "${GOAL_REVIEW_FORCE_DETERMINISTIC:-}" != "1" && "$MODE" == "dual" && "$PROVIDER" == "deterministic" ]]; then
+if [[ "${GOAL_REVIEW_DETERMINISTIC_ONLY:-0}" == "1" ]]; then
   if [[ -f "$HANDOFF_DIR/plan.json" ]] || [[ -f "$REPO_TASK_DIR/index.md" ]]; then
     echo "run-independent-review: WARN — dual mode but only deterministic channel available" >&2
-    echo "run-independent-review: configure API key/Ollama or set GOAL_REVIEW_FORCE_DETERMINISTIC=1 for CI" >&2
-    # Mark review_undetermined in output path via provider flag for gate
-    export GOAL_REVIEW_DETERMINISTIC_ONLY=1
+    echo "run-independent-review: configure API key/Ollama or set GOAL_REVIEW_FORCE_DETERMINISTIC=1 for CI (no configured channel)" >&2
   fi
 fi
 
-# CI fixture override: explicit deterministic only when GOAL_REVIEW_FORCE_DETERMINISTIC=1
-if [[ "${GOAL_REVIEW_FORCE_DETERMINISTIC:-}" == "1" ]]; then
+# CI fixture override: only when no configured review channel exists
+if [[ "${GOAL_REVIEW_FORCE_DETERMINISTIC:-}" == "1" && "${REVIEW_HAS_CANDIDATES:-0}" != "1" ]]; then
   PROVIDER="deterministic"
   MODE="goal"
 fi
@@ -99,7 +93,7 @@ if [[ -x "$ADAPTER" ]]; then
   REVIEW_BODY=$("$ADAPTER" "${ADAPTER_ARGS[@]}" 2>/dev/null || echo "{}")
 fi
 
-export TASK_DIR="$REPO_TASK_DIR" PACKET GOAL_REVIEW_FORCE_DETERMINISTIC PACKET_HASH VERIFY_JSON PROVIDER MODEL MODE START_MS OUT_GOAL OUT_GF OUT_RUN REVIEW_BODY CHANNEL_ARG
+export TASK_DIR="$REPO_TASK_DIR" PACKET GOAL_REVIEW_FORCE_DETERMINISTIC PACKET_HASH VERIFY_JSON PROVIDER MODEL MODE START_MS OUT_GOAL OUT_GF OUT_RUN REVIEW_BODY CHANNEL_ARG REVIEW_HAS_CANDIDATES
 python3 << 'PY'
 import json, sys, os, hashlib
 from datetime import datetime, timezone
@@ -112,6 +106,7 @@ verify_json_s = os.environ["VERIFY_JSON"]
 provider = os.environ["PROVIDER"]
 model = os.environ.get("MODEL", "")
 mode = os.environ.get("MODE", "dual")
+has_candidates = os.environ.get("REVIEW_HAS_CANDIDATES", "0") == "1"
 start_ms = int(os.environ["START_MS"])
 out_goal = os.environ["OUT_GOAL"]
 out_gf = os.environ["OUT_GF"]
@@ -249,6 +244,12 @@ run_doc = {
     "output_hash": hashlib.sha256(json.dumps(goal_doc, sort_keys=True).encode()).hexdigest()[:16],
     "started_at": datetime.fromtimestamp(start_ms / 1000, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
     "finished_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    "channel_guard": {
+        "has_candidates": has_candidates,
+        "selected_provider": provider if has_candidates else "",
+        "selected_model": goal_doc.get("model", model or provider) if has_candidates else "",
+        "downgrade_blocked": has_candidates and provider != "deterministic",
+    },
 }
 with open(out_run, "w", encoding="utf-8") as f:
     json.dump(run_doc, f, indent=2, ensure_ascii=False)
