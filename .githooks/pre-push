@@ -1,0 +1,10 @@
+#!/bin/bash
+# pre-push — sync ~/.goal-pipeline-repo + ~/.goal-state/scripts before push
+set -euo pipefail
+ROOT="$(git rev-parse --show-toplevel)"
+SYNC="$ROOT/goal-pipeline/scripts/sync-install-repo.sh"
+if [[ -x "$SYNC" ]]; then
+  GOAL_DEV_REPO="$ROOT" bash "$SYNC" --quiet --from-dev "$ROOT"
+else
+  echo "sync hook: $SYNC missing" >&2
+fi

@@ -34,6 +34,11 @@ done
 
 PROJECT_ROOT="${PROJECT_ROOT:-$(pwd)}"
 
+SYNC="${GOAL_STATE_HOME}/scripts/sync-install-repo.sh"
+if [[ -x "$SYNC" ]]; then
+  bash "$SYNC" --quiet >/dev/null 2>&1 || true
+fi
+
 if [[ "$PURGE_REPO" == "true" ]]; then
   [[ -n "$MIGRATE_TASK_DIR" ]] || { echo "purge requires --task-dir" >&2; exit 2; }
   RESOLVER="$SCRIPT_DIR/resolve-artifact-paths.py"

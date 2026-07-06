@@ -3,6 +3,13 @@
 set -euo pipefail
 GOAL_STATE_HOME="${GOAL_STATE_HOME:-$HOME/.goal-state}"
 INPUT=$(cat)
+
+# Auto-sync install repo + runtime scripts (non-blocking)
+SYNC="${GOAL_STATE_HOME}/scripts/sync-install-repo.sh"
+if [[ -x "$SYNC" ]]; then
+  (bash "$SYNC" --quiet >/dev/null 2>&1 || true) &
+fi
+
 WORKSPACE=$(echo "$INPUT" | python3 -c "
 import json,sys
 try: d=json.load(sys.stdin)

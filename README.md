@@ -107,10 +107,26 @@ curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | ba
 
 ### 更新
 
-symlink 模式（默认）下，只需：
+默认会自动同步，无需手动 `git pull`：
+
+| 触发时机 | 行为 |
+|---------|------|
+| `git push`（Profession/goal 开发仓） | pre-push hook 同步 `~/.goal-pipeline-repo` + 部署脚本 |
+| Cursor session 启动 | 后台自动 sync |
+| `goal-pipeline-doctor.sh` | 启动时自动 sync |
+
+开发仓首次启用（一次性）：
 
 ```bash
-cd ~/.goal-pipeline-repo && git pull
+bash scripts/setup-dev-sync-hooks.sh
+```
+
+手动同步：
+
+```bash
+bash ~/.goal-state/scripts/sync-install-repo.sh
+# 或从本地开发仓（含未提交改动）：
+bash ~/.goal-state/scripts/sync-install-repo.sh --from-dev /path/to/Profession/goal
 ```
 
 copy 模式需重新运行安装脚本。

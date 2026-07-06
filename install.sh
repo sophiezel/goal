@@ -209,6 +209,12 @@ if [ ! -d "$REPO_DIR/.git" ]; then
   git clone "$REPO_URL" "$REPO_DIR"
 else
   echo "📦 Updating repository..."
+fi
+
+SYNC_SCRIPT="$REPO_DIR/goal-pipeline/scripts/sync-install-repo.sh"
+if [ -f "$SYNC_SCRIPT" ]; then
+  bash "$SYNC_SCRIPT" ${GOAL_DEV_REPO:+--from-dev "$GOAL_DEV_REPO"}
+else
   cd "$REPO_DIR" && git pull
 fi
 
@@ -304,8 +310,12 @@ for script in inject-docs-gitignore.sh; do
   fi
 done
 
-# Deploy scripts
-for script in verify.sh verify-review.sh detect-review-channels review-channel-guard.py detect-platform check-consistency runtime-smoke.sh gate-guazi-flow-stage.sh format-gate-issues.sh goal-advance-stage.sh assemble-review-packet.sh merge-review-issues.sh merge_review_core.py run-independent-review.sh platform-review-adapter.sh platform_review_adapter_core.py validate-pipeline-chain.sh validate-pipeline-chain.py goal-pipeline-stop-hook.sh goal-stage-driver.sh goal-run-review-chain.sh goal-pipeline-recover.sh goal-pipeline-doctor.sh goal-pipeline-session-start-hook.sh resolve-artifact-paths.py source-artifact-paths.sh migrate-artifacts.py; do
+# Deploy scripts (also available via sync-install-repo.sh --deploy-only)
+SYNC_SCRIPT="$REPO_DIR/goal-pipeline/scripts/sync-install-repo.sh"
+if [ -f "$SYNC_SCRIPT" ]; then
+  bash "$SYNC_SCRIPT" --deploy-only
+else
+for script in verify.sh verify-review.sh detect-review-channels review-channel-guard.py detect-platform check-consistency runtime-smoke.sh gate-guazi-flow-stage.sh format-gate-issues.sh goal-advance-stage.sh assemble-review-packet.sh merge-review-issues.sh merge_review_core.py run-independent-review.sh platform-review-adapter.sh platform_review_adapter_core.py validate-pipeline-chain.sh validate-pipeline-chain.py goal-pipeline-stop-hook.sh goal-stage-driver.sh goal-run-review-chain.sh goal-pipeline-recover.sh goal-pipeline-doctor.sh goal-pipeline-session-start-hook.sh resolve-artifact-paths.py source-artifact-paths.sh migrate-artifacts.py sync-install-repo.sh; do
   src="$REPO_DIR/goal-pipeline/scripts/$script"
   dst="$GOAL_STATE_HOME/scripts/$script"
   if [ -f "$src" ]; then
@@ -336,6 +346,7 @@ if [ -d "$SCHEMA_SRC" ]; then
   cp -R "$SCHEMA_SRC/"* "$SCHEMA_DST/" 2>/dev/null || true
   echo "  ✅ guazi-flow-artifact-schema synced"
 fi
+fi
 
 
 # === Done ===
@@ -353,7 +364,8 @@ for AGENT in $AGENTS; do
 done
 echo ""
 if [ "$MODE" = "--symlink" ]; then
-  echo "  Update:     cd $REPO_DIR && git pull"
+  echo "  Update:     auto via sync-install-repo.sh (pre-push hook / session-start / doctor)"
+  echo "              manual: bash $REPO_DIR/goal-pipeline/scripts/sync-install-repo.sh"
 fi
 echo ""
 echo "  Usage:"
