@@ -2,7 +2,6 @@
 name: guazi-flow-goal
 description: guazi-flow-goal 统一入口。加载 goal-pipeline 管线引擎，检测 guazi-flow-* 可用性，在 plan/implement/review/complete 各阶段 MUST 调度 guazi-flow 增强。Use when project has guazi-flow-* skills installed and user wants structured docs/evidence/contract-driven execution; otherwise use /goal-pipeline directly. 用户通过 `/guazi-flow-goal <目标>` 触发。包含生命周期管理（status/pause/resume/clear/list）。guazi-flow 不可用时 goal-pipeline 独立运行。
 ---
-
 # Guazi Flow Goal（统一入口）
 
 加载 goal-pipeline 管线引擎，在 5 阶段管线的每个节点植入 guazi-flow-*。guazi-flow 可用时 MUST 调度，不可用时 goal-pipeline 独立运行。
@@ -104,7 +103,7 @@ Step 1.5: Pre-flight（MANDATORY，Phase 2 前亦须可用）
   ├─ 检查 ~/.goal-state/scripts/goal-advance-stage.sh 存在
   ├─ 检查 ~/.goal-state/scripts/goal-stage-driver.sh 存在
   ├─ 检查 ~/.goal-state/references/guazi-flow-artifact-schema/ 存在
-  │   任一缺失 → 运行 `bash <goal-repo>/install.sh --agent <detected>` 或 blocked(failure_code: infra_missing)
+│   任一缺失 → 立即输出 blocked(failure_code: infra_missing)，不得进入 Phase 2；然后运行 `bash <goal-repo>/install.sh --agent <detected>` 修复部署，或提示用户手动部署
   ├─ detect-review-channels --json（guazi_flow_available=true 时）
   │   若仅 deterministic → warning + 引导配置 API key/Ollama；CI 可设 GOAL_REVIEW_FORCE_DETERMINISTIC=1
   └─ 输出: "pre-flight: scripts=OK|MISSING"
@@ -310,9 +309,13 @@ Phase 2 每个阶段**开头**亦须运行 `goal-stage-driver.sh`（内含 advan
 | plan_schema_incomplete（index.md 缺少必需章节） | blocked，输出缺失章节列表 + "请重新执行 guazi-flow-plan 完整流程（9 步）"，不得自行补齐简化版 |
 | state_dir_creation_failed / state_json_unwritable | blocked，输出权限/路径诊断建议 |
 
+| empty_write_set（index.md 中 write_set 为空数组） | blocked（failure_code: empty_write_set），implement --post gate 必失败；不得进入下一阶段，必须返回 plan 阶段重新生成包含非空 write_set 的 index.md |
+
 ## 完成门禁
 
 - Goal status = complete（goal-pipeline 判定）
 - evidence/complete.md 存在且 pass+fresh
 - evidence/review.md 存在且 pass+fresh
 - guazi-flow 可用时: evidence 符合 guazi-flow schema + index.md 中 allowed_patterns/exclusions/stop_conditions 子 section 存在
+
+- **NEVER 在协议类回答中使用冗长解释**——MUST 首先输出最简洁的行动指令（如「No — 必须先运行 gate --post smoke」「blocked(infra_missing)」），必要时可后续补充细节
