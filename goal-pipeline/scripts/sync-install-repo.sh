@@ -10,7 +10,8 @@ QUIET=false
 PULL_ONLY=false
 DEPLOY_ONLY=false
 FROM_DEV=""
-DEPLOY_SOURCE=""
+# Preserve DEPLOY_SOURCE when set by caller (e.g. local dev checkout)
+DEPLOY_SOURCE="${DEPLOY_SOURCE:-}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -35,6 +36,7 @@ Environment:
   GOAL_PIPELINE_REPO  Install clone path (default: ~/.goal-pipeline-repo)
   GOAL_STATE_HOME     Runtime state path (default: ~/.goal-state)
   GOAL_DEV_REPO       Optional local dev repo for --from-dev auto-detect
+  DEPLOY_SOURCE       Override deploy source (e.g. local Profession/goal checkout)
 USAGE
       exit 0
       ;;
@@ -123,14 +125,7 @@ deploy_runtime() {
 
   mkdir -p "$GOAL_STATE_HOME/projects" "$GOAL_STATE_HOME/archive" "$GOAL_STATE_HOME/scripts"
 
-  for script in inject-docs-gitignore.sh; do
-    src="$source_root/guazi-flow-goal/scripts/$script"
-    dst="$GOAL_STATE_HOME/scripts/$script"
-    if [[ -f "$src" ]]; then
-      cp "$src" "$dst"
-      chmod +x "$dst"
-    fi
-  done
+  rm -f "$GOAL_STATE_HOME/scripts/inject-docs-gitignore.sh"
 
   for script in verify.sh verify-review.sh detect-review-channels review-channel-guard.py detect-platform check-consistency runtime-smoke.sh gate-guazi-flow-stage.sh format-gate-issues.sh goal-advance-stage.sh assemble-review-packet.sh merge-review-issues.sh merge_review_core.py run-independent-review.sh platform-review-adapter.sh platform_review_adapter_core.py validate-pipeline-chain.sh validate-pipeline-chain.py goal-pipeline-stop-hook.sh goal-stage-driver.sh goal-run-review-chain.sh goal-pipeline-recover.sh goal-pipeline-doctor.sh goal-pipeline-session-start-hook.sh resolve-artifact-paths.py source-artifact-paths.sh migrate-artifacts.py sync-install-repo.sh; do
     src="$source_root/goal-pipeline/scripts/$script"
@@ -167,12 +162,14 @@ VEREOF
 }
 
 main() {
-  local dev_path=""
-  dev_path="$(resolve_from_dev || true)"
-  if [[ -n "$dev_path" && -d "$dev_path/.git" ]]; then
-    DEPLOY_SOURCE="$dev_path"
-  else
-    DEPLOY_SOURCE="$REPO_DIR"
+  if [[ -z "${DEPLOY_SOURCE:-}" ]]; then
+    local dev_path=""
+    dev_path="$(resolve_from_dev || true)"
+    if [[ -n "$dev_path" && -d "$dev_path/.git" ]]; then
+      DEPLOY_SOURCE="$dev_path"
+    else
+      DEPLOY_SOURCE="$REPO_DIR"
+    fi
   fi
 
   if [[ "$DEPLOY_ONLY" != "true" ]]; then

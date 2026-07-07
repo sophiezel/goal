@@ -110,7 +110,7 @@ gate --pre(<stage>)
   "issues_goal_count": 0,
   "root_cause_summary": {},
   "artifact_paths": ["evidence/review.md"],
-  "runtime_artifact_paths": ["evidence/review-goal.json", "evidence/review-fix-input.json", "evidence/review-run.json"],
+  "runtime_artifact_paths": ["evidence/review-unified.json", "evidence/review-fix-input.json", "evidence/review-run.json"],
   "gate": { "script": "gate-guazi-flow-stage.sh", "version": 1, "passed_at": "" }
 }
 ```
@@ -121,7 +121,7 @@ gate --pre(<stage>)
 |------|-------------|
 | plan | index.md：frontmatter 四字段 + 核心事实/完整伪代码/验收与验证矩阵/执行记录 |
 | implement | index 执行记录含 guazi-flow-implement；diff ⊆ write_set |
-| review | evidence/review.md（repo Tier-G）；review-goal/review-run 等 annex 在 goal-state `artifacts/evidence/` |
+| review | evidence/review.md（repo Tier-G）；review-unified/review-run 等 annex 在 goal-state `artifacts/evidence/` |
 | complete | index flow.current_stage=complete；执行记录含 guazi-flow-complete；review pass+fresh |
 
 ## ReviewPacket

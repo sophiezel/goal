@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "run_id": "06fe22b684ace349",
+  "provider": "mock-unified",
+  "model": "mock-unified",
+  "mode": "unified",
+  "channels": [
+    "goal",
+    "guazi-flow-review"
+  ],
+  "invocation_count": 1,
+  "gf_skill_attested": true,
+  "gf_rubric_source": "952cc5200d905df7",
+  "packet_hash": "b749a1e3677bfa1f",
+  "packet_path": "handoff/review-packet.json",
+  "latency_ms": 612,
+  "tokens": {},
+  "output_hash": "9c6a8832f12cf6ba",
+  "started_at": "2026-07-07T10:07:02Z",
+  "finished_at": "2026-07-07T10:07:03Z",
+  "channel_guard": {
+    "has_candidates": true,
+    "selected_provider": "mock-unified",
+    "selected_model": "mock-unified",
+    "downgrade_blocked": false
+  }
+}

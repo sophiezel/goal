@@ -253,6 +253,6 @@ exit 2 → 注入 followup 继续 pipeline。
 Handoff 规范：`references/stage-handoff-contract.md`。
 
 
-## Review 双通道收敛（v2.2）
+## Review 统一通道（v2.3）
 
-独立审核 `run-independent-review.sh --mode dual` 在 packet 中携带 `guazi_flow_rubric` + `goal_checklist`，一次或两次 API 调用产出 `review-goal.json` + `review-gf.json`（`gf_skill_attested: true`）。执行 Agent **只读** `evidence/review-fix-input.json` 驱动修复子循环。
+独立审核 `run-independent-review.sh --mode unified` 在 packet 中携带 `guazi_flow_rubric` + `goal_checklist`，**单次** LLM 调用产出 `review-unified.json`（`gf_skill_attested: true`，issues 带 `channel`）。执行 Agent **只读** `evidence/review-fix-input.json` 驱动修复子循环。

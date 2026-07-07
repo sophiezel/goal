@@ -74,6 +74,15 @@ def sha16(data):
         data = data.encode('utf-8')
     return hashlib.sha256(data).hexdigest()[:16]
 
+def path_allowed(path, allowed):
+    for w in allowed:
+        w = (w or '').strip().rstrip('/')
+        if not w:
+            continue
+        if path == w or path.startswith(w + '/'):
+            return True
+    return False
+
 def extract_section(text, heading):
     m = re.search(rf'{re.escape(heading)}\s*\n(.*?)(?=\n## |\Z)', text, re.DOTALL)
     return m.group(1).strip() if m else ''
@@ -115,10 +124,10 @@ contract = {
 diff_text = ''
 if git_root:
     try:
-        diff_text = subprocess.check_output(['git', '-C', git_root, 'diff', 'HEAD'], text=True, stderr=subprocess.DEVNULL)
-        untracked = subprocess.check_output(['git', '-C', git_root, 'ls-files', '--others', '--exclude-standard'], text=True, stderr=subprocess.DEVNULL).splitlines()
+        diff_text = subprocess.check_output(['git', '-C', git_root, '-c', 'core.quotepath=false', 'diff', 'HEAD'], text=True, stderr=subprocess.DEVNULL)
+        untracked = subprocess.check_output(['git', '-C', git_root, '-c', 'core.quotepath=false', 'ls-files', '--others', '--exclude-standard'], text=True, stderr=subprocess.DEVNULL).splitlines()
         for f in untracked:
-            if write_set and not any(f == w or f.startswith(w.rstrip('/') + '/') for w in write_set):
+            if write_set and not path_allowed(f, write_set):
                 continue
             fp = os.path.join(git_root, f)
             if os.path.isfile(fp):
@@ -134,12 +143,36 @@ if write_set and diff_text:
     lines = diff_text.splitlines(keepends=True)
     filtered = []
     include = False
+    current_path = ''
     for line in lines:
-        if line.startswith('diff --git') or line.startswith('--- new file:'):
-            include = any(w in line for w in write_set)
+        if line.startswith('diff --git '):
+            parts = line.split()
+            current_path = parts[-1].lstrip('b/') if len(parts) >= 4 else ''
+            include = path_allowed(current_path, write_set) if current_path else False
+        elif line.startswith('--- new file:'):
+            m = re.search(r'--- new file:\s+(\S+)', line)
+            current_path = m.group(1) if m else ''
+            include = path_allowed(current_path, write_set) if current_path else False
         if include:
             filtered.append(line)
     diff_text = ''.join(filtered)
+
+changed_files = list(impl.get('changed_files') or [])
+if git_root and not changed_files:
+    try:
+        names = subprocess.check_output(
+            ['git', '-C', git_root, '-c', 'core.quotepath=false', 'diff', '--name-only', 'HEAD'],
+            text=True, stderr=subprocess.DEVNULL,
+        ).splitlines()
+        unt = subprocess.check_output(
+            ['git', '-C', git_root, '-c', 'core.quotepath=false', 'ls-files', '--others', '--exclude-standard'],
+            text=True, stderr=subprocess.DEVNULL,
+        ).splitlines()
+        changed_files = [n.strip() for n in names + unt if n.strip()]
+    except Exception:
+        pass
+if write_set and changed_files:
+    changed_files = [f for f in changed_files if path_allowed(f, write_set)]
 
 diff_text = redact_secrets(diff_text)
 if len(diff_text.encode('utf-8')) > max_diff:
@@ -240,6 +273,7 @@ packet = {
     'constraints': constraints,
     'verification_checklist': checklist,
     'deterministic_checks': deterministic,
+    'changed_files': changed_files,
     'issues_gf': issues_gf[:50],
     'guazi_flow_rubric': guazi_flow_rubric,
     'goal_checklist': goal_checklist,

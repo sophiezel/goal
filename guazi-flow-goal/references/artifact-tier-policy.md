@@ -37,8 +37,7 @@ docs/guazi-flow/<task>/
 │   └── complete.json
 └── evidence/
     ├── runtime-smoke.md
-    ├── review-goal.json
-    ├── review-gf.json
+    ├── review-unified.json
     ├── review-run.json
     ├── review-fix-input.json
     ├── review-transcript.md
@@ -103,20 +102,10 @@ MR 审查者无需打开 goal-state 即可看到审核结论。
 goal-pipeline-doctor.sh --migrate-artifacts --task-dir docs/guazi-flow/<task> --state-file ~/.goal-state/.../state.json
 ```
 
-split 模式下每次 `resolve-artifact-paths.py --ensure-state` 或 `gate --post` 成功后会 **purge** repo 中误写的 Tier-R（`handoff/`、review annex JSON 等），Tier-G 不受影响。
+split 模式下每次 `resolve-artifact-paths.py --ensure-state` 或 `gate --post` 成功后会 **purge** repo 中误写的 Tier-R（`handoff/`、review annex JSON 等），Tier-G 不受影响。防泄漏靠写入路径 + purge + migrate，**不在** repo 内生成 `docs/guazi-flow/.gitignore`。
 
 手动清理：
 
 ```bash
 goal-pipeline-doctor.sh --purge-repo-tier-r --task-dir docs/guazi-flow/<task> --state-file ~/.goal-state/.../state.json
 ```
-
-## gitignore 注入
-
-新任务初始化后执行（或由 guazi-flow-goal Phase 1 调用）：
-
-```bash
-guazi-flow-goal/scripts/inject-docs-gitignore.sh --project-root <repo>
-```
-
-`repo_full` 模式跳过注入。

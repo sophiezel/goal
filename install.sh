@@ -300,15 +300,7 @@ else
   echo "  ✅ config.json already exists"
 fi
 
-# Deploy guazi-flow-goal helper scripts
-for script in inject-docs-gitignore.sh; do
-  src="$REPO_DIR/guazi-flow-goal/scripts/$script"
-  dst="$GOAL_STATE_HOME/scripts/$script"
-  if [ -f "$src" ]; then
-    cp "$src" "$dst"
-    chmod +x "$dst"
-  fi
-done
+rm -f "$GOAL_STATE_HOME/scripts/inject-docs-gitignore.sh"
 
 # Deploy scripts (also available via sync-install-repo.sh --deploy-only)
 SYNC_SCRIPT="$REPO_DIR/goal-pipeline/scripts/sync-install-repo.sh"

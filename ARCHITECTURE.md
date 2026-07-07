@@ -602,7 +602,7 @@ guazi-flow 可用时，每个管线阶段开始前 **MUST 加载**对应 SKILL.m
 | gate --post(implement) | index.md | handoff/implement.json |
 | assemble-review-packet | 读 index + write_set | handoff/review-packet.json |
 | guazi-flow-review | evidence/review.md | — |
-| goal-pipeline Step 2 | — | evidence/review-goal.json |
+| goal-pipeline Step 2 | — | evidence/review-unified.json |
 | merge-review-issues | 更新 evidence/review.md annex | evidence/review-fix-input.json |
 | gate --post(review) | 校验 review.md | handoff/review.json |
 | gate --post(complete) | index.md | handoff/complete.json |
@@ -614,7 +614,7 @@ gate --post(plan)      → handoff/plan.json      (index schema hash)
 gate --post(implement) → handoff/implement.json (candidate_diff_hash)
 assemble-review-packet → handoff/review-packet.json
 guazi-flow-review      → evidence/review.md (issues_gf)
-goal-pipeline Step 2   → evidence/review-goal.json (issues_goal)
+goal-pipeline Step 2   → evidence/review-unified.json (issues by channel)
 merge-review-issues    → evidence/review.md annex
 gate --post(review)    → handoff/review.json
 gate --post(complete)  → handoff/complete.json

@@ -35,7 +35,7 @@ fi
 echo "OK force deterministic blocked"
 
 echo "=== review-channel-guard resolves configured provider ==="
-RESOLVE=$(run_guard --resolve --provider "" --model "" --force-det 0 --mode dual)
+RESOLVE=$(run_guard --resolve --provider "" --model "" --force-det 0 --mode unified)
 eval "$RESOLVE"
 if [[ "$RESOLVED_REVIEW_PROVIDER" != "deepseek" ]]; then
   echo "FAIL expected deepseek got $RESOLVED_REVIEW_PROVIDER"; exit 1

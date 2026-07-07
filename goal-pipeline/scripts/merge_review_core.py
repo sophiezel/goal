@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
-"""merge_review_core — merge gf+goal issues and emit review-fix-input.json."""
-import json, os, re, subprocess, sys
+"""merge_review_core — merge unified review issues and emit review-fix-input.json."""
+import json
+import os
+import re
+import subprocess
+import sys
 from datetime import datetime, timezone
 
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -23,6 +27,7 @@ def resolve_paths(task_dir, state_file="", project_root=""):
     r = subprocess.run(args, capture_output=True, text=True, check=True)
     return json.loads(r.stdout)
 
+
 def parse_frontmatter(text):
     m = re.match(r"^---\s*\n(.*?)\n---", text, re.DOTALL)
     if not m:
@@ -34,20 +39,26 @@ def parse_frontmatter(text):
             fm[k.strip()] = v.strip().strip('"').strip("'")
     return fm, text
 
+
 def normalize_issue(issue, channel, idx):
     iid = issue.get("id") or ("GF%02d" % idx if channel == "guazi-flow-review" else "G%02d" % idx)
     sev = issue.get("severity", "medium")
     sev_norm = "blocker" if sev in ("blocker", "high") else ("warning" if sev == "warning" else "blocker")
     return {
-        "id": iid, "channel": channel, "severity": sev_norm,
-        "file": issue.get("file", ""), "line_range": issue.get("line_range", ""),
+        "id": iid,
+        "channel": channel,
+        "severity": sev_norm,
+        "file": issue.get("file", ""),
+        "line_range": issue.get("line_range", ""),
         "summary": (issue.get("summary") or issue.get("description") or issue.get("message") or str(issue))[:300],
         "suggestion": issue.get("suggestion", ""),
         "root_cause": issue.get("root_cause", "implement_error"),
     }
 
+
 def issue_key(issue):
     return "%s|%s|%s" % (issue.get("channel"), issue.get("file", ""), issue.get("summary", "")[:80])
+
 
 def compute_action(merged_result, flat_issues):
     if merged_result == "pass":
@@ -62,53 +73,71 @@ def compute_action(merged_result, flat_issues):
         return "mini_replan"
     return "fix_and_rerun_review"
 
+
 def next_steps_for_action(action):
     if action == "proceed_complete":
         return ["gate --post review", "guazi-flow-complete", "gate --post complete"]
     if action == "mini_replan":
-        return ["guazi-flow-plan mini-replan", "guazi-flow-implement", "gate --post implement",
-                "runtime-smoke.sh", "gate --post smoke", "assemble-review-packet.sh",
-                "run-independent-review.sh", "merge-review-issues.sh", "gate --post review"]
+        return [
+            "guazi-flow-plan mini-replan",
+            "guazi-flow-implement",
+            "gate --post implement",
+            "runtime-smoke.sh",
+            "gate --post smoke",
+            "assemble-review-packet.sh",
+            "run-independent-review.sh",
+            "merge-review-issues.sh",
+            "gate --post review",
+        ]
     if action == "blocked_user_decision":
         return ["present user options A/B/C/D"]
-    return ["read evidence/review-fix-input.json", "fix within write_set", "gate --post implement if diff changed",
-            "assemble-review-packet.sh", "run-independent-review.sh", "merge-review-issues.sh", "gate --post review"]
+    return [
+        "read evidence/review-fix-input.json",
+        "fix within write_set",
+        "gate --post implement if diff changed",
+        "assemble-review-packet.sh",
+        "run-independent-review.sh",
+        "merge-review-issues.sh",
+        "gate --post review",
+    ]
+
 
 def main():
-    task_dir, goal_json = sys.argv[1], sys.argv[2]
-    root_cause_path = sys.argv[3] if len(sys.argv) > 3 else ""
+    task_dir, unified_json = sys.argv[1], sys.argv[2]
     state_file = os.environ.get("GOAL_STATE_FILE", "")
     paths = resolve_paths(task_dir, state_file)
-    repo_evidence = paths["repo_evidence_dir"]
+    repo_evidence = paths["goal_evidence_dir"] if paths["mode"] == "repo_full" else paths["repo_evidence_dir"]
     goal_evidence = paths["goal_evidence_dir"]
     handoff_dir = paths["handoff_dir"]
     review_path = os.path.join(repo_evidence, "review.md")
-    gf_json_path = os.path.join(goal_evidence, "review-gf.json")
     fix_input_path = os.path.join(goal_evidence, "review-fix-input.json")
 
-    goal = load_json(goal_json, {})
-    issues_goal_raw = goal.get("issues", goal.get("issues_goal", []))
-    result_goal = goal.get("result", "not_pass" if issues_goal_raw else "pass")
+    unified = load_json(unified_json, {})
+    issues_raw = unified.get("issues", [])
+    unified_result = unified.get("result", "not_pass" if issues_raw else "pass")
 
-    gf_doc = load_json(gf_json_path, {})
-    issues_gf_raw = gf_doc.get("issues", []) if gf_doc else []
-    gf_result = gf_doc.get("result", "unknown") if gf_doc else "unknown"
-    if not issues_gf_raw and os.path.isfile(review_path):
-        text = open(review_path, encoding="utf-8").read()
-        fm, _ = parse_frontmatter(text)
-        gf_result = fm.get("result", gf_result)
-        if "## 发现项" in text:
-            block = text.split("## 发现项", 1)[1].split("##", 1)[0]
-            for line in block.splitlines():
-                if line.startswith("|") and not line.startswith("| ID") and not line.startswith("|----"):
-                    parts = [c.strip() for c in line.strip("|").split("|")]
-                    if len(parts) >= 3:
-                        issues_gf_raw.append({"id": parts[0], "severity": parts[1], "summary": parts[2]})
+    goal_idx = 0
+    gf_idx = 0
+    flat = []
+    for iss in issues_raw:
+        ch = iss.get("channel", "goal")
+        if ch == "guazi-flow-review":
+            gf_idx += 1
+            flat.append(normalize_issue(iss, "guazi-flow-review", gf_idx))
+        else:
+            goal_idx += 1
+            flat.append(normalize_issue(iss, "goal", goal_idx))
 
-    flat = [normalize_issue(i, "goal", n) for n, i in enumerate(issues_goal_raw, 1)]
-    flat += [normalize_issue(i, "guazi-flow-review", n) for n, i in enumerate(issues_gf_raw, 1)]
-    merged_result = "pass" if gf_result == "pass" and result_goal == "pass" and not flat else "not_pass"
+    blockers = [i for i in flat if i.get("severity") == "blocker"]
+    merged_result = "pass" if unified_result == "pass" and not blockers else "not_pass"
+    if unified_result == "review_undetermined":
+        merged_result = "not_pass"
     action = compute_action(merged_result, flat)
+
+    issues_goal_raw = [i for i in issues_raw if i.get("channel", "goal") != "guazi-flow-review"]
+    issues_gf_raw = [i for i in issues_raw if i.get("channel") == "guazi-flow-review"]
+    result_goal = "pass" if not issues_goal_raw and unified_result == "pass" else ("not_pass" if issues_goal_raw else unified_result)
+    gf_result = "pass" if not issues_gf_raw else "not_pass"
 
     prev = load_json(fix_input_path, {})
     prev_keys = {issue_key(i) for i in prev.get("issues", [])}
@@ -119,39 +148,58 @@ def main():
     run_doc = load_json(os.path.join(goal_evidence, "review-run.json"), {})
     provenance = {
         "review_run_id": run_doc.get("run_id", ""),
-        "packet_hash": run_doc.get("packet_hash", goal.get("packet_hash", "")),
-        "gf_skill_attested": bool(gf_doc.get("skill_attested") or run_doc.get("gf_skill_attested")),
-        "channels": run_doc.get("channels", ["goal"]),
+        "packet_hash": run_doc.get("packet_hash", unified.get("packet_hash", "")),
+        "gf_skill_attested": bool(unified.get("gf_skill_attested") or run_doc.get("gf_skill_attested")),
+        "channels": run_doc.get("channels", ["goal", "guazi-flow-review"] if unified.get("gf_skill_attested") else ["goal"]),
     }
 
     fix_input = {
-        "schema_version": 1, "round": round_n, "merged_result": merged_result,
-        "action": action, "issues": flat, "resolved_since_last_round": resolved,
-        "next_steps": next_steps_for_action(action), "provenance": provenance,
+        "schema_version": 1,
+        "round": round_n,
+        "merged_result": merged_result,
+        "action": action,
+        "issues": flat,
+        "resolved_since_last_round": resolved,
+        "next_steps": next_steps_for_action(action),
+        "provenance": provenance,
     }
     with open(fix_input_path, "w", encoding="utf-8") as f:
         json.dump(fix_input, f, indent=2, ensure_ascii=False)
 
-    with open(gf_json_path, "w", encoding="utf-8") as f:
-        json.dump({
-            "schema_version": 1, "skill": "guazi-flow-review",
-            "skill_attested": provenance["gf_skill_attested"],
-            "result": gf_result if gf_result != "unknown" else ("pass" if not issues_gf_raw else "not_pass"),
-            "issues": issues_gf_raw, "issues_count": len(issues_gf_raw),
-        }, f, indent=2, ensure_ascii=False)
-
     text = open(review_path, encoding="utf-8").read() if os.path.isfile(review_path) else ""
     if not text.strip():
-        text = "---\nstage: review\nresult: pass\ngit_head: unknown\nreview_subject_hash: unknown\n---\n\n## 审查范围\nauto\n\n## 发现项\nnone\n"
-    annex = "\n## Goal Pipeline Review\n\n_merged at %s_\n\n**goal_result**: %s\n**merged_result**: %s\n**action**: %s\n\n### issues_goal\n\n| ID | Severity | Summary | Root cause |\n|----|----------|---------|------------|\n" % (
-        datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'), result_goal, merged_result, action)
+        text = (
+            "---\nstage: review\nresult: pass\ngit_head: unknown\nreview_subject_hash: unknown\n---\n\n"
+            "## 审查范围\nauto\n\n## 发现项\nnone\n"
+        )
+    annex = (
+        "\n## Goal Pipeline Review\n\n_merged at %s_\n\n**goal_result**: %s\n**merged_result**: %s\n**action**: %s\n\n"
+        "### issues_goal\n\n| ID | Severity | Summary | Root cause |\n|----|----------|---------|------------|\n"
+        % (datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), result_goal, merged_result, action)
+    )
     for iss in flat:
         if iss["channel"] == "goal":
-            annex += "| %s | %s | %s | %s |\n" % (iss["id"], iss["severity"], iss["summary"][:200], iss.get("root_cause", ""))
+            annex += "| %s | %s | %s | %s |\n" % (
+                iss["id"],
+                iss["severity"],
+                iss["summary"][:200],
+                iss.get("root_cause", ""),
+            )
+    annex += "\n### issues_gf\n\n| ID | Severity | Summary | Root cause |\n|----|----------|---------|------------|\n"
+    for iss in flat:
+        if iss["channel"] == "guazi-flow-review":
+            annex += "| %s | %s | %s | %s |\n" % (
+                iss["id"],
+                iss["severity"],
+                iss["summary"][:200],
+                iss.get("root_cause", ""),
+            )
+
     if "## Goal Pipeline Review" in text:
         text = re.sub(r"\n## Goal Pipeline Review.*", annex, text, flags=re.DOTALL)
     else:
         text = text.rstrip() + annex
+
     body_m = re.match(r"^---\s*\n(.*?)\n---", text, re.DOTALL)
     if body_m:
         new_fm = body_m.group(1)
@@ -161,20 +209,33 @@ def main():
         new_fm = re.sub(r"merged_result:\s*\S+", "merged_result: %s" % merged_result, new_fm)
         if "merged_result:" not in new_fm:
             new_fm = new_fm.rstrip() + "\nmerged_result: %s\n" % merged_result
-        text = "---\n" + new_fm + "\n---\n" + text[body_m.end():]
+        text = "---\n" + new_fm + "\n---\n" + text[body_m.end() :]
+
     with open(review_path, "w", encoding="utf-8") as f:
         f.write(text)
 
     with open(os.path.join(goal_evidence, "review-transcript.md"), "w", encoding="utf-8") as f:
-        f.write("# Review transcript\n\n| Channel | Result | Issues |\n|---------|--------|--------|\n| guazi-flow-review | %s | %d |\n| goal | %s | %d |\n| merged | %s | action=%s |\n" % (
-            gf_result, len(issues_gf_raw), result_goal, len(issues_goal_raw), merged_result, action))
+        f.write(
+            "# Review transcript\n\n| Channel | Result | Issues |\n|---------|--------|--------|\n"
+            "| guazi-flow-review | %s | %d |\n| goal | %s | %d |\n| merged | %s | action=%s |\n"
+            % (gf_result, len(issues_gf_raw), result_goal, len(issues_goal_raw), merged_result, action)
+        )
 
     out = os.path.join(handoff_dir, "merge-result.json")
     os.makedirs(os.path.dirname(out), exist_ok=True)
     with open(out, "w", encoding="utf-8") as f:
-        json.dump({"merged_result": merged_result, "action": action, "issues_gf_count": len(issues_gf_raw),
-                   "issues_goal_count": len(issues_goal_raw)}, f, indent=2)
+        json.dump(
+            {
+                "merged_result": merged_result,
+                "action": action,
+                "issues_gf_count": len(issues_gf_raw),
+                "issues_goal_count": len(issues_goal_raw),
+            },
+            f,
+            indent=2,
+        )
     print(json.dumps({"merged_result": merged_result, "action": action}))
+
 
 if __name__ == "__main__":
     main()

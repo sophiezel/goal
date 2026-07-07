@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "description": "Unified independent review output (single LLM invocation)",
+  "required": [
+    "schema_version",
+    "result",
+    "checklist_goal",
+    "checklist_gf",
+    "issues"
+  ],
+  "fields": {
+    "skill": "goal-pipeline-unified-review",
+    "gf_skill_attested": "true when guazi_flow_rubric was in packet",
+    "result": "pass | not_pass | review_undetermined",
+    "provider": "review provider label",
+    "model": "model identifier",
+    "packet_hash": "sha256[:16] of review-packet.json",
+    "invocation_count": 1,
+    "checklist_goal": "array of {id, passed, detail}",
+    "checklist_gf": "array of {case_id, passed, detail}",
+    "issues": "array with channel goal|guazi-flow-review"
+  }
+}

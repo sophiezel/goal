@@ -1,6 +1,6 @@
 #!/bin/bash
 # platform-review-adapter.sh — Pluggable backends for independent review
-# Usage: platform-review-adapter.sh --provider <name> --packet <path> [--verify-json JSON] [--model M] [--channel goal|guazi-flow-review|dual]
+# Usage: platform-review-adapter.sh --provider <name> --packet <path> [--verify-json JSON] [--model M] [--channel unified|goal]
 
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -10,7 +10,7 @@ PROVIDER="deterministic"
 PACKET=""
 VERIFY_JSON="{}"
 MODEL=""
-CHANNEL="goal"
+CHANNEL="unified"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -24,19 +24,31 @@ while [[ $# -gt 0 ]]; do
 done
 
 case "$PROVIDER" in
-  mock-dual)
+  mock-unified)
     python3 - "$PACKET" << 'PYMOCK'
 import json, sys
 packet = json.load(open(sys.argv[1], encoding="utf-8"))
-checklist = [{"id": c if isinstance(c, str) else c.get("id", "C01"), "passed": True, "detail": "mock"} 
-             for c in (packet.get("verification_checklist") or ["C01"])[:3]]
-goal = {"result": "pass", "issues": [], "checklist": checklist, "model": "mock-dual", "tokens": {}}
-gf = {"result": "pass", "issues": [], "skill": "guazi-flow-review", "skill_attested": True,
-      "model": "mock-dual", "checklist": {"goal_achieved": "pass", "scope_compliant": "pass"}}
-print(json.dumps({"goal": goal, "guazi-flow-review": gf}, ensure_ascii=False))
+checklist_gf = [{"case_id": c if isinstance(c, str) else c.get("id", "C01"), "passed": True, "detail": "mock"}
+                for c in (packet.get("verification_checklist") or ["C01"])[:3]]
+checklist_goal = [{"id": item.get("id", "scope_compliant"), "passed": True, "detail": "mock"}
+                  for item in (packet.get("goal_checklist") or [])[:6]]
+if not checklist_goal:
+    checklist_goal = [{"id": "scope_compliant", "passed": True, "detail": "mock"}]
+has_gf = bool(packet.get("guazi_flow_rubric"))
+out = {
+    "schema_version": 1,
+    "result": "pass",
+    "checklist_goal": checklist_goal,
+    "checklist_gf": checklist_gf if has_gf else [],
+    "issues": [],
+    "gf_skill_attested": has_gf,
+    "model": "mock-unified",
+    "tokens": {},
+}
+print(json.dumps(out, ensure_ascii=False))
 PYMOCK
     ;;
-    deterministic)
+  deterministic)
     echo "{}"
     ;;
   openai|openai-api)
@@ -59,12 +71,12 @@ PYMOCK
     ;;
   cursor-task)
     if [[ "${GOAL_REVIEW_CURSOR_TASK:-}" == "1" ]] && command -v cursor &>/dev/null; then
-      echo "{\"result\":\"review_undetermined\",\"model\":\"cursor-task-stub\",\"issues\":[],\"checklist\":[],\"tokens\":{}}"
+      echo "{\"result\":\"review_undetermined\",\"model\":\"cursor-task-stub\",\"issues\":[],\"checklist_goal\":[],\"checklist_gf\":[]}"
     else
-      echo "{\"result\":\"review_undetermined\",\"model\":\"cursor-task-unavailable\",\"issues\":[{\"id\":\"ADP-01\",\"severity\":\"medium\",\"summary\":\"cursor-task backend not configured (GOAL_REVIEW_CURSOR_TASK=1)\"}],\"checklist\":[]}"
+      echo "{\"result\":\"review_undetermined\",\"model\":\"cursor-task-unavailable\",\"issues\":[{\"id\":\"ADP-01\",\"severity\":\"medium\",\"summary\":\"cursor-task backend not configured (GOAL_REVIEW_CURSOR_TASK=1)\",\"channel\":\"goal\"}],\"checklist_goal\":[],\"checklist_gf\":[]}"
     fi
     ;;
   *)
-    echo "{\"result\":\"not_pass\",\"issues\":[{\"id\":\"ADP-99\",\"severity\":\"high\",\"summary\":\"unknown provider: $PROVIDER\"}],\"checklist\":[]}"
+    echo "{\"result\":\"not_pass\",\"issues\":[{\"id\":\"ADP-99\",\"severity\":\"high\",\"summary\":\"unknown provider: $PROVIDER\",\"channel\":\"goal\"}],\"checklist_goal\":[],\"checklist_gf\":[]}"
     ;;
 esac

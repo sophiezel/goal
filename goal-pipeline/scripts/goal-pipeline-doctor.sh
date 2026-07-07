@@ -138,9 +138,9 @@ if detect.is_file():
         only_det = sel == "deterministic"
         status("review_channels", True, f"selected={sel}")
         if only_det:
-            status("review_dual_ready", False, "only deterministic — configure API key or Ollama")
+            status("review_unified_ready", False, "only deterministic — configure API key or Ollama")
         else:
-            status("review_dual_ready", True, sel)
+            status("review_unified_ready", True, sel)
     except Exception as e:
         status("review_channels", False, str(e))
 else:

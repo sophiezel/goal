@@ -1,11 +1,18 @@
 #!/usr/bin/env python3
-"""platform_review_adapter_core — HTTP backends for independent dual-channel review."""
-import json, os, sys, urllib.request, urllib.error
+"""platform_review_adapter_core — HTTP backends for unified independent review."""
+import json
+import os
+import sys
+import urllib.error
+import urllib.request
 
-PROMPT_PATH = os.path.join(os.path.dirname(__file__), "..", "references", "review-packet-prompt.md")
+UNIFIED_PROMPT_PATH = os.path.join(os.path.dirname(__file__), "..", "references", "unified-review-prompt.md")
+GOAL_PROMPT_PATH = os.path.join(os.path.dirname(__file__), "..", "references", "review-packet-prompt.md")
 
-GF_RUBRIC = """You are guazi-flow-review. Evaluate against acceptance matrix and pseudocode.
-Output JSON only: {"result":"pass|not_pass","issues":[{"id":"GF01","severity":"blocker|warning","summary":"...","file":"","line_range":"","suggestion":"","root_cause":"implement_error|plan_gap|spec_ambiguity"}],"checklist":[],"model":"...","tokens":{}}
+UNIFIED_OUTPUT_HINT = """
+Return JSON only with keys:
+schema_version, result, checklist_goal, checklist_gf, issues, root_cause_summary (optional).
+Each issue must have channel (goal|guazi-flow-review), severity, summary; blockers need file+evidence.
 """
 
 
@@ -110,14 +117,82 @@ def call_ollama(model, system, user):
     return out
 
 
-def build_user_prompt(packet, channel):
+def _read_prompt(path, fallback=""):
+    if os.path.isfile(path):
+        return open(path, encoding="utf-8").read()
+    return fallback
+
+
+def build_unified_prompt(packet, diff_budget=60000):
+    """Structured prompt: metadata + checklists + diff (separate byte budget)."""
+    parts = []
+    prompt_doc = _read_prompt(UNIFIED_PROMPT_PATH, UNIFIED_OUTPUT_HINT)
+    parts.append(prompt_doc[:5000])
+    parts.append(UNIFIED_OUTPUT_HINT)
+
+    changed = packet.get("changed_files") or []
+    if changed:
+        parts.append("\n## changed_files\n" + json.dumps(changed[:200], ensure_ascii=False))
+
+    det = packet.get("deterministic_checks") or {}
+    if det:
+        parts.append("\n## deterministic_checks\n" + json.dumps(det, ensure_ascii=False)[:4000])
+
+    goal_cl = packet.get("goal_checklist") or []
+    if goal_cl:
+        parts.append("\n## goal_checklist (Part A)\n" + json.dumps(goal_cl, ensure_ascii=False)[:4000])
+
+    gf = packet.get("guazi_flow_rubric") or {}
+    if gf and any(gf.values()):
+        parts.append("\n## guazi_flow_rubric (Part B)\n" + json.dumps(gf, ensure_ascii=False)[:6000])
+
+    vc = packet.get("verification_checklist") or []
+    if vc:
+        parts.append("\n## verification_checklist IDs\n" + json.dumps(vc[:100], ensure_ascii=False))
+
+    contract = packet.get("contract") or {}
+    if contract.get("acceptance_matrix"):
+        parts.append("\n## acceptance_matrix excerpt\n" + str(contract.get("acceptance_matrix", ""))[:3000])
+
+    diff_text = packet.get("diff") or ""
+    diff_bytes = diff_text.encode("utf-8")
+    if len(diff_bytes) > diff_budget:
+        diff_text = diff_bytes[:diff_budget].decode("utf-8", errors="ignore") + "\n...[diff truncated]..."
+    parts.append("\n## diff\n" + diff_text)
+
+    meta = {
+        "task_dir": packet.get("task_dir", ""),
+        "hashes": packet.get("hashes", {}),
+        "constraints": packet.get("constraints", {}),
+    }
+    parts.append("\n## packet_meta\n" + json.dumps(meta, ensure_ascii=False)[:3000])
+    return "\n".join(parts)
+
+
+def build_goal_prompt(packet):
+    prompt_ref = _read_prompt(GOAL_PROMPT_PATH, "")[:4000]
     packet_s = json.dumps(packet, ensure_ascii=False)[:14000]
-    if channel == "guazi-flow-review":
-        return GF_RUBRIC + "\nPacket:\n" + packet_s
-    prompt_ref = ""
-    if os.path.isfile(PROMPT_PATH):
-        prompt_ref = open(PROMPT_PATH, encoding="utf-8").read()[:4000]
     return prompt_ref + "\n\nPacket:\n" + packet_s
+
+
+def build_user_prompt(packet, channel):
+    if channel == "unified":
+        return build_unified_prompt(packet)
+    return build_goal_prompt(packet)
+
+
+def normalize_unified_out(out, packet):
+    out.setdefault("schema_version", 1)
+    out.setdefault("checklist_goal", [])
+    out.setdefault("checklist_gf", [])
+    out.setdefault("issues", [])
+    rubric = packet.get("guazi_flow_rubric") or {}
+    has_gf = bool(rubric and any(rubric.values()))
+    out["gf_skill_attested"] = has_gf
+    if "result" not in out:
+        blockers = [i for i in out.get("issues", []) if i.get("severity") == "blocker"]
+        out["result"] = "not_pass" if blockers else "pass"
+    return out
 
 
 def invoke(provider, model, packet, channel):
@@ -133,40 +208,36 @@ def invoke(provider, model, packet, channel):
     if provider == "anthropic":
         if not key:
             raise RuntimeError("ANTHROPIC_API_KEY missing")
-        return call_anthropic(key, model or "claude-haiku-4-5", system, user)
-    if provider == "gemini":
+        out = call_anthropic(key, model or "claude-haiku-4-5", system, user)
+    elif provider == "gemini":
         if not key:
             raise RuntimeError("GEMINI_API_KEY missing")
-        return call_gemini(key, model or "gemini-2.0-flash", system, user)
-    if provider == "ollama":
-        return call_ollama(model or "llama3.2", system, user)
-    if provider in bases:
+        out = call_gemini(key, model or "gemini-2.0-flash", system, user)
+    elif provider == "ollama":
+        out = call_ollama(model or "llama3.2", system, user)
+    elif provider in bases:
         if not key:
             raise RuntimeError(f"{provider} API key missing")
-        return call_openai_compat(bases[provider], key, model or "gpt-4o-mini", system, user, provider)
-    raise RuntimeError(f"unsupported provider: {provider}")
+        out = call_openai_compat(bases[provider], key, model or "gpt-4o-mini", system, user, provider)
+    else:
+        raise RuntimeError(f"unsupported provider: {provider}")
+
+    if channel == "unified":
+        return normalize_unified_out(out, packet)
+    return out
 
 
 def main():
     import argparse
+
     p = argparse.ArgumentParser()
     p.add_argument("--provider", required=True)
     p.add_argument("--model", default="")
     p.add_argument("--packet", required=True)
-    p.add_argument("--channel", default="goal", choices=["goal", "guazi-flow-review", "dual"])
+    p.add_argument("--channel", default="unified", choices=["goal", "unified"])
     args = p.parse_args()
     packet = json.load(open(args.packet, encoding="utf-8"))
-    if args.channel == "dual":
-        goal = invoke(args.provider, args.model, packet, "goal")
-        gf = invoke(args.provider, args.model, packet, "guazi-flow-review")
-        gf["skill"] = "guazi-flow-review"
-        gf["skill_attested"] = True
-        print(json.dumps({"goal": goal, "guazi-flow-review": gf}, ensure_ascii=False))
-        return
     out = invoke(args.provider, args.model, packet, args.channel)
-    if args.channel == "guazi-flow-review":
-        out["skill"] = "guazi-flow-review"
-        out["skill_attested"] = True
     print(json.dumps(out, ensure_ascii=False))
 
 
@@ -174,5 +245,15 @@ if __name__ == "__main__":
     try:
         main()
     except Exception as e:
-        print(json.dumps({"result": "review_undetermined", "issues": [{"id": "ADP-ERR", "severity": "medium", "summary": str(e)[:200]}], "checklist": [], "error": str(e)}))
+        print(
+            json.dumps(
+                {
+                    "result": "review_undetermined",
+                    "issues": [{"id": "ADP-ERR", "severity": "medium", "summary": str(e)[:200], "channel": "goal"}],
+                    "checklist_goal": [],
+                    "checklist_gf": [],
+                    "error": str(e),
+                }
+            )
+        )
         sys.exit(0)

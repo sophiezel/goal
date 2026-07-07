@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "skill": "goal-pipeline-unified-review",
+  "gf_skill_attested": true,
+  "result": "not_pass",
+  "checklist_goal": [
+    {
+      "id": "goal_achieved",
+      "passed": true,
+      "detail": "mock"
+    },
+    {
+      "id": "scope_compliant",
+      "passed": true,
+      "detail": "mock"
+    },
+    {
+      "id": "evidence_sufficient",
+      "passed": true,
+      "detail": "mock"
+    },
+    {
+      "id": "side_effects",
+      "passed": true,
+      "detail": "mock"
+    },
+    {
+      "id": "completeness",
+      "passed": true,
+      "detail": "mock"
+    },
+    {
+      "id": "security",
+      "passed": true,
+      "detail": "mock"
+    },
+    {
+      "id": "scope",
+      "passed": false,
+      "detail": ""
+    },
+    {
+      "id": "secret",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "test",
+      "passed": true,
+      "detail": "no test runner detected, skipping"
+    },
+    {
+      "id": "lint",
+      "passed": true,
+      "detail": "no eslint config detected"
+    }
+  ],
+  "checklist_gf": [
+    {
+      "case_id": "C01",
+      "passed": true,
+      "detail": "mock"
+    }
+  ],
+  "issues": [
+    {
+      "id": "CHK-SCOPE",
+      "channel": "goal",
+      "severity": "blocker",
+      "summary": "verify-review scope failed",
+      "file": "",
+      "evidence": "",
+      "root_cause": "implement_error"
+    }
+  ],
+  "provider": "mock-unified",
+  "model": "mock-unified",
+  "packet_hash": "b749a1e3677bfa1f",
+  "invocation_count": 1,
+  "generated_at": "2026-07-07T10:07:03Z"
+}

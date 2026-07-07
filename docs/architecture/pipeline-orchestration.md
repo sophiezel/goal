@@ -42,9 +42,9 @@ Goal-pipeline + guazi-flow-goal 编排架构（机器门禁 + 可续跑工单）
 
 **不修改** `guazi-flow-plan/implement/review/complete` skill 本体；只改 goal 侧编排。
 
-## Review 双通道
+## Review 统一通道
 
-- 默认 `GOAL_REVIEW_MODE=dual`
+- 默认 `GOAL_REVIEW_MODE=unified`（Guazi Flow rubric 存在时）；纯 goal 任务为 `goal`
 - 仅 deterministic 时 → `review_undetermined` → gate post review FAIL
 - CI：`GOAL_REVIEW_FORCE_DETERMINISTIC=1`
 

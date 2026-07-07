@@ -127,8 +127,8 @@ def main():
     if os.path.isfile(review_md):
         if not os.path.isfile(os.path.join(goal_evidence_dir, "review-run.json")):
             errors.append("review: review-run.json missing (anti-forgery)")
-        if not os.path.isfile(os.path.join(goal_evidence_dir, "review-goal.json")):
-            errors.append("review: review-goal.json missing")
+        if not os.path.isfile(os.path.join(goal_evidence_dir, "review-unified.json")):
+            errors.append("review: review-unified.json missing")
         rp = os.path.join(handoff_dir, "review-packet.json")
         rr = os.path.join(goal_evidence_dir, "review-run.json")
         if os.path.isfile(rp) and os.path.isfile(rr):

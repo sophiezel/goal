@@ -10,7 +10,7 @@ assert_no_repo_tier_r() {
   if [[ -d "$task/handoff" ]]; then
     echo "FAIL repo Tier-R leak: $task/handoff/ exists"; exit 1
   fi
-  for f in review-goal.json review-gf.json review-run.json review-fix-input.json review-transcript.md runtime-smoke.md; do
+  for f in review-unified.json review-run.json review-fix-input.json review-transcript.md runtime-smoke.md; do
     if [[ -f "$task/evidence/$f" ]]; then
       echo "FAIL repo Tier-R leak: $task/evidence/$f exists"; exit 1
     fi
@@ -89,8 +89,8 @@ echo "=== smoke dev_cmd boundary ==="
 echo "=== macOS duration_ms sanity ==="
 python3 -c "import json,subprocess,os,tempfile; d=tempfile.mkdtemp(); os.makedirs(d+'/task/evidence'); open(d+'/package.json','w').write('{}'); r=subprocess.run(['bash','/Users/xuwei/Profession/goal/goal-pipeline/scripts/runtime-smoke.sh','--repo-root',d,'--task-dir',d+'/task','--skip-install'],capture_output=True,text=True); j=json.loads(r.stdout.strip() or '{}'); assert 'duration_ms' in j or j.get('result')=='skipped'; print('OK macOS duration field')"
 
-echo "=== review-dual-mock gf_skill_attested ==="
-"$SCRIPT_DIR/test-review-dual-mock.sh"
+echo "=== review-unified-mock gf_skill_attested ==="
+"$SCRIPT_DIR/test-review-unified-mock.sh"
 
 echo "=== review-gf-count (no table inflation) ==="
 "$SCRIPT_DIR/test-review-gf-count.sh"
@@ -125,7 +125,7 @@ fi
 echo "=== verify-review JSON validity ==="
 python3 -c "import json,subprocess; r=subprocess.run(['bash','/Users/xuwei/Profession/goal/goal-pipeline/scripts/verify-review.sh','$SCRIPT_DIR/plan-good','src/', 'json'],capture_output=True,text=True); json.loads(r.stdout); print('OK verify-review JSON valid')"
 
-echo "=== split mode review-dual-mock (Tier-R in runtime) ==="
+echo "=== split mode review-unified (Tier-R in runtime) ==="
 SPLIT_TMP=$(mktemp -d)
 RUNTIME="$SPLIT_TMP/runtime"
 TASK="$SPLIT_TMP/task"

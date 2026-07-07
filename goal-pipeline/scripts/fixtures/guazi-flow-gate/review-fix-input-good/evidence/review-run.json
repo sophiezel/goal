@@ -9,5 +9,7 @@
     "guazi-flow-review"
   ],
   "gf_skill_attested": true,
-  "latency_ms": 10
+  "latency_ms": 10,
+  "mode": "unified",
+  "invocation_count": 1
 }

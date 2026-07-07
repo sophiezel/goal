@@ -374,12 +374,17 @@ PY
 
 
 read_gf_issues_count() {
-  local gf_json="$GOAL_EVIDENCE_DIR/review-gf.json"
-  if [[ -f "$gf_json" ]]; then
-    python3 -c "import json; d=json.load(open('$gf_json')); print(len(d.get('issues',[])))" 2>/dev/null || echo 0
+  local unified_json="$GOAL_EVIDENCE_DIR/review-unified.json"
+  if [[ -f "$unified_json" ]]; then
+    python3 - "$unified_json" << 'PYGF'
+import json, sys
+d = json.load(open(sys.argv[1], encoding="utf-8"))
+issues = d.get("issues", [])
+print(sum(1 for i in issues if i.get("channel") == "guazi-flow-review"))
+PYGF
     return
   fi
-  python3 - "$EVIDENCE_DIR/review.md" << 'PYGF'
+  python3 - "$EVIDENCE_DIR/review.md" << 'PYGF2'
 import re, sys, os
 p = sys.argv[1]
 if not os.path.isfile(p):
@@ -394,13 +399,13 @@ if m:
             except ValueError:
                 pass
 print(0)
-PYGF
+PYGF2
 }
 
 py_check_review() {
-  python3 - "$REPO_EVIDENCE_DIR/review.md" "$SCHEMA_DIR/review-evidence-rules.json" "$GOAL_EVIDENCE_DIR/review-goal.json" << 'PY'
+  python3 - "$REPO_EVIDENCE_DIR/review.md" "$SCHEMA_DIR/review-evidence-rules.json" "$GOAL_EVIDENCE_DIR/review-unified.json" << 'PY'
 import json, re, sys, os
-review_path, rules_path, goal_json = sys.argv[1], sys.argv[2], sys.argv[3]
+review_path, rules_path, unified_json = sys.argv[1], sys.argv[2], sys.argv[3]
 errors = []
 if not os.path.isfile(review_path):
     print(json.dumps({"ok": False, "errors": ["evidence/review.md missing"]}))
@@ -424,9 +429,9 @@ for sec in rules.get('sections_required', []):
     if sec not in text:
         errors.append(f"review missing section: {sec}")
 
-has_goal = '## Goal Pipeline Review' in text or os.path.isfile(goal_json)
+has_goal = '## Goal Pipeline Review' in text or os.path.isfile(unified_json)
 if not has_goal:
-    errors.append("missing goal-pipeline review annex (## Goal Pipeline Review or review-goal.json)")
+    errors.append("missing goal-pipeline review annex (## Goal Pipeline Review or review-unified.json)")
 
 result = fm.get('result', 'unknown')
 print(json.dumps({
@@ -809,8 +814,14 @@ JSON
         fail "review stale — candidate_diff_hash changed since implement handoff"
       fi
       GOAL_COUNT=0
-      if [[ -f "$GOAL_EVIDENCE_DIR/review-goal.json" ]]; then
-        GOAL_COUNT=$(python3 -c "import json; d=json.load(open('$GOAL_EVIDENCE_DIR/review-goal.json')); print(len(d.get('issues', d.get('issues_goal', []))))" 2>/dev/null || echo 0)
+      if [[ -f "$GOAL_EVIDENCE_DIR/review-unified.json" ]]; then
+        GOAL_COUNT=$(python3 - "$GOAL_EVIDENCE_DIR/review-unified.json" << 'PYGC'
+import json, sys
+d = json.load(open(sys.argv[1], encoding="utf-8"))
+issues = d.get("issues", [])
+print(sum(1 for i in issues if i.get("channel", "goal") != "guazi-flow-review"))
+PYGC
+)
       fi
       GF_COUNT=$(read_gf_issues_count)
       GF_ATTESTED=$(python3 -c "import json; d=json.load(open('$GOAL_EVIDENCE_DIR/review-fix-input.json')); print(str(d.get('provenance',{}).get('gf_skill_attested',False)).lower())" 2>/dev/null || echo "false")
@@ -825,12 +836,12 @@ JSON
   "git_head": "$GH",
   "issues_gf_count": $GF_COUNT,
   "issues_goal_count": $GOAL_COUNT,
-  "gf_execution_mode": "independent_dual_channel",
+  "gf_execution_mode": "independent_unified_review",
   "gf_skill_attested": $GF_ATTESTED,
   "review_run_id": "$RUN_ID",
   "root_cause_summary": {},
   "artifact_paths": ["evidence/review.md"],
-  "runtime_artifact_paths": ["evidence/review-goal.json", "evidence/review-fix-input.json", "evidence/review-run.json"]
+  "runtime_artifact_paths": ["evidence/review-unified.json", "evidence/review-fix-input.json", "evidence/review-run.json"]
 }
 JSON
       py_write_handoff review "$TMP" >/dev/null
@@ -857,8 +868,8 @@ PY
       if [[ -n "$RUN_HASH" && -n "$PKT_HASH" && "$RUN_HASH" != "$PKT_HASH" ]]; then
         fail "review-run packet_hash does not match review-packet.json"
       fi
-      GOAL_RES=$(python3 -c "import json; print(json.load(open('$GOAL_EVIDENCE_DIR/review-goal.json')).get('result',''))" 2>/dev/null || echo "")
-      if [[ "$GOAL_RES" == "review_undetermined" ]]; then
+      UNIFIED_RES=$(python3 -c "import json; print(json.load(open('$GOAL_EVIDENCE_DIR/review-unified.json')).get('result',''))" 2>/dev/null || echo "")
+      if [[ "$UNIFIED_RES" == "review_undetermined" ]]; then
         fail "review separation_confidence low — use cursor-task/claude-native provider"
       fi
       MERGED=$(python3 - "$REPO_EVIDENCE_DIR/review.md" << 'PYMG'
@@ -874,7 +885,7 @@ PYMG
         check_noop_ratchet "review" "$CUR_DH" || exit 1
         fail "merged_result is not pass: $MERGED"
       fi
-      CLEN=$(python3 -c "import json; d=json.load(open('$GOAL_EVIDENCE_DIR/review-goal.json')); print(len(d.get('checklist',[])))" 2>/dev/null || echo 0)
+      CLEN=$(python3 -c "import json; d=json.load(open('$GOAL_EVIDENCE_DIR/review-unified.json')); print(len(d.get('checklist_goal',[])))" 2>/dev/null || echo 0)
       [[ -f "$GOAL_EVIDENCE_DIR/review-fix-input.json" ]] || fail "review-fix-input.json missing — run merge-review-issues.sh"
       python3 - "$GOAL_EVIDENCE_DIR/review-fix-input.json" << 'PYSCHEMA' || fail "review-fix-input.json schema invalid"
 import json, sys
@@ -903,7 +914,7 @@ PYSCHEMA
         fail "review pass requires review-fix-input action=proceed_complete"
       fi
       if [[ "$RESULT_VAL" == "pass" && "$CLEN" -lt 1 ]]; then
-        fail "review pass requires non-empty checklist in review-goal.json"
+        fail "review pass requires non-empty checklist_goal in review-unified.json"
       fi
       if [[ "$RESULT_VAL" != "pass" ]]; then
         show_review_issue_board

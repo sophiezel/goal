@@ -1,5 +1,7 @@
 # Review Packet Prompt Template
 
+> **Deprecated**: 独立审核现由 `run-independent-review.sh` + `references/unified-review-prompt.md` 驱动，产出 `review-unified.json`。本模板仅作 packet 字段说明保留。
+
 Use this when invoking goal-pipeline Step 2 independent review.
 
 ## Input
@@ -15,16 +17,8 @@ Provide ONLY the JSON from `handoff/review-packet.json`. Do NOT include executor
 5. If `deterministic_checks.pass` is false, prioritize those failures.
 6. Consider `smoke_diagnostic.classification` when attributing runtime failures.
 
-## Output JSON schema
+## Output
 
-```json
-{
-  "result": "pass|not_pass",
-  "issues_goal": [
-    {"id": "G01", "severity": "critical|high|medium|low", "summary": "...", "root_cause": "plan_gap|implement_error|spec_ambiguity", "evidence": "..."}
-  ],
-  "root_cause_summary": {"plan_gap": 0, "implement_error": 0, "spec_ambiguity": 0}
-}
-```
+Run `run-independent-review.sh --mode unified` (or `goal` when no Guazi Flow rubric). Do **not** hand-write review JSON. After review, run `merge-review-issues.sh --unified-json evidence/review-unified.json`.
 
-Write output to `evidence/review-goal.json`, then run `merge-review-issues.sh`.
+Unified output schema: `goal-pipeline/schemas/review-unified.schema.json`.

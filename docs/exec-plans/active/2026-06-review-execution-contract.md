@@ -1,8 +1,6 @@
 # Goal Review 执行契约与独立审核收敛计划
 
-> **归档路径（实施后写入）**: [`docs/exec-plans/active/2026-06-review-execution-contract.md`](/Users/xuwei/Profession/goal/docs/exec-plans/active/2026-06-review-execution-contract.md)
->
-> **基线分支**: `enhance/pipeline-stage-driver`（M1 改动已在工作区，未提交）
+> **2026-07-07**：dual-channel 已 superseded by Unified Review（`review-unified.json`）。历史 Phase 正文保留作审计；当前契约见 M6 与 `guazi-flow-integration.md`。
 >
 > **触发背景**: xrk CTB-43564 暴露 smoke/review 可跳过、review 可伪造；后续会诊明确执行 Agent 只需**明确、单一**审核产物驱动 fix loop。
 
@@ -49,7 +47,7 @@ flowchart TB
 |------|------|--------|-------------------|
 | **执行契约** | `evidence/review-fix-input.json` | 执行 Agent | **是（唯一）** |
 | 防伪 | `evidence/review-run.json` | gate / 后台 | 否 |
-| 通道原始 | `evidence/review-goal.json`, `evidence/review-gf.json` | merge 输入 / 统计 | 否 |
+| 通道原始 | `evidence/review-unified.json` | merge 输入 / 统计（issues 带 `channel`） | 否 |
 | 人读 | `evidence/review.md` | gate schema / 人 | 否 |
 | 审计 | `evidence/review-transcript.md` | 后台（可选） | 否 |
 | 门禁 | `handoff/review.json` | advance / state | 否 |
@@ -283,3 +281,16 @@ flowchart LR
 | M5.5 | `goal-pipeline-recover.sh` + fixtures |
 
 **验收**：`run-all-gate-tests.sh` 全绿；`implement-post-without-plan` fixture FAIL。
+
+## Phase M6：Unified Review 硬切（2026-07-07）
+
+**目标**：单次 LLM + `review-unified.json`；删除 dual / review-goal / review-gf；移除 repo `docs/guazi-flow/.gitignore` 注入机制。
+
+| 子项 | 交付 |
+|------|------|
+| M6.1 | `review-unified.schema.json` + `unified-review-prompt.md` |
+| M6.2 | `run-independent-review` / adapter / merge / gate 全读 unified |
+| M6.3 | `resolve-artifact-paths` 删除 `inject_gitignore`；fixture + gate-tests 对齐 |
+| M6.4 | `gf_execution_mode`: `independent_unified_review`；`runtime_artifact_paths` 含 `review-unified.json` |
+
+**验收**：`run-gate-tests.sh` 全绿；Profession/goal 内无 dual/mock-dual 运行时引用；`sync-install-repo.sh --deploy-only` 后 `~/.goal-state` 无 inject 脚本；`--ensure-state` 不创建 repo `.gitignore`。

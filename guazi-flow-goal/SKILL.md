@@ -22,8 +22,8 @@ description: guazi-flow-goal 统一入口。加载 goal-pipeline 管线引擎，
 - **NEVER 在 [5/5] complete 前以「如需继续」「需要我跑 review 吗」交还控制权**——implement 完成 ≠ goal 完成，必须自动进入 review → complete
 - **NEVER 跳过 [3/5] smoke 或未跑 gate --post smoke**——runtime-smoke.sh 产出 evidence/runtime-smoke.md 后 MUST gate --stage smoke --post
 - **NEVER 跳过 [4/5] review 或未跑 run-independent-review.sh**——review-run.json provenance 缺失则 gate --post review 失败
-- **NEVER 自填 review-goal.json 绕过独立审核**——MUST assemble-review-packet → run-independent-review → merge-review-issues
-- **NEVER 手改 review 产物**——修复前 MUST Read `evidence/review-fix-input.json`；禁止直接解析 review-goal / review-gf / review.md 做修复分流
+- **NEVER 自填 review-unified.json 绕过独立审核**——MUST assemble-review-packet → run-independent-review → merge-review-issues
+- **NEVER 手改 review 产物**——修复前 MUST Read `evidence/review-fix-input.json`；禁止直接解析 review-unified.json / review.md 做修复分流
 - **NEVER 在 gate 失败时跳过 fix-input**——plan/implement MUST Read `evidence/<stage>-gate-fix-input.json` 的 `issues` / `next_steps`；首屏输出 Issue 清单（gate 脚本已打印）
 - **NEVER 在 gate 失败会话中直接改产物**——Judge（gate/审核）与 Executor（plan/implement skill）分离；修复轮由 Executor 按 fix-input 执行
 - **NEVER 在 subject_hash 未变时重复 gate**——`blocked(noop_fix)` 表示修复无效，须实质性修改产物后再跑
@@ -299,7 +299,7 @@ Phase 2 每个阶段**开头**亦须运行 `goal-stage-driver.sh`（内含 advan
 | `~/.goal-state/scripts/` | 首次部署 |
 | `docs/guazi-flow/<task>/index.md` 等 **Tier-G** | 委托 guazi-flow-*；进 git |
 | `docs/guazi-flow/<task>/handoff/**` | ❌ split 模式下不写 repo（Tier-R 在 goal-state） |
-| `docs/guazi-flow/.gitignore` | Phase 1 调用 `inject-docs-gitignore.sh` 注入 Tier-R 忽略规则 |
+| `docs/guazi-flow/.gitignore` | ❌ 不创建 repo `.gitignore`（Tier-R 防泄漏靠 split 写入路径 + purge） |
 | `docs/guazi-flow/<task>/index.md` | 桥接层追加 Goal 契约字段（allowed_patterns/exclusions/stop_conditions 子 section） |
 | 业务代码 | 委托 guazi-flow-implement 或 goal-pipeline 通用 implement |
 | `<project>/.guazi-flow/` | ❌ 不写入 goal 产物 |

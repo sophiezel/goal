@@ -21,11 +21,11 @@ GOAL_STATE_HOME = Path(os.environ.get("GOAL_STATE_HOME", os.path.expanduser("~/.
 
 TIER_R_EVIDENCE_FILES = (
     "runtime-smoke.md",
-    "review-goal.json",
-    "review-gf.json",
+    "review-unified.json",
     "review-run.json",
     "review-fix-input.json",
     "review-transcript.md",
+    "review-packet.json",
 )
 
 
@@ -143,6 +143,11 @@ def purge_repo_tier_r(repo_task_dir: Path) -> list[str]:
             if p.is_file():
                 p.unlink()
                 purged.append(f"evidence/{name}")
+        for legacy in ("review-goal.json", "review-gf.json"):
+            p = evidence / legacy
+            if p.is_file():
+                p.unlink()
+                purged.append(f"evidence/{legacy}")
         for p in list(evidence.glob("*-gate-fix-input.json")):
             p.unlink()
             purged.append(f"evidence/{p.name}")
@@ -213,29 +218,6 @@ def default_mode(
     return "repo_full"
 
 
-def inject_gitignore(project_root: str) -> None:
-    if not project_root:
-        return
-    script_dir = Path(__file__).resolve().parent
-    candidates = [
-        script_dir.parent.parent / "guazi-flow-goal" / "scripts" / "inject-docs-gitignore.sh",
-        GOAL_STATE_HOME / "scripts" / "inject-docs-gitignore.sh",
-        Path(os.environ.get("GOAL_PIPELINE_REPO", str(Path.home() / ".goal-pipeline-repo")))
-        / "guazi-flow-goal"
-        / "scripts"
-        / "inject-docs-gitignore.sh",
-    ]
-    for inj in candidates:
-        if inj.is_file():
-            subprocess.run(
-                ["bash", str(inj), "--project-root", project_root, "--mode", "split"],
-                check=False,
-                capture_output=True,
-                text=True,
-            )
-            return
-
-
 def ensure_artifact_layout(paths: dict) -> dict:
     """Persist artifact_layout to state.json; sync/migrate Tier-R; purge repo leaks."""
     sf_s = paths.get("state_file") or ""
@@ -286,9 +268,6 @@ def ensure_artifact_layout(paths: dict) -> dict:
     if changed:
         state["artifact_layout"] = layout
         sf.write_text(json.dumps(state, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-
-    if paths["mode"] == "split":
-        inject_gitignore(paths.get("project_root") or state.get("project_root") or "")
 
     runtime = Path(paths["runtime_root"])
     (runtime / "handoff").mkdir(parents=True, exist_ok=True)
@@ -386,7 +365,7 @@ def main() -> None:
     ap.add_argument(
         "--ensure-state",
         action="store_true",
-        help="Write artifact_layout to state.json, sync/migrate Tier-R, purge repo leaks, inject gitignore",
+        help="Write artifact_layout to state.json, sync/migrate Tier-R, purge repo leaks",
     )
     ap.add_argument(
         "--purge-repo-tier-r",

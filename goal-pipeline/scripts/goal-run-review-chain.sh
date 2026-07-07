@@ -1,5 +1,5 @@
 #!/bin/bash
-# goal-run-review-chain.sh — Atomic review script chain (dual-channel)
+# goal-run-review-chain.sh — Atomic review script chain (unified review)
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -8,7 +8,7 @@ GOAL_STATE_HOME="${GOAL_STATE_HOME:-$HOME/.goal-state}"
 TASK_DIR=""
 STATE_FILE=""
 PROJECT_ROOT=""
-MODE="${GOAL_REVIEW_MODE:-dual}"
+MODE="${GOAL_REVIEW_MODE:-unified}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -17,7 +17,7 @@ while [[ $# -gt 0 ]]; do
     --project-root) PROJECT_ROOT="$2"; shift 2 ;;
     --mode) MODE="$2"; shift 2 ;;
     -h|--help)
-      echo "Usage: $0 --task-dir <path> [--state-file PATH] [--project-root PATH] [--mode dual|goal]"
+      echo "Usage: $0 --task-dir <path> [--state-file PATH] [--project-root PATH] [--mode unified|goal]"
       exit 0
       ;;
     *) echo "Unknown: $1" >&2; exit 2 ;;
@@ -67,9 +67,9 @@ else
   bash "$REVIEW" "${COMMON_ARGS[@]}" --mode "$MODE"
 fi
 
-GOAL_JSON="$GOAL_EVIDENCE_DIR/review-goal.json"
-echo "review-chain [3/4] merge-review-issues -> $GOAL_JSON"
-bash "$MERGE" "${COMMON_ARGS[@]}" --goal-json "$GOAL_JSON"
+UNIFIED_JSON="$GOAL_EVIDENCE_DIR/review-unified.json"
+echo "review-chain [3/4] merge-review-issues -> $UNIFIED_JSON"
+bash "$MERGE" "${COMMON_ARGS[@]}" --unified-json "$UNIFIED_JSON"
 
 echo "review-chain [4/4] done — run gate --post review next"
 exit 0

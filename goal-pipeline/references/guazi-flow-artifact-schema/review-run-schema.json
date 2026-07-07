@@ -12,11 +12,13 @@
   ],
   "fields": {
     "run_id": "16-char hex",
-    "provider": "deterministic | cursor-task | claude-native | openai-api",
+    "provider": "deterministic | cursor-task | claude-native | openai-api | mock-unified",
     "model": "model identifier",
+    "mode": "unified | goal",
     "packet_hash": "sha256[:16] of review-packet.json",
     "latency_ms": "integer",
+    "invocation_count": "1 for unified mode",
     "tokens": "object with prompt/completion counts when available",
-    "output_hash": "sha256[:16] of review-goal.json canonical form"
+    "output_hash": "sha256[:16] of review-unified.json canonical form"
   }
 }

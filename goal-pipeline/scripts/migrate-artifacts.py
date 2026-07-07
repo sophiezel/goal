@@ -15,8 +15,7 @@ RESOLVER = SCRIPT_DIR / "resolve-artifact-paths.py"
 
 TIER_R_EVIDENCE = (
     "runtime-smoke.md",
-    "review-goal.json",
-    "review-gf.json",
+    "review-unified.json",
     "review-run.json",
     "review-fix-input.json",
     "review-transcript.md",

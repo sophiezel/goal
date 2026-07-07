@@ -2,7 +2,7 @@
 """review-channel-guard — block silent deterministic downgrade when API/Ollama is configured.
 
 Usage:
-  review-channel-guard.py --resolve [--provider P] [--model M] [--force-det 0|1] [--mode dual|goal]
+  review-channel-guard.py --resolve [--provider P] [--model M] [--force-det 0|1] [--mode unified|goal]
   review-channel-guard.py --check [--provider P] [--force-det 0|1]
 
 Exit 0 when allowed; exit 2 when downgrade is blocked.
@@ -101,7 +101,7 @@ def resolve_provider(
     ):
         resolved_model = sel_model
 
-    if not has_candidates and mode == "dual" and resolved_provider == "deterministic":
+    if not has_candidates and mode == "unified" and resolved_provider == "deterministic":
         # Caller may mark review_undetermined; not a hard block without configured channels.
         pass
 
@@ -125,7 +125,7 @@ def main() -> int:
     parser.add_argument("--provider", default="", help="Requested provider (empty = auto)")
     parser.add_argument("--model", default="", help="Requested model")
     parser.add_argument("--force-det", default="0", choices=("0", "1"), help="GOAL_REVIEW_FORCE_DETERMINISTIC")
-    parser.add_argument("--mode", default="dual", choices=("dual", "goal"))
+    parser.add_argument("--mode", default="unified", choices=("unified", "goal"))
     parser.add_argument("--format", default="text", choices=("text", "json"))
     args = parser.parse_args()
 
@@ -144,7 +144,7 @@ def main() -> int:
     has_candidates = bool(detect_doc.get("has_candidates"))
     deterministic_only = (
         not force_det
-        and args.mode == "dual"
+        and args.mode == "unified"
         and provider == "deterministic"
         and not has_candidates
     )

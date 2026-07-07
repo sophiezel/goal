@@ -22,7 +22,7 @@ check_scope() {
   local modified_files
   
   cd "$GIT_ROOT"
-  modified_files=$(git diff --name-only HEAD 2>/dev/null || echo "")
+  modified_files=$(git -c core.quotepath=false diff --name-only HEAD 2>/dev/null || echo "")
   
   if [ -z "$modified_files" ]; then
     echo '{"pass":true,"modified_files":[],"out_of_scope":[]}'
@@ -64,7 +64,7 @@ check_secrets() {
   
   cd "$GIT_ROOT"
   local diff_content
-  diff_content=$(git diff HEAD 2>/dev/null || echo "")
+  diff_content=$(git -c core.quotepath=false diff HEAD 2>/dev/null || echo "")
   
   # 常见密钥模式
   local patterns=(
@@ -103,22 +103,66 @@ check_tests() {
   cd "$GIT_ROOT"
   
   if [ -f "package.json" ]; then
-    local has_test
+    local has_test pkg_mgr test_cmd
     has_test=$(node -e "try{const p=require('./package.json');console.log(p.scripts&&p.scripts.test?'yes':'no')}catch(e){console.log('no')}" 2>/dev/null || echo "no")
     if [ "$has_test" = "yes" ]; then
-      test_cmd="npm test"
-      test_args=()
-      if [ -n "${GOAL_TEST_PATTERN:-}" ]; then
-        test_args=(-- --testPathPattern="$GOAL_TEST_PATTERN" --watchAll=false)
-        test_cmd="npm test -- --testPathPattern=$GOAL_TEST_PATTERN --watchAll=false"
-      fi
-      if [ -n "${CI:-}" ] || [ -n "${GOAL_TEST_PATTERN:-}" ]; then
-        export CI="${CI:-true}"
-      fi
-      if npm test "${test_args[@]}" >/dev/null 2>&1; then
-        TEST_CMD="$test_cmd" python3 -c "import json,os; print(json.dumps({'pass':True,'command':os.environ['TEST_CMD'],'output':'all passing'}))"
+      if [ -f "yarn.lock" ] && command -v yarn >/dev/null 2>&1; then
+        pkg_mgr="yarn"
+        test_cmd="yarn test"
+      elif [ -f "pnpm-lock.yaml" ] && command -v pnpm >/dev/null 2>&1; then
+        pkg_mgr="pnpm"
+        test_cmd="pnpm test"
       else
-        TEST_CMD="$test_cmd" python3 -c "import json,os; print(json.dumps({'pass':False,'command':os.environ['TEST_CMD'],'output':'tests failed'}))"
+        pkg_mgr="npm"
+        test_cmd="npm test"
+      fi
+      if [ -n "${GOAL_TEST_PATTERN:-}" ]; then
+        export CI="${CI:-true}"
+        if [ "$pkg_mgr" = "yarn" ]; then
+          test_cmd="CI=true yarn test --testPathPattern=$GOAL_TEST_PATTERN --watchAll=false"
+          if CI=true yarn test --testPathPattern="$GOAL_TEST_PATTERN" --watchAll=false >/dev/null 2>&1; then
+            TEST_CMD="$test_cmd" python3 -c "import json,os; print(json.dumps({'pass':True,'command':os.environ['TEST_CMD'],'output':'all passing'}))"
+          else
+            TEST_CMD="$test_cmd" python3 -c "import json,os; print(json.dumps({'pass':False,'command':os.environ['TEST_CMD'],'output':'tests failed'}))"
+          fi
+        elif [ "$pkg_mgr" = "pnpm" ]; then
+          test_cmd="CI=true pnpm test --testPathPattern=$GOAL_TEST_PATTERN --watchAll=false"
+          if CI=true pnpm test --testPathPattern="$GOAL_TEST_PATTERN" --watchAll=false >/dev/null 2>&1; then
+            TEST_CMD="$test_cmd" python3 -c "import json,os; print(json.dumps({'pass':True,'command':os.environ['TEST_CMD'],'output':'all passing'}))"
+          else
+            TEST_CMD="$test_cmd" python3 -c "import json,os; print(json.dumps({'pass':False,'command':os.environ['TEST_CMD'],'output':'tests failed'}))"
+          fi
+        else
+          test_cmd="npm test -- --testPathPattern=$GOAL_TEST_PATTERN --watchAll=false"
+          if CI=true npm test -- --testPathPattern="$GOAL_TEST_PATTERN" --watchAll=false >/dev/null 2>&1; then
+            TEST_CMD="$test_cmd" python3 -c "import json,os; print(json.dumps({'pass':True,'command':os.environ['TEST_CMD'],'output':'all passing'}))"
+          else
+            TEST_CMD="$test_cmd" python3 -c "import json,os; print(json.dumps({'pass':False,'command':os.environ['TEST_CMD'],'output':'tests failed'}))"
+          fi
+        fi
+      else
+        if [ -n "${CI:-}" ]; then
+          export CI="${CI:-true}"
+        fi
+        if [ "$pkg_mgr" = "yarn" ]; then
+          if yarn test >/dev/null 2>&1; then
+            TEST_CMD="$test_cmd" python3 -c "import json,os; print(json.dumps({'pass':True,'command':os.environ['TEST_CMD'],'output':'all passing'}))"
+          else
+            TEST_CMD="$test_cmd" python3 -c "import json,os; print(json.dumps({'pass':False,'command':os.environ['TEST_CMD'],'output':'tests failed'}))"
+          fi
+        elif [ "$pkg_mgr" = "pnpm" ]; then
+          if pnpm test >/dev/null 2>&1; then
+            TEST_CMD="$test_cmd" python3 -c "import json,os; print(json.dumps({'pass':True,'command':os.environ['TEST_CMD'],'output':'all passing'}))"
+          else
+            TEST_CMD="$test_cmd" python3 -c "import json,os; print(json.dumps({'pass':False,'command':os.environ['TEST_CMD'],'output':'tests failed'}))"
+          fi
+        else
+          if npm test >/dev/null 2>&1; then
+            TEST_CMD="$test_cmd" python3 -c "import json,os; print(json.dumps({'pass':True,'command':os.environ['TEST_CMD'],'output':'all passing'}))"
+          else
+            TEST_CMD="$test_cmd" python3 -c "import json,os; print(json.dumps({'pass':False,'command':os.environ['TEST_CMD'],'output':'tests failed'}))"
+          fi
+        fi
       fi
     else
       echo '{"pass":true,"command":"skipped","output":"no test script in package.json"}'
@@ -146,7 +190,7 @@ check_lint() {
   
   if [ "$has_lint" = true ]; then
     local lint_files
-    lint_files=$(git diff --name-only HEAD 2>/dev/null | grep -E '\.(ts|tsx|js|jsx|vue)$' || true)
+    lint_files=$(git -c core.quotepath=false diff --name-only HEAD 2>/dev/null | grep -E '\.(ts|tsx|js|jsx|vue)$' || true)
     if [ -z "$lint_files" ]; then
       echo '{"pass":true,"command":"skipped","output":"no lintable files in diff"}'
     elif npx eslint --quiet $lint_files >/dev/null 2>&1; then

@@ -26,7 +26,7 @@
 
 ~/.goal-state/projects/<pid>/<branch>/<task>/artifacts/   ← Tier-R（不进 git）
 ├── handoff/*.json
-└── evidence/review-goal.json, review-run.json, ...
+└── evidence/review-unified.json, review-run.json, ...
 ```
 
 ## guazi-flow 扩展字段

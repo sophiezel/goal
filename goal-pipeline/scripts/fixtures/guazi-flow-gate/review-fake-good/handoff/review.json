@@ -3,10 +3,10 @@
   "schema_version": 1,
   "result": "pass",
   "review_subject_hash": "deadbeef",
-  "git_head": "4266e837e85933d0",
+  "git_head": "a221cc72ccce8b8a",
   "issues_gf_count": 0,
   "issues_goal_count": 0,
-  "gf_execution_mode": "independent_dual_channel",
+  "gf_execution_mode": "independent_unified_review",
   "gf_skill_attested": false,
   "review_run_id": "",
   "root_cause_summary": {},
@@ -14,13 +14,13 @@
     "evidence/review.md"
   ],
   "runtime_artifact_paths": [
-    "evidence/review-goal.json",
+    "evidence/review-unified.json",
     "evidence/review-fix-input.json",
     "evidence/review-run.json"
   ],
   "gate": {
     "script": "gate-guazi-flow-stage.sh",
     "version": 1,
-    "passed_at": "2026-07-06T12:36:33Z"
+    "passed_at": "2026-07-07T10:07:01Z"
   }
 }

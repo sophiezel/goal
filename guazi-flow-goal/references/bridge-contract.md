@@ -74,8 +74,8 @@ guazi-flow 不可用时上述字段全部为空，goal-pipeline 完全独立运�
 ## Review 统计口径（v2.2）
 
 - `handoff/review.json` 扩展字段（向后兼容）：
-  - `gf_execution_mode`: `independent_dual_channel`
+  - `gf_execution_mode`: `independent_unified_review`
   - `gf_skill_attested`: bool — `review-run.json` / `review-fix-input.json` provenance
   - `review_run_id`: 与 `evidence/review-run.json` 对齐
-- `issues_gf_count` MUST 来自 `review-gf.json` issues 数组长度，禁止数 markdown 表格行
-- `review-run.channels` 记录 `["goal","guazi-flow-review"]` 当 dual 模式启用
+- `issues_gf_count` / `issues_goal_count` MUST 来自 `review-unified.json` 按 `channel` 过滤计数，禁止数 markdown 表格行
+- `review-run.channels` 记录 `["goal","guazi-flow-review"]` 当 unified 模式启用（单次 LLM，`invocation_count=1`）

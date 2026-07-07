@@ -214,8 +214,8 @@ check_provenance() {
     if [ ! -f "$GOAL_EVIDENCE_DIR/review-run.json" ]; then
       issues+=('{"rule":"review_provenance","issue":"review.md without goal-runtime review-run.json","action":"run_independent_review"}')
     fi
-    if [ ! -f "$GOAL_EVIDENCE_DIR/review-goal.json" ]; then
-      issues+=('{"rule":"review_provenance","issue":"review.md without goal-runtime review-goal.json","action":"run_independent_review"}')
+    if [ ! -f "$GOAL_EVIDENCE_DIR/review-unified.json" ]; then
+      issues+=('{"rule":"review_provenance","issue":"review.md without goal-runtime review-unified.json","action":"run_independent_review"}')
     fi
   fi
 }
