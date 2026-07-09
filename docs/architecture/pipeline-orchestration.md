@@ -22,6 +22,18 @@ Goal-pipeline + guazi-flow-goal 编排架构（机器门禁 + 可续跑工单）
 4. `gate --post` → chain → advance → driver（下一阶段）
 5. Turn 结束：`gate --assert-complete` exit 0
 
+### Review 阶段 mandatory（含 refresh）
+
+```
+refresh-handoffs-after-index.sh   # 执行记录漂移时 cascade implement；契约变更 cascade plan；已 fresh 则 no-op
+gate --pre review                 # 缺 packet 时自动 assemble；仅 contract_hash 变化才 stale FAIL
+goal-run-review-chain.sh          # assemble → independent review → merge
+gate --post review
+goal-advance-stage.sh
+```
+
+`index_contract_hash` 排除 `## 执行记录`，避免「补执行记录 → plan handoff stale → 多轮重跑」。
+
 ## handoff 状态机
 
 进度真相：`handoff/{plan,implement,smoke,review,complete}.json`

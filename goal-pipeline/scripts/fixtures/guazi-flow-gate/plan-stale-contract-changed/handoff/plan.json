@@ -3,7 +3,7 @@
   "schema_version": 1,
   "skill_expected": "guazi-flow-plan",
   "skill_executed": true,
-  "task_dir": "/Users/xuwei/Profession/goal/goal-pipeline/scripts/fixtures/guazi-flow-gate/plan-good",
+  "task_dir": "/Users/xuwei/Profession/goal/goal-pipeline/scripts/fixtures/guazi-flow-gate/plan-stale-contract-changed",
   "profile": "h5",
   "profile_detail": "react",
   "write_set": [
@@ -29,6 +29,6 @@
   "gate": {
     "script": "gate-guazi-flow-stage.sh",
     "version": 1,
-    "passed_at": "2026-07-09T03:20:05Z"
+    "passed_at": "2026-07-09T03:20:11Z"
   }
 }

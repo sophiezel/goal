@@ -160,23 +160,68 @@ if adapter_body.strip():
         if adapter_parsed:
             for key in ("result", "checklist_goal", "checklist_gf", "issues", "root_cause_summary"):
                 if key in adapter_parsed:
-                    unified[key] = adapter_parsed[key]
+                    val = adapter_parsed[key]
+                    # Coerce checklist arrays to list[dict]; drop/flag malformed items
+                    if key in ("checklist_goal", "checklist_gf") and isinstance(val, list):
+                        cleaned = []
+                        for item in val:
+                            if isinstance(item, dict):
+                                cleaned.append(item)
+                            elif isinstance(item, str):
+                                cleaned.append({"id": item[:80], "result": "unknown", "summary": item[:200]})
+                            else:
+                                unified.setdefault("issues", []).append({
+                                    "id": "ADP-CHECKLIST",
+                                    "channel": "goal",
+                                    "severity": "warning",
+                                    "summary": f"malformed {key} item type={type(item).__name__}",
+                                    "root_cause": "implement_error",
+                                })
+                        unified[key] = cleaned
+                    elif key == "issues" and isinstance(val, list):
+                        cleaned_iss = []
+                        for iss in val:
+                            if isinstance(iss, dict):
+                                cleaned_iss.append(iss)
+                            else:
+                                cleaned_iss.append({
+                                    "id": "ADP-ISSUE",
+                                    "channel": "goal",
+                                    "severity": "warning",
+                                    "summary": str(iss)[:200],
+                                })
+                        unified[key] = cleaned_iss
+                    else:
+                        unified[key] = val
             if adapter_parsed.get("gf_skill_attested") is not None:
                 unified["gf_skill_attested"] = bool(adapter_parsed["gf_skill_attested"])
             if adapter_parsed.get("model"):
                 unified["model"] = adapter_parsed["model"]
             unified["invocation_count"] = 1
             for iss in unified.get("issues", []):
-                iss.setdefault("channel", "goal")
+                if isinstance(iss, dict):
+                    iss.setdefault("channel", "goal")
             for iss in chk_issues:
-                if iss["id"] not in {i.get("id") for i in unified.get("issues", [])}:
+                if iss["id"] not in {i.get("id") for i in unified.get("issues", []) if isinstance(i, dict)}:
                     unified["issues"].append(iss)
             for item in chk_checklist:
-                ids = {c.get("id") for c in unified.get("checklist_goal", [])}
+                goal_list = [c for c in unified.get("checklist_goal", []) if isinstance(c, dict)]
+                ids = {c.get("id") for c in goal_list}
                 if item.get("id") not in ids:
                     unified.setdefault("checklist_goal", []).append(item)
     except json.JSONDecodeError:
         pass
+
+# Final sanitize: ensure checklist_goal items are dicts before .get
+unified["checklist_goal"] = [
+    c if isinstance(c, dict) else {"id": str(c)[:80], "result": "unknown"}
+    for c in (unified.get("checklist_goal") or [])
+]
+unified["checklist_gf"] = [
+    c if isinstance(c, dict) else {"id": str(c)[:80], "result": "unknown"}
+    for c in (unified.get("checklist_gf") or [])
+]
+unified["issues"] = [i for i in (unified.get("issues") or []) if isinstance(i, dict)]
 
 blockers = [i for i in unified.get("issues", []) if i.get("severity") == "blocker"]
 if verify.get("overall") != "pass":

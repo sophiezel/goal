@@ -16,7 +16,7 @@
     "C02",
     "V01"
   ],
-  "index_schema_hash": "d8c8cf3896ad2d1b",
+  "index_schema_hash": "0a2d1cf082b1437d",
   "git_head": "16e75cdbf5bb3329",
   "artifact_paths": [
     "index.md"
@@ -26,5 +26,7 @@
     "script": "gate-guazi-flow-stage.sh",
     "version": 1,
     "passed_at": "2026-07-02T12:53:50Z"
-  }
+  },
+  "index_contract_hash": "0a2d1cf082b1437d",
+  "index_execution_tail_hash": "08fc10e6bf177caa"
 }

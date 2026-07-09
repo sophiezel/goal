@@ -254,6 +254,45 @@ content_hash() {
   fi
 }
 
+# Contract-only fingerprint (excludes ## 执行记录). Prefer over content_hash for plan freshness.
+INDEX_HASH_PY="$SCRIPT_DIR/index_contract_hash.py"
+index_contract_hash() {
+  local f="$1"
+  if [[ -f "$INDEX_HASH_PY" && -f "$f" ]]; then
+    python3 "$INDEX_HASH_PY" "$f" 2>/dev/null || content_hash "$f"
+  else
+    content_hash "$f"
+  fi
+}
+
+index_execution_tail_hash() {
+  local f="$1"
+  if [[ -f "$INDEX_HASH_PY" && -f "$f" ]]; then
+    python3 "$INDEX_HASH_PY" --json "$f" 2>/dev/null | python3 -c "import json,sys; print(json.load(sys.stdin).get('index_execution_tail_hash',''))" 2>/dev/null || echo ""
+  else
+    echo ""
+  fi
+}
+
+normalize_write_set_json() {
+  local ws_json="$1"
+  if [[ -f "$INDEX_HASH_PY" ]]; then
+    python3 - "$INDEX_HASH_PY" "$ws_json" << 'PYNORM' 2>/dev/null || echo "$ws_json"
+import json, sys
+sys.path.insert(0, "")
+helper = sys.argv[1]
+ws = json.loads(sys.argv[2])
+import importlib.util
+spec = importlib.util.spec_from_file_location("index_contract_hash", helper)
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+print(json.dumps(mod.normalize_write_set(ws), ensure_ascii=False))
+PYNORM
+  else
+    echo "$ws_json"
+  fi
+}
+
 diff_hash() {
   if [[ -n "$GIT_ROOT" ]]; then
     git -C "$GIT_ROOT" diff HEAD 2>/dev/null | shasum -a 256 2>/dev/null | cut -c1-16 || echo "unknown"
@@ -626,11 +665,27 @@ case "$STAGE" in
     fi
     if [[ "$PHASE" == "post" ]]; then
       WS=$(echo "$RESULT" | python3 -c "import json,sys; print(json.dumps(json.load(sys.stdin)['write_set']))")
+      WS=$(normalize_write_set_json "$WS")
       AM=$(echo "$RESULT" | python3 -c "import json,sys; print(json.dumps(json.load(sys.stdin)['acceptance_matrix_ids']))")
       PROF=$(echo "$RESULT" | python3 -c "import json,sys; print(json.load(sys.stdin).get('profile',''))")
       PD=$(echo "$RESULT" | python3 -c "import json,sys; print(json.load(sys.stdin).get('profile_detail',''))")
-      IH=$(content_hash "$INDEX")
+      IH=$(index_contract_hash "$INDEX")
+      EH=$(index_execution_tail_hash "$INDEX")
+      # Keep legacy index_schema_hash = contract hash for older consumers
       GH=$(git_head_short)
+      VERIF="{}"
+      if [[ -f "$INDEX_HASH_PY" ]]; then
+        VERIF=$(python3 - "$INDEX" "$INDEX_HASH_PY" << 'PYVER'
+import json, sys, importlib.util
+index_path, helper = sys.argv[1], sys.argv[2]
+spec = importlib.util.spec_from_file_location("index_contract_hash", helper)
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+text = open(index_path, encoding="utf-8").read()
+print(json.dumps(mod.extract_verification_hints(text), ensure_ascii=False))
+PYVER
+) || VERIF="{}"
+      fi
       TMP=$(mktemp)
       cat > "$TMP" << JSON
 {
@@ -642,8 +697,12 @@ case "$STAGE" in
   "profile": "$PROF",
   "profile_detail": "$PD",
   "write_set": $WS,
+  "write_set_normalized": true,
   "acceptance_matrix_ids": $AM,
+  "index_contract_hash": "$IH",
+  "index_execution_tail_hash": "$EH",
   "index_schema_hash": "$IH",
+  "verification": $VERIF,
   "git_head": "$GH",
   "artifact_paths": ["index.md"],
   "warnings": []
@@ -782,14 +841,57 @@ JSON
   review)
     if [[ "$PHASE" == "pre" ]]; then
       [[ -f "$HANDOFF_DIR/implement.json" ]] || fail "implement handoff missing"
-      IH=$(content_hash "$INDEX")
-      STORED=$(python3 -c "import json; d=json.load(open('$HANDOFF_DIR/plan.json')); print(d.get('index_schema_hash',''))" 2>/dev/null || echo "")
-      if [[ -n "$STORED" && "$STORED" != "$IH" ]]; then
-        fail "plan handoff stale — index_schema_hash mismatch (mini-replan required?)"
+      [[ -f "$HANDOFF_DIR/plan.json" ]] || fail "plan handoff missing"
+      FRESH=$(python3 - "$INDEX" "$HANDOFF_DIR/plan.json" "$INDEX_HASH_PY" << 'PYFRESH'
+import json, sys, importlib.util, os
+index_path, plan_path, helper = sys.argv[1], sys.argv[2], sys.argv[3]
+plan = json.load(open(plan_path, encoding="utf-8"))
+if os.path.isfile(helper):
+    spec = importlib.util.spec_from_file_location("index_contract_hash", helper)
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    print(json.dumps(mod.compare_plan_freshness(index_path, plan), ensure_ascii=False))
+else:
+    print(json.dumps({"contract_changed": False, "fresh": True, "execution_changed": False}))
+PYFRESH
+) || FRESH='{"contract_changed":false,"fresh":true}'
+      CONTRACT_CHANGED=$(echo "$FRESH" | python3 -c "import json,sys; print(json.load(sys.stdin).get('contract_changed', False))" 2>/dev/null || echo "False")
+      if [[ "$CONTRACT_CHANGED" == "True" ]]; then
+        REFRESH="$SCRIPT_DIR/refresh-handoffs-after-index.sh"
+        MSG="plan handoff stale — index_contract_hash mismatch (contract changed; mini-replan required)"
+        if [[ -x "$REFRESH" ]]; then
+          MSG="$MSG — run: $REFRESH --task-dir '$REPO_TASK_DIR' --state-file '${STATE_FILE:-}' --project-root '${PROJECT_ROOT:-}'"
+        fi
+        fail "$MSG"
       fi
-      [[ -f "$HANDOFF_DIR/review-packet.json" ]] || fail "review-packet.json missing — run assemble-review-packet.sh"
+      # Auto-assemble review packet if missing (P0-D)
+      if [[ ! -f "$HANDOFF_DIR/review-packet.json" ]]; then
+        ASSEMBLE="$SCRIPT_DIR/assemble-review-packet.sh"
+        if [[ -x "$ASSEMBLE" ]]; then
+          echo "gate WARN [review/pre]: review-packet.json missing — auto-assembling" >&2
+          ASSEMBLE_ARGS=(--task-dir "$REPO_TASK_DIR")
+          [[ -n "$STATE_FILE" ]] && ASSEMBLE_ARGS+=(--state-file "$STATE_FILE")
+          [[ -n "$PROJECT_ROOT" ]] && ASSEMBLE_ARGS+=(--project-root "$PROJECT_ROOT")
+          "$ASSEMBLE" "${ASSEMBLE_ARGS[@]}" >/dev/null || fail "auto assemble-review-packet failed"
+        else
+          fail "review-packet.json missing — run assemble-review-packet.sh"
+        fi
+      fi
       VERIFY_REV="$SCRIPT_DIR/verify-review.sh"
       [[ -x "$VERIFY_REV" ]] || fail "verify-review.sh not found"
+      # Export verification hints from plan handoff for verify-review
+      eval "$(python3 - "$HANDOFF_DIR/plan.json" << 'PYEXP' || true
+import json, sys
+plan = json.load(open(sys.argv[1], encoding="utf-8"))
+v = plan.get("verification") or {}
+tp = v.get("test_pattern") or ""
+bc = v.get("build_command") or ""
+if tp:
+    print(f'export GOAL_TEST_PATTERN={json.dumps(tp)}')
+if bc:
+    print(f'export GOAL_BUILD_COMMAND={json.dumps(bc)}')
+PYEXP
+)"
       WS=$(python3 -c "import json; print(','.join(json.load(open('$HANDOFF_DIR/plan.json')).get('write_set',[])))" 2>/dev/null || echo "")
       VOUT=$("$VERIFY_REV" "$TASK_DIR" "$WS" json 2>/dev/null || echo '{"overall":"not_pass"}')
       VOK=$(echo "$VOUT" | python3 -c "import json,sys; print(json.load(sys.stdin).get('overall','not_pass'))" 2>/dev/null || echo "not_pass")

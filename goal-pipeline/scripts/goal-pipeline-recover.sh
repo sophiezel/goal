@@ -57,7 +57,7 @@ fi
 
 export STATE_FILE TASK_DIR PROJECT_ROOT HANDOFF GOAL_EVIDENCE ARTIFACT_MODE GATE CHAIN CHECK DRIVER FORMAT
 python3 << 'PY'
-import json, os, re, subprocess
+import json, os, re, subprocess, sys
 from pathlib import Path
 
 state_file = os.environ["STATE_FILE"]
@@ -78,6 +78,10 @@ def has_handoff(name):
 idx = task_dir / "index.md"
 index_text = idx.read_text(encoding="utf-8") if idx.is_file() else ""
 
+st = {}
+if Path(state_file).is_file():
+    st = json.loads(Path(state_file).read_text(encoding="utf-8"))
+
 # Missing plan.json but index looks complete
 if not has_handoff("plan.json") and "guazi-flow-plan" in index_text:
     issues.append("plan_handoff_missing")
@@ -86,6 +90,43 @@ if not has_handoff("plan.json") and "guazi-flow-plan" in index_text:
         "command": f"{gate} --task-dir {task_dir} --stage plan --post --mode guazi --state-file {state_file} --project-root {project_root}",
         "note": "Retrofit plan handoff from index.md artifacts (do not hand-write plan.json)",
     })
+
+# Plan handoff stale (contract or execution) — prefer refresh-handoffs-after-index.sh
+refresh = os.path.join(os.path.dirname(gate), "refresh-handoffs-after-index.sh")
+hash_py = os.path.join(os.path.dirname(gate), "index_contract_hash.py")
+if has_handoff("plan.json") and idx.is_file() and os.path.isfile(hash_py):
+    try:
+        r = subprocess.run(
+            [sys.executable, hash_py, "--json", str(idx), str(handoff / "plan.json")],
+            capture_output=True, text=True, timeout=15,
+        )
+        if r.returncode == 0 and r.stdout.strip():
+            fresh = json.loads(r.stdout)
+            if fresh.get("contract_changed"):
+                issues.append("plan_handoff_stale_contract")
+                fixes.insert(0, {
+                    "action": "refresh_handoffs_plan",
+                    "command": f"{refresh} --task-dir {task_dir} --state-file {state_file} --project-root {project_root} --cascade plan",
+                    "note": "index contract sections changed — mini-replan via refresh script (do not hand-edit handoff)",
+                })
+            elif fresh.get("execution_changed") or (
+                not fresh.get("fresh", True) and not fresh.get("contract_changed")
+            ):
+                issues.append("plan_handoff_stale_execution")
+                fixes.insert(0, {
+                    "action": "refresh_handoffs_implement",
+                    "command": f"{refresh} --task-dir {task_dir} --state-file {state_file} --project-root {project_root} --cascade implement",
+                    "note": "execution record only — NOT mini-replan; refresh implement handoff + packet",
+                })
+            elif not (handoff / "review-packet.json").is_file() and (st.get("current_stage") in ("review", "complete") or "review" in (st.get("current_stage") or "")):
+                issues.append("review_packet_missing")
+                fixes.append({
+                    "action": "refresh_handoffs_packet",
+                    "command": f"{refresh} --task-dir {task_dir} --state-file {state_file} --project-root {project_root} --cascade packet",
+                })
+    except Exception as e:
+        issues.append("plan_freshness_check_error")
+        fixes.append({"action": "manual", "note": str(e)[:200]})
 
 # implement without plan
 if has_handoff("implement.json") and not has_handoff("plan.json"):
@@ -111,9 +152,6 @@ if idx_stage and idx_stage not in ("complete", "done"):
         })
 
 # implement gate pending
-st = {}
-if Path(state_file).is_file():
-    st = json.loads(Path(state_file).read_text(encoding="utf-8"))
 impl_gate = (st.get("guazi_flow_stages") or {}).get("implement", {}).get("gate", {})
 if has_handoff("implement.json") and not impl_gate.get("passed_at"):
     issues.append("implement_gate_pending")

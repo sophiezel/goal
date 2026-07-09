@@ -42,8 +42,14 @@ def parse_frontmatter(text):
 
 def normalize_issue(issue, channel, idx):
     iid = issue.get("id") or ("GF%02d" % idx if channel == "guazi-flow-review" else "G%02d" % idx)
-    sev = issue.get("severity", "medium")
-    sev_norm = "blocker" if sev in ("blocker", "high") else ("warning" if sev == "warning" else "blocker")
+    sev = (issue.get("severity") or "medium").lower()
+    # Only blocker/high escalate; minor/medium/info/warning stay non-blocking
+    if sev in ("blocker", "high", "critical"):
+        sev_norm = "blocker"
+    elif sev in ("warning", "medium", "minor", "info", "low"):
+        sev_norm = "warning"
+    else:
+        sev_norm = "warning"
     return {
         "id": iid,
         "channel": channel,

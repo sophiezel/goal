@@ -27,6 +27,7 @@ description: guazi-flow-goal 统一入口。加载 goal-pipeline 管线引擎，
 - **NEVER 在 gate 失败时跳过 fix-input**——plan/implement MUST Read `evidence/<stage>-gate-fix-input.json` 的 `issues` / `next_steps`；首屏输出 Issue 清单（gate 脚本已打印）
 - **NEVER 在 gate 失败会话中直接改产物**——Judge（gate/审核）与 Executor（plan/implement skill）分离；修复轮由 Executor 按 fix-input 执行
 - **NEVER 在 subject_hash 未变时重复 gate**——`blocked(noop_fix)` 表示修复无效，须实质性修改产物后再跑
+- **NEVER 因仅追加 `## 执行记录` 触发 mini-replan**——执行记录变更用 `refresh-handoffs-after-index.sh --cascade implement`；仅当 `index_contract_hash`（契约段）变化时才 `gate --post plan`
 - **NEVER 输出 [N/5] ✅ 而未运行 gate --post（exit 0）**——进度行必须对应机器门禁通过
 - **NEVER 在 ~/.goal-state/scripts/ 缺失时进入 Phase 2**——先 Pre-flight 部署或 blocked(infra_missing)
 - **NEVER 因「需求已清晰」跳过 Phase 1  entirely**——Fast-path 仍须创建 state.json 并输出 Goal 摘要

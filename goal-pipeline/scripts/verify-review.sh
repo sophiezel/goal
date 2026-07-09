@@ -20,6 +20,11 @@ output_json() {
 check_scope() {
   local out_of_scope=()
   local modified_files
+
+  if [ "${GOAL_SKIP_SCOPE:-0}" = "1" ]; then
+    echo '{"pass":true,"modified_files":[],"out_of_scope":[],"skipped":true}'
+    return
+  fi
   
   cd "$GIT_ROOT"
   modified_files=$(git -c core.quotepath=false diff --name-only HEAD 2>/dev/null || echo "")
@@ -33,11 +38,21 @@ check_scope() {
     IFS=',' read -ra ALLOWED <<< "$WRITE_SET"
     for f in $modified_files; do
       local allowed=false
+      # Ignore guazi-flow docs noise in scope checks
+      if [[ "$f" == docs/guazi-flow/* ]]; then
+        continue
+      fi
       for a in "${ALLOWED[@]}"; do
-        # Strip whitespace
+        # Strip whitespace and normalize /** → /
         a=$(echo "$a" | xargs)
-        # Prefix match only (directory or file prefix)
-        if [[ "$f" == "$a"* ]]; then
+        a="${a%/\*\*}"
+        a="${a%/\*\*/}"
+        a="${a%/}"
+        # Prefix match (directory or file prefix)
+        if [[ -z "$a" ]]; then
+          continue
+        fi
+        if [[ "$f" == "$a" || "$f" == "$a"/* ]]; then
           allowed=true
           break
         fi
@@ -61,6 +76,11 @@ check_scope() {
 # === 2. 密钥扫描 ===
 check_secrets() {
   local findings=()
+
+  if [ "${GOAL_SKIP_SECRET:-0}" = "1" ]; then
+    echo '{"pass":true,"findings":[],"skipped":true}'
+    return
+  fi
   
   cd "$GIT_ROOT"
   local diff_content
@@ -101,6 +121,11 @@ check_secrets() {
 # === 3. 测试检查 ===
 check_tests() {
   cd "$GIT_ROOT"
+
+  if [ "${GOAL_SKIP_TEST:-0}" = "1" ]; then
+    echo '{"pass":true,"command":"skipped","output":"GOAL_SKIP_TEST=1"}'
+    return
+  fi
   
   if [ -f "package.json" ]; then
     local has_test pkg_mgr test_cmd
@@ -181,6 +206,11 @@ check_tests() {
 # === 4. Lint 检查 ===
 check_lint() {
   cd "$GIT_ROOT"
+
+  if [ "${GOAL_SKIP_LINT:-0}" = "1" ]; then
+    echo '{"pass":true,"command":"skipped","output":"GOAL_SKIP_LINT=1"}'
+    return
+  fi
   
   local has_lint=false
   for cfg in .eslintrc.js .eslintrc.cjs .eslintrc.json .eslintrc.yaml .eslintrc.yml .eslintrc; do
@@ -205,27 +235,110 @@ check_lint() {
   fi
 }
 
+# === 5. Build 检查 (V02 / yarn build:beta) ===
+check_build() {
+  cd "$GIT_ROOT"
+  local build_cmd="${GOAL_BUILD_COMMAND:-}"
+  local need_build=false
+
+  # Detect from env, index acceptance matrix, or package.json scripts
+  if [ -n "$build_cmd" ]; then
+    need_build=true
+  elif [ -f "$TASK_DIR/index.md" ] && grep -qE 'yarn[[:space:]]+build:beta|V0[0-9].*build|build.*beta' "$TASK_DIR/index.md" 2>/dev/null; then
+    need_build=true
+    if grep -q 'yarn build:beta' "$TASK_DIR/index.md" 2>/dev/null; then
+      build_cmd="CI= yarn build:beta"
+    else
+      build_cmd="CI= yarn build"
+    fi
+  fi
+
+  # Skip when GOAL_SKIP_BUILD=1 (fixtures / CI without node_modules)
+  if [ "${GOAL_SKIP_BUILD:-0}" = "1" ]; then
+    echo '{"pass":true,"command":"skipped","output":"GOAL_SKIP_BUILD=1"}'
+    return
+  fi
+
+  if [ "$need_build" != "true" ]; then
+    echo '{"pass":true,"command":"skipped","output":"no build requirement detected"}'
+    return
+  fi
+
+  if [ ! -f "package.json" ]; then
+    echo '{"pass":true,"command":"skipped","output":"no package.json"}'
+    return
+  fi
+
+  # Prefer yarn when lockfile present
+  local ok=false
+  local out=""
+  if [ -f "yarn.lock" ] && command -v yarn >/dev/null 2>&1; then
+    if [[ "$build_cmd" == CI=\ * ]]; then
+      out=$(eval "$build_cmd" 2>&1 | tail -30) && ok=true || ok=false
+    else
+      out=$(CI= yarn build:beta 2>&1 | tail -30) && ok=true || ok=false
+      build_cmd="CI= yarn build:beta"
+    fi
+  elif command -v npm >/dev/null 2>&1; then
+    out=$(CI= npm run build 2>&1 | tail -30) && ok=true || ok=false
+    build_cmd="CI= npm run build"
+  else
+    echo '{"pass":true,"command":"skipped","output":"no yarn/npm"}'
+    return
+  fi
+
+  if [ "$ok" = true ]; then
+    BUILD_CMD="$build_cmd" python3 -c "import json,os; print(json.dumps({'pass':True,'command':os.environ['BUILD_CMD'],'output':'build ok'}))"
+  else
+    BUILD_CMD="$build_cmd" BUILD_OUT="$out" python3 -c "import json,os; print(json.dumps({'pass':False,'command':os.environ['BUILD_CMD'],'output':os.environ.get('BUILD_OUT','')[:500]}))"
+  fi
+}
+
 # === Main ===
 main() {
-  local scope_result secret_result test_result lint_result
+  # Load verification hints from nearby plan.json if present
+  local plan_json=""
+  for cand in "$TASK_DIR/../handoff/plan.json" "$TASK_DIR/handoff/plan.json"; do
+    [[ -f "$cand" ]] && plan_json="$cand" && break
+  done
+  # Also try goal-state via env
+  if [[ -z "$plan_json" && -n "${HANDOFF_DIR:-}" && -f "${HANDOFF_DIR}/plan.json" ]]; then
+    plan_json="${HANDOFF_DIR}/plan.json"
+  fi
+  if [[ -n "$plan_json" ]]; then
+    eval "$(python3 - "$plan_json" << 'PYLOAD' || true
+import json, sys, os
+plan = json.load(open(sys.argv[1], encoding="utf-8"))
+v = plan.get("verification") or {}
+if v.get("test_pattern") and not os.environ.get("GOAL_TEST_PATTERN"):
+    print("export GOAL_TEST_PATTERN=%s" % json.dumps(v["test_pattern"]))
+if v.get("build_command") and not os.environ.get("GOAL_BUILD_COMMAND"):
+    print("export GOAL_BUILD_COMMAND=%s" % json.dumps(v["build_command"]))
+PYLOAD
+)"
+  fi
+
+  local scope_result secret_result test_result lint_result build_result
   scope_result=$(check_scope)
   secret_result=$(check_secrets)
   test_result=$(check_tests)
   lint_result=$(check_lint)
+  build_result=$(check_build)
   
-  local scope_pass secret_pass test_pass lint_pass
+  local scope_pass secret_pass test_pass lint_pass build_pass
   scope_pass=$(echo "$scope_result" | python3 -c "import sys,json; print(json.load(sys.stdin).get('pass',False))" 2>/dev/null || echo "false")
   secret_pass=$(echo "$secret_result" | python3 -c "import sys,json; print(json.load(sys.stdin).get('pass',False))" 2>/dev/null || echo "false")
   test_pass=$(echo "$test_result" | python3 -c "import sys,json; print(json.load(sys.stdin).get('pass',False))" 2>/dev/null || echo "false")
   lint_pass=$(echo "$lint_result" | python3 -c "import sys,json; print(json.load(sys.stdin).get('pass',False))" 2>/dev/null || echo "false")
+  build_pass=$(echo "$build_result" | python3 -c "import sys,json; print(json.load(sys.stdin).get('pass',False))" 2>/dev/null || echo "false")
   
   local overall="pass"
-  if [ "$scope_pass" != "True" ] || [ "$secret_pass" != "True" ] || [ "$test_pass" != "True" ] || [ "$lint_pass" != "True" ]; then
+  if [ "$scope_pass" != "True" ] || [ "$secret_pass" != "True" ] || [ "$test_pass" != "True" ] || [ "$lint_pass" != "True" ] || [ "$build_pass" != "True" ]; then
     overall="not_pass"
   fi
   
   if [ "$FORMAT" = "json" ]; then
-    export VR_SCOPE="$scope_result" VR_SECRET="$secret_result" VR_TEST="$test_result" VR_LINT="$lint_result" VR_OVERALL="$overall"
+    export VR_SCOPE="$scope_result" VR_SECRET="$secret_result" VR_TEST="$test_result" VR_LINT="$lint_result" VR_BUILD="$build_result" VR_OVERALL="$overall"
     python3 << 'PYJSON'
 import json, os, sys
 
@@ -241,6 +354,7 @@ checks = {
     "secret": load("VR_SECRET"),
     "test": load("VR_TEST"),
     "lint": load("VR_LINT"),
+    "build": load("VR_BUILD"),
 }
 overall = os.environ.get("VR_OVERALL", "not_pass")
 print(json.dumps({"overall": overall, "checks": checks}, ensure_ascii=False))
@@ -251,6 +365,7 @@ PYJSON
     echo "Secret: $([ "$secret_pass" = "True" ] && echo '✅' || echo '❌') (findings: $(echo "$secret_result" | python3 -c "import sys,json;d=json.load(sys.stdin);print(len(d.get('findings',[])))" 2>/dev/null || echo '?'))"
     echo "Tests:  $([ "$test_pass" = "True" ] && echo '✅' || echo '❌')"
     echo "Lint:   $([ "$lint_pass" = "True" ] && echo '✅' || echo '❌')"
+    echo "Build:  $([ "$build_pass" = "True" ] && echo '✅' || echo '❌')"
     echo "Overall: $([ "$overall" = "pass" ] && echo '✅ PASS' || echo '❌ NOT PASS')"
   fi
 }

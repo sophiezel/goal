@@ -71,8 +71,15 @@ gate --pre(<stage>)
   "profile": "h5",
   "profile_detail": "react",
   "write_set": ["routes.ts", "src/..."],
+  "write_set_normalized": true,
   "acceptance_matrix_ids": ["C01", "C02"],
-  "index_schema_hash": "<sha256[:16]>",
+  "index_contract_hash": "<sha256[:16] of contract sections only>",
+  "index_execution_tail_hash": "<sha256[:16] of ## 执行记录 and after>",
+  "index_schema_hash": "<alias of index_contract_hash for legacy consumers>",
+  "verification": {
+    "test_pattern": "optional",
+    "build_command": "optional e.g. CI= yarn build:beta"
+  },
   "git_head": "<16>",
   "artifact_paths": ["index.md"],
   "warnings": [],
@@ -80,6 +87,15 @@ gate --pre(<stage>)
 }
 ```
 
+**`index_contract_hash` 语义（重要）**：
+
+- 指纹覆盖：YAML frontmatter（排除 `current_stage`）+ `## 概览` 至 `## 验收与验证矩阵` 等契约段
+- **排除** `## 执行记录` 及之后内容（implement/review 追加日志不得使 plan handoff stale）
+- `review --pre` 仅当 `index_contract_hash` 变化时 FAIL（真 mini-replan）
+- 仅执行记录变化时：跑 `refresh-handoffs-after-index.sh --cascade implement`（刷新 implement + packet），**禁止**当作 mini-replan
+- 旧字段 `index_schema_hash` 若为全文 hash，由 refresh/plan post 迁移为 contract hash
+
+**write_set 规范化**：`src/foo/**` → `src/foo/`；`write_set_normalized: true` 表示已规范化。
 ### implement.json
 
 ```json

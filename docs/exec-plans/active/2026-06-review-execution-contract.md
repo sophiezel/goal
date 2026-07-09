@@ -294,3 +294,17 @@ flowchart LR
 | M6.4 | `gf_execution_mode`: `independent_unified_review`；`runtime_artifact_paths` 含 `review-unified.json` |
 
 **验收**：`run-gate-tests.sh` 全绿；Profession/goal 内无 dual/mock-dual 运行时引用；`sync-install-repo.sh --deploy-only` 后 `~/.goal-state` 无 inject 脚本；`--ensure-state` 不创建 repo `.gitignore`。
+
+## Phase M7：Staleness / Review 脆断修复（2026-07-09）
+
+**触发**：CTB-43806 执行过长——`index_schema_hash` 全文指纹导致执行记录追加即 plan handoff stale；minor→blocker；LLM checklist 类型崩溃；review pre 要求 packet 但 chain 才 assemble；V02 build 未确定性验证。
+
+| 子项 | 交付 |
+|------|------|
+| M7.1 | `index_contract_hash.py`：契约段指纹（排除 `## 执行记录`）；`plan.json` 写 `index_contract_hash` + `index_execution_tail_hash` + `verification` |
+| M7.2 | `refresh-handoffs-after-index.sh`；recover / stage-driver / validate-pipeline-chain 接入 |
+| M7.3 | `merge_review_core` minor/medium→warning；`run-independent-review` checklist 类型守卫 |
+| M7.4 | `verify-review`：`/**` 规范化、`GOAL_TEST_PATTERN`/`GOAL_BUILD_COMMAND`、`check_build`（`CI= yarn build:beta`） |
+| M7.5 | review pre 缺 packet 自动 assemble；fixture `test-staleness-and-severity.sh` |
+
+**验收**：`test-staleness-and-severity.sh` 全绿；`run-gate-tests.sh` 全绿；仅改执行记录时 review pre PASS；改契约段时 FAIL 并提示 refresh `--cascade plan`。

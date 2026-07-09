@@ -3,8 +3,10 @@
   "write_set": [
     "src/"
   ],
-  "index_schema_hash": "abc",
+  "index_schema_hash": "979590212245d766",
   "acceptance_matrix_ids": [
     "C01"
-  ]
+  ],
+  "index_contract_hash": "979590212245d766",
+  "index_execution_tail_hash": "e3b0c44298fc1c14"
 }

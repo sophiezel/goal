@@ -109,7 +109,10 @@ def build_mandatory(stage):
         ]
     if stage == "review":
         review_chain = f"{script_dir}/goal-run-review-chain.sh"
+        refresh = f"{script_dir}/refresh-handoffs-after-index.sh"
         return [
+            # Refresh handoffs if index execution/contract drifted (no-op when fresh)
+            f"{refresh} --task-dir {task_dir!r} --state-file {state_file!r} --project-root {project_root!r}",
             gate_cmd("review", "pre"),
             f"{review_chain} --task-dir {task_dir!r} --state-file {state_file!r} --project-root {project_root!r}",
             gate_cmd("review", "post"),

@@ -49,6 +49,16 @@ for n, it in enumerate(issues, 1):
     iid = it.get("id", "?")
     summary = it.get("summary", "").replace("|", "/")
     print(f"  {n} | {iid:<4} | {summary}")
+    # Stale-handoff playbook hints (only for freshness failures, not schema missing markers)
+    low = summary.lower()
+    if "index_contract_hash" in low or ("plan handoff stale" in low and "contract" in low):
+        print("  hint | cause: index contract sections changed")
+        print("  hint | fix: refresh-handoffs-after-index.sh --cascade plan")
+        print("  hint | NOT: append-only ## 执行记录 is NOT mini-replan")
+    elif "execution_changed" in low or ("execution record changed" in low and "contract unchanged" in low):
+        print("  hint | cause: index execution record changed (contract unchanged)")
+        print("  hint | fix: refresh-handoffs-after-index.sh --cascade implement")
+        print("  hint | NOT: mini-replan unless contract_hash changed")
 if fix_input:
     print(f"  fix-input: {fix_input}")
 print("══════════════════════════════════════")

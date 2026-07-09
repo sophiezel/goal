@@ -92,11 +92,84 @@ def main():
     goal_evidence_dir = paths["goal_evidence_dir"]
     errors, warnings = [], []
     state = load_state(args.state_file)
+    recommended_fix_command = ""
 
     check_state_handoff_consistency(state, handoff_dir, errors)
 
     plan_handoff = os.path.join(handoff_dir, "plan.json")
     impl = os.path.join(handoff_dir, "implement.json")
+    index_path = os.path.join(task_dir, "index.md")
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    hash_py = os.path.join(script_dir, "index_contract_hash.py")
+    refresh = os.path.join(script_dir, "refresh-handoffs-after-index.sh")
+
+    # Plan contract freshness
+    if os.path.isfile(plan_handoff) and os.path.isfile(index_path) and os.path.isfile(hash_py):
+        try:
+            import importlib.util
+
+            spec = importlib.util.spec_from_file_location("index_contract_hash", hash_py)
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            plan = json.load(open(plan_handoff, encoding="utf-8"))
+            fresh = mod.compare_plan_freshness(index_path, plan)
+            if fresh.get("contract_changed"):
+                errors.append(
+                    "plan: index_contract_hash mismatch (contract sections changed) — run refresh-handoffs-after-index.sh --cascade plan"
+                )
+                recommended_fix_command = (
+                    f"{refresh} --task-dir {task_dir} --state-file {args.state_file} --cascade plan"
+                )
+            elif fresh.get("execution_changed"):
+                warnings.append(
+                    "plan: execution record changed since plan handoff — run refresh-handoffs-after-index.sh --cascade implement"
+                )
+                if not recommended_fix_command:
+                    recommended_fix_command = (
+                        f"{refresh} --task-dir {task_dir} --state-file {args.state_file} --cascade implement"
+                    )
+            elif not plan.get("index_contract_hash") and plan.get("index_schema_hash"):
+                warnings.append(
+                    "plan: legacy index_schema_hash only — migrate via gate --post plan or refresh-handoffs"
+                )
+        except Exception as e:
+            warnings.append(f"plan: freshness check error: {e}")
+
+    # implement candidate_diff_hash vs current git diff
+    if os.path.isfile(impl):
+        try:
+            impl_doc = json.load(open(impl, encoding="utf-8"))
+            stored_dh = impl_doc.get("candidate_diff_hash", "")
+            git_root = None
+            try:
+                import subprocess
+
+                git_root = subprocess.check_output(
+                    ["git", "-C", task_dir, "rev-parse", "--show-toplevel"],
+                    text=True,
+                    stderr=subprocess.DEVNULL,
+                ).strip()
+            except Exception:
+                git_root = None
+            if stored_dh and git_root:
+                import subprocess
+
+                diff = subprocess.check_output(
+                    ["git", "-C", git_root, "diff", "HEAD"],
+                    text=True,
+                    stderr=subprocess.DEVNULL,
+                )
+                cur_dh = hashlib.sha256(diff.encode("utf-8")).hexdigest()[:16]
+                if cur_dh != stored_dh:
+                    warnings.append(
+                        f"implement: candidate_diff_hash drifted ({stored_dh} → {cur_dh}) — refresh via gate --post implement"
+                    )
+                    if not recommended_fix_command:
+                        recommended_fix_command = (
+                            f"{refresh} --task-dir {task_dir} --state-file {args.state_file} --cascade implement"
+                        )
+        except Exception as e:
+            warnings.append(f"implement: diff hash check error: {e}")
 
     if not os.path.isfile(plan_handoff):
         plan_gate = ((state.get("guazi_flow_stages") or {}).get("plan") or {}).get("gate") or {}
@@ -152,6 +225,7 @@ def main():
         "ok": len(errors) == 0,
         "errors": errors,
         "warnings": warnings,
+        "recommended_fix_command": recommended_fix_command,
         "checked_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
     }
     print(json.dumps(out, ensure_ascii=False, indent=2))

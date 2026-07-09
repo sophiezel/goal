@@ -98,6 +98,9 @@ echo "=== review-gf-count (no table inflation) ==="
 echo "=== review-channel-guard anti-downgrade ==="
 bash "$SCRIPT_DIR/test-review-channel-guard.sh"
 
+echo "=== staleness + severity + write_set normalize ==="
+bash "$SCRIPT_DIR/test-staleness-and-severity.sh"
+
 echo "=== validate-pipeline-chain chain-good ==="
 VALIDATOR="$SCRIPT_DIR/../../validate-pipeline-chain.sh"
 if "$VALIDATOR" --task-dir "$SCRIPT_DIR/chain-good"; then

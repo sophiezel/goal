@@ -107,7 +107,8 @@ status("resolve_artifact_paths", resolver.is_file(), str(resolver))
 # Required scripts
 for s in ("goal-stage-driver.sh", "goal-run-review-chain.sh", "goal-pipeline-recover.sh",
           "gate-guazi-flow-stage.sh", "goal-pipeline-stop-hook.sh", "resolve-artifact-paths.py",
-          "migrate-artifacts.py", "source-artifact-paths.sh"):
+          "migrate-artifacts.py", "source-artifact-paths.sh",
+          "index_contract_hash.py", "refresh-handoffs-after-index.sh"):
     p = goal_home / "scripts" / s
     status(f"script_{s}", p.is_file(), str(p))
 
@@ -159,11 +160,61 @@ if states_dir.is_dir():
                     layout = st.get("artifact_layout") or {}
                     active.append({"state_file": str(sf), "task": st.get("guazi_flow_task",""),
                                    "current_stage": st.get("current_stage",""),
-                                   "artifact_mode": layout.get("mode", "repo_full")})
+                                   "artifact_mode": layout.get("mode", "repo_full"),
+                                   "artifact_layout": layout})
         except Exception:
             pass
 
 status("active_goals", True, json.dumps(active, ensure_ascii=False) if active else "none")
+
+# Freshness playbook for active goals
+hash_py = goal_home / "scripts" / "index_contract_hash.py"
+refresh_sh = goal_home / "scripts" / "refresh-handoffs-after-index.sh"
+for ag in active[:3]:
+    sf = Path(ag["state_file"])
+    try:
+        layout = ag.get("artifact_layout") or {}
+        repo_task = layout.get("repo_task_dir") or ""
+        runtime = layout.get("runtime_root") or ""
+        if not repo_task:
+            continue
+        idx = Path(repo_task) / "index.md"
+        plan_json = Path(runtime) / "handoff" / "plan.json" if runtime else Path(repo_task) / "handoff" / "plan.json"
+        packet = Path(runtime) / "handoff" / "review-packet.json" if runtime else Path(repo_task) / "handoff" / "review-packet.json"
+        playbook = []
+        if hash_py.is_file() and idx.is_file() and plan_json.is_file():
+            r = subprocess.run(
+                ["python3", str(hash_py), "--json", str(idx), str(plan_json)],
+                capture_output=True, text=True, timeout=15,
+            )
+            if r.returncode == 0 and r.stdout.strip():
+                fresh = json.loads(r.stdout)
+                if fresh.get("contract_changed"):
+                    playbook.append({
+                        "diag": "plan_handoff_stale",
+                        "cause": "index contract sections changed",
+                        "fix": f"{refresh_sh} --task-dir {repo_task} --state-file {sf} --cascade plan",
+                        "NOT": "append-only execution record is NOT mini-replan",
+                    })
+                elif fresh.get("execution_changed"):
+                    playbook.append({
+                        "diag": "plan_handoff_stale_execution",
+                        "cause": "index execution record changed (contract unchanged)",
+                        "fix": f"{refresh_sh} --task-dir {repo_task} --state-file {sf} --cascade implement",
+                        "NOT": "mini-replan unless contract_hash changed",
+                    })
+        if ag.get("current_stage") in ("review", "complete") and not packet.is_file():
+            playbook.append({
+                "diag": "review_packet_missing",
+                "fix": f"{refresh_sh} --task-dir {repo_task} --state-file {sf} --cascade packet",
+            })
+        if playbook:
+            status(f"freshness_{Path(ag.get('task') or 'task').name}", False, json.dumps(playbook, ensure_ascii=False))
+        else:
+            status(f"freshness_{Path(ag.get('task') or 'task').name}", True, "fresh or N/A")
+    except Exception as e:
+        status("freshness_check", False, str(e)[:200])
+
 for ag in active[:1]:
     driver = Path("${DRIVER}")
     if driver.is_file() and ag.get("task"):

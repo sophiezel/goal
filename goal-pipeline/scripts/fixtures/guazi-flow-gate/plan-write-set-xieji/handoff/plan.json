@@ -10,11 +10,15 @@
     "src/pages/Foo/",
     "src/services/foo/"
   ],
+  "write_set_normalized": true,
   "acceptance_matrix_ids": [
     "C01"
   ],
-  "index_schema_hash": "539a32c7e19216ec",
-  "git_head": "a221cc72ccce8b8a",
+  "index_contract_hash": "6eca03ac0dc83206",
+  "index_execution_tail_hash": "0eaafff5b3453342",
+  "index_schema_hash": "6eca03ac0dc83206",
+  "verification": {},
+  "git_head": "c8a0ebf8ddc52240",
   "artifact_paths": [
     "index.md"
   ],
@@ -22,6 +26,6 @@
   "gate": {
     "script": "gate-guazi-flow-stage.sh",
     "version": 1,
-    "passed_at": "2026-07-07T10:07:00Z"
+    "passed_at": "2026-07-09T03:20:06Z"
   }
 }
