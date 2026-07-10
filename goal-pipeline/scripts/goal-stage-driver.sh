@@ -59,20 +59,30 @@ attempt = os.environ.get("ATTEMPT_STAGE", "")
 gate = os.environ["GATE"]
 script_dir = os.environ["SCRIPT_DIR"]
 
-STAGE_SKILL = {
+STAGE_SKILL_COMPAT = {
     "plan": "guazi-flow-plan",
     "implement": "guazi-flow-implement",
-    "runtime_smoke": None,
+    "quality": "goal-quality",
+    "runtime_smoke": "goal-quality",
     "review": "guazi-flow-review",
     "complete": "guazi-flow-complete",
 }
+STAGE_SKILL_EVOLUTION = {
+    "plan": "goal-plan",
+    "implement": "goal-implement",
+    "quality": "goal-quality",
+    "runtime_smoke": "goal-quality",
+    "review": "goal-review",
+    "complete": "goal-complete",
+}
 
 STAGE_PROGRESS = {
-    "plan": "[1/5] guazi-flow-plan",
-    "implement": "[2/5] guazi-flow-implement",
-    "runtime_smoke": "[3/5] runtime_smoke",
+    "plan": "[1/5] plan",
+    "implement": "[2/5] implement",
+    "quality": "[3/5] quality",
+    "runtime_smoke": "[3/5] quality",
     "review": "[4/5] review",
-    "complete": "[5/5] guazi-flow-complete",
+    "complete": "[5/5] complete",
     "done": "[5/5] complete",
 }
 
@@ -82,11 +92,29 @@ def gate_cmd(stage, phase):
         f"--mode guazi --state-file {state_file!r} --project-root {project_root!r}"
     )
 
+def load_pipeline_track():
+    try:
+        import json
+        with open(state_file, encoding="utf-8") as f:
+            st = json.load(f)
+        return st.get("pipeline_track", "compatibility")
+    except Exception:
+        return "compatibility"
+
+track = load_pipeline_track()
+STAGE_SKILL = STAGE_SKILL_EVOLUTION if track == "evolution" else STAGE_SKILL_COMPAT
+
 def build_mandatory(stage):
+    pq = f"python3 {script_dir}/plan-quality-gate.py --task-dir {task_dir!r}"
+    iq = f"python3 {script_dir}/implement-qc-gate.py --task-dir {task_dir!r} --repo-root {project_root!r}"
+    qg = f"bash {script_dir}/quality-gate.sh --task-dir {task_dir!r} --repo-root {project_root!r}"
+    plan_skill = STAGE_SKILL.get("plan", "guazi-flow-plan")
+    impl_skill = STAGE_SKILL.get("implement", "guazi-flow-implement")
     if stage == "plan":
         return [
             gate_cmd("plan", "pre"),
-            "Load guazi-flow-plan/SKILL.md and execute full 9-step plan flow",
+            f"Load {plan_skill}/SKILL.md and execute full plan flow",
+            pq,
             gate_cmd("plan", "post"),
             f"{script_dir}/validate-pipeline-chain.sh --task-dir {task_dir!r} --state-file {state_file!r}",
             f"{script_dir}/goal-advance-stage.sh --state-file {state_file!r} --task-dir {task_dir!r} --project-root {project_root!r}",
@@ -94,17 +122,19 @@ def build_mandatory(stage):
     if stage == "implement":
         return [
             gate_cmd("implement", "pre"),
-            "Load guazi-flow-implement/SKILL.md and implement within write_set",
+            f"Load {impl_skill}/SKILL.md and implement within write_set",
             "CI=true yarn test --watchAll=false (or project equivalent)",
+            iq,
             gate_cmd("implement", "post"),
             f"{script_dir}/validate-pipeline-chain.sh --task-dir {task_dir!r} --state-file {state_file!r}",
             f"{script_dir}/goal-advance-stage.sh --state-file {state_file!r} --task-dir {task_dir!r} --project-root {project_root!r}",
         ]
-    if stage == "runtime_smoke":
+    if stage in ("quality", "runtime_smoke"):
         return [
             f"{script_dir}/runtime-smoke.sh --repo-root {project_root!r} --task-dir {task_dir!r} "
             f"--state-file {state_file!r} --project-root {project_root!r}",
-            gate_cmd("smoke", "post"),
+            qg,
+            gate_cmd("quality", "post"),
             f"{script_dir}/goal-advance-stage.sh --state-file {state_file!r} --task-dir {task_dir!r} --project-root {project_root!r}",
         ]
     if stage == "review":
@@ -119,9 +149,10 @@ def build_mandatory(stage):
             f"{script_dir}/goal-advance-stage.sh --state-file {state_file!r} --task-dir {task_dir!r} --project-root {project_root!r}",
         ]
     if stage == "complete":
+        complete_skill = STAGE_SKILL.get("complete", "guazi-flow-complete")
         return [
             gate_cmd("complete", "pre"),
-            "Load guazi-flow-complete/SKILL.md",
+            f"Load {complete_skill}/SKILL.md",
             gate_cmd("complete", "post"),
             f"{gate} --assert-complete --state-file {state_file!r} --task-dir {task_dir!r} --project-root {project_root!r}",
         ]
@@ -131,7 +162,7 @@ def build_mandatory(stage):
 
 wrong_stage = False
 if attempt and next_stage not in ("done", "blocked") and attempt != next_stage:
-    aliases = {("runtime_smoke", "smoke"), ("smoke", "runtime_smoke")}
+    aliases = {("runtime_smoke", "smoke"), ("smoke", "runtime_smoke"), ("runtime_smoke", "quality"), ("quality", "runtime_smoke")}
     if (attempt, next_stage) not in aliases and (next_stage, attempt) not in aliases:
         wrong_stage = True
         blocked_reason = blocked_reason or "wrong_stage"

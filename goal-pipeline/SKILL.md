@@ -47,7 +47,7 @@ Phase 2: Pipeline Execution（Agent 持续执行）
     │
     ├─ plan:     目标澄清 + 范围确定
     ├─ implement: Agent 在范围内修改代码
-    ├─ [runtime_smoke]: 验证项目可启动（如果 runtime-smoke.sh 可用）
+    ├─ quality:  smoke + quality-gate（Lean 单阶段）
     ├─ review:   独立模型审核（跨 provider API 直调）
     │            pass → advance
     │            not_pass → 修复子循环
@@ -71,10 +71,10 @@ Phase 2: Pipeline Execution（Agent 持续执行）
 - GATE post: `gates/implement-post.sh` — diff 范围 + handoff；失败 **exit 1 BLOCK**
 - 产出: 代码变更 + `handoff/implement.json`（遵循 `schemas/implement.schema.json`）
 
-### Step 3: runtime_smoke
+### Step 3: quality
 
-- GATE post: `gates/smoke-post.sh` — `evidence/runtime-smoke.md`；失败 **exit 1 BLOCK**（可降级为诊断信号）
-- 产出: `handoff/smoke.json`（遵循 `schemas/smoke.schema.json`）
+- GATE post: `quality-gate.sh` + `gates/quality-post` — smoke/validate/e2e 汇总；失败 **exit 1 BLOCK**
+- 产出: `handoff/quality.json`（遵循 `schemas/quality.schema.json`）
 
 ### Step 4: review
 

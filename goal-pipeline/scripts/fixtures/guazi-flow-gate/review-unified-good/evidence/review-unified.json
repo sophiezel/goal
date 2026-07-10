@@ -53,6 +53,11 @@
       "id": "lint",
       "passed": true,
       "detail": "no eslint config detected"
+    },
+    {
+      "id": "build",
+      "passed": true,
+      "detail": "no build requirement detected"
     }
   ],
   "checklist_gf": [
@@ -75,7 +80,7 @@
   ],
   "provider": "mock-unified",
   "model": "mock-unified",
-  "packet_hash": "b749a1e3677bfa1f",
+  "packet_hash": "d35229d3c5172119",
   "invocation_count": 1,
-  "generated_at": "2026-07-07T10:07:03Z"
+  "generated_at": "2026-07-10T06:44:56Z"
 }

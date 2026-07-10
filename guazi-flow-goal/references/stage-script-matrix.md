@@ -4,7 +4,7 @@
 |-------|------------------|-------------------|------|
 | plan | gate --pre/post | index.md, handoff/plan.json | plan |
 | implement | gate --pre/post | handoff/implement.json | implement |
-| smoke | runtime-smoke.sh, gate --post | evidence/runtime-smoke.md, handoff/smoke.json | smoke |
+| quality | runtime-smoke.sh, quality-gate.sh, gate --post | evidence/runtime-smoke.md, handoff/quality.json | quality |
 | review | assemble-review-packet, run-independent-review (unified), merge-review-issues, gate --pre/post | review-packet.json, review-run.json, review-unified.json, **review-fix-input.json**, review.md | review |
 | complete | verify.sh, gate --post | handoff/complete.json | complete |
 

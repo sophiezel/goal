@@ -57,7 +57,7 @@ def index_implies_implement_done(task_dir):
         if re.search(pattern, lower, re.I):
             return True
     stage = fm(index_path, "current_stage")
-    if stage in ("review", "complete", "runtime_smoke", "smoke"):
+    if stage in ("review", "complete", "quality", "runtime_smoke", "smoke"):
         return True
     return False
 
@@ -183,16 +183,17 @@ def main():
                 "— run gate --post implement"
             )
         current = state.get("current_stage") or fm(os.path.join(task_dir, "index.md"), "current_stage")
-        if current in ("review", "runtime_smoke", "smoke", "complete"):
+        if current in ("review", "quality", "runtime_smoke", "smoke", "complete"):
             errors.append("implement: handoff/implement.json missing for current_stage=" + str(current))
 
     sm_path = os.path.join(goal_evidence_dir, "runtime-smoke.md")
+    quality_handoff = os.path.join(handoff_dir, "quality.json")
     if os.path.isfile(impl):
         if os.path.isfile(sm_path):
-            if not os.path.isfile(os.path.join(handoff_dir, "smoke.json")):
+            if not os.path.isfile(quality_handoff) and not os.path.isfile(os.path.join(handoff_dir, "smoke.json")):
                 res = fm(sm_path, "result")
                 if res != "skipped":
-                    errors.append("smoke: handoff/smoke.json gate not passed")
+                    errors.append("quality: handoff/quality.json gate not passed")
             if fm(sm_path, "result") == "not_pass" and not fm(sm_path, "classification"):
                 warnings.append("smoke: not_pass without classification")
 

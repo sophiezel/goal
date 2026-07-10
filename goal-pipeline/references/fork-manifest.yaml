@@ -1,0 +1,62 @@
+# Fork-and-Own manifest — goal-pipeline stages vs upstream guazi-flow-* skills
+# Do not modify upstream skills; record intentional goal patches here.
+
+fork_version: 1
+updated_at: "2026-07-10"
+
+upstream:
+  guazi-flow-plan:
+    source: "~/.agents/skills/guazi-flow-plan"
+    note: "marketplace / local install"
+  guazi-flow-implement:
+    source: "~/.agents/skills/guazi-flow-implement"
+  guazi-flow-review:
+    source: "~/.agents/skills/guazi-flow-review"
+  guazi-flow-complete:
+    source: "~/.agents/skills/guazi-flow-complete"
+  guazi-flow-core:
+    source: "~/.agents/skills/guazi-flow-core"
+    subset: "goal-pipeline/references/goal-core/"
+
+goal_stages:
+  goal-plan:
+    path: goal-pipeline/stages/goal-plan/SKILL.md
+    upstream_skill: guazi-flow-plan
+    forked_at: "2026-07-10"
+    goal_patches:
+      - PQ-semantic-gate
+      - contract-enrich-mandatory
+      - plan_gap-strict-tier
+  goal-implement:
+    path: goal-pipeline/stages/goal-implement/SKILL.md
+    upstream_skill: guazi-flow-implement
+    forked_at: "2026-07-10"
+    goal_patches:
+      - implement-verify
+      - v-coverage-declaration
+  goal-quality:
+    path: goal-pipeline/stages/goal-quality/SKILL.md
+    upstream_skill: null
+    native: true
+    goal_patches:
+      - lean-single-stage
+      - tiered-L0-L1
+  goal-review:
+    path: goal-pipeline/stages/goal-review/SKILL.md
+    upstream_skill: guazi-flow-review
+    forked_at: "2026-07-10"
+    goal_patches:
+      - unified-independent-llm
+      - test-sufficiency-rubric
+  goal-complete:
+    path: goal-pipeline/stages/goal-complete/SKILL.md
+    upstream_skill: guazi-flow-complete
+    forked_at: "2026-07-10"
+    goal_patches:
+      - quality-report
+      - ready_for_production
+
+shared_scripts:
+  plan_quality_gate: goal-pipeline/scripts/plan-quality-gate.py
+  implement_qc_gate: goal-pipeline/scripts/implement-qc-gate.py
+  quality_gate: goal-pipeline/scripts/quality-gate.sh

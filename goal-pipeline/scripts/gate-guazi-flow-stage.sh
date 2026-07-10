@@ -1,6 +1,6 @@
 #!/bin/bash
 # gate-guazi-flow-stage.sh — Hard gate for guazi-flow-goal stages
-# Usage: gate-guazi-flow-stage.sh --task-dir <path> --stage plan|implement|smoke|review|complete [--pre|--post] [--mode guazi|degraded]
+# Usage: gate-guazi-flow-stage.sh --task-dir <path> --stage plan|implement|quality|smoke|review|complete [--pre|--post] [--mode guazi|degraded]
 # Exit 0 = pass, 1 = fail
 
 set -euo pipefail
@@ -18,7 +18,7 @@ ASSERT_COMPLETE=false
 PROJECT_ROOT=""
 
 usage() {
-  echo "Usage: $0 --task-dir <path> --stage plan|implement|smoke|review|complete [--pre|--post] [--mode guazi|degraded]" >&2
+  echo "Usage: $0 --task-dir <path> --stage plan|implement|quality|smoke|review|complete [--pre|--post] [--mode guazi|degraded]" >&2
   echo "       $0 --assert-complete --state-file <path> [--task-dir <path>] [--project-root <path>]" >&2
   exit 2
 }
@@ -64,7 +64,7 @@ if state.get("status") != "complete":
     state["current_stage"] = "complete"
     state["updated_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     pipe = state.setdefault("pipeline", {})
-    for stage in ("plan", "implement", "runtime_smoke", "review", "complete"):
+    for stage in ("plan", "implement", "quality", "review", "complete"):
         entry = pipe.setdefault(stage, {})
         entry["status"] = "passed"
         entry["evidence_fresh"] = True
@@ -82,7 +82,7 @@ PYDONE
 fi
 
 [[ -n "$TASK_DIR" && -n "$STAGE" ]] || usage
-case "$STAGE" in plan|implement|smoke|review|complete) ;; *) echo "Invalid stage: $STAGE" >&2; exit 2 ;; esac
+case "$STAGE" in plan|implement|quality|smoke|review|complete) ;; *) echo "Invalid stage: $STAGE" >&2; exit 2 ;; esac
 
 # Resolve paths
 if [[ "$TASK_DIR" != /* ]]; then
@@ -606,10 +606,36 @@ open(path, "w", encoding="utf-8").write(pre + "\n".join(out) + mid + body)
 PYSYNC
 }
 
+resolve_quality_tier() {
+  if [[ -n "$STATE_FILE" && -f "$STATE_FILE" ]]; then
+    python3 - "$STATE_FILE" << 'PYTIER'
+import json, sys
+state = json.load(open(sys.argv[1]))
+tier = (state.get("quality_policy") or {}).get("tier") or "standard"
+print(tier)
+PYTIER
+    return
+  fi
+  echo "standard"
+}
+
+pq_issues_to_gate_json() {
+  python3 - "$1" << 'PYISS'
+import json, sys
+data = json.load(open(sys.argv[1]))
+out = []
+for i in data.get("issues", []):
+    sev = "blocker" if i.get("severity") == "block" else "warning"
+    out.append({"id": i.get("id", "PQ"), "severity": sev, "summary": i.get("message", ""), "root_cause": "plan_quality"})
+print(json.dumps(out, ensure_ascii=False))
+PYISS
+}
+
 stage_to_index_current() {
   case "$1" in
     plan) echo "implement" ;;
-    implement) echo "review" ;;
+    implement) echo "quality" ;;
+    quality) echo "review" ;;
     smoke) echo "review" ;;
     review) echo "complete" ;;
     complete) echo "complete" ;;
@@ -640,7 +666,7 @@ entry['gate'] = {
     'passed_at': passed_at,
     'handoff_hash': handoff_hash,
 }
-_next = {'plan': 'implement', 'implement': 'review', 'smoke': 'review', 'review': 'complete', 'complete': 'complete'}
+_next = {'plan': 'implement', 'implement': 'quality', 'quality': 'review', 'smoke': 'review', 'review': 'complete', 'complete': 'complete'}
 state['current_stage'] = _next.get(stage, stage)
 with open(state_path, 'w', encoding='utf-8') as f:
     json.dump(state, f, indent=2, ensure_ascii=False)
@@ -664,6 +690,14 @@ case "$STAGE" in
       gate_fail_with_issues "plan" "$IH" "fix_and_rerun" "$ISSUES" "plan index schema validation failed"
     fi
     if [[ "$PHASE" == "post" ]]; then
+      IH_PRE=$(index_contract_hash "$INDEX")
+      TIER=$(resolve_quality_tier)
+      PQ_JSON=$(mktemp)
+      if ! python3 "$SCRIPT_DIR/plan-quality-gate.py" --task-dir "$TASK_DIR" --tier "$TIER" --json > "$PQ_JSON" 2>/dev/null; then
+        PQ_ISSUES=$(pq_issues_to_gate_json "$PQ_JSON")
+        gate_fail_with_issues "plan" "$IH_PRE" "fix_and_rerun" "$PQ_ISSUES" "plan-quality-gate failed (PQ firewall)"
+      fi
+      rm -f "$PQ_JSON"
       WS=$(echo "$RESULT" | python3 -c "import json,sys; print(json.dumps(json.load(sys.stdin)['write_set']))")
       WS=$(normalize_write_set_json "$WS")
       AM=$(echo "$RESULT" | python3 -c "import json,sys; print(json.dumps(json.load(sys.stdin)['acceptance_matrix_ids']))")
@@ -732,6 +766,25 @@ JSON
       fi
     fi
     if [[ "$PHASE" == "post" ]]; then
+      TIER=$(resolve_quality_tier)
+      REPO_FOR_IQ="${GIT_ROOT:-$PROJECT_ROOT}"
+      IQ_JSON=$(mktemp)
+      if ! python3 "$SCRIPT_DIR/implement-qc-gate.py" --task-dir "$TASK_DIR" --repo-root "$REPO_FOR_IQ" --tier "$TIER" --json > "$IQ_JSON" 2>/dev/null; then
+        DH_PRE=$(diff_hash)
+        IQ_ISSUES=$(python3 - "$IQ_JSON" << 'PYIQ'
+import json, sys
+data = json.load(open(sys.argv[1]))
+out = []
+for i in data.get("issues", []):
+    sev = "blocker" if i.get("severity") == "block" else "warning"
+    out.append({"id": i.get("id", "IQ"), "severity": sev, "summary": i.get("message", ""), "root_cause": "implement_qc"})
+print(json.dumps(out, ensure_ascii=False))
+PYIQ
+)
+        rm -f "$IQ_JSON"
+        gate_fail_with_issues "implement" "$DH_PRE" "fix_and_rerun" "$IQ_ISSUES" "implement-qc-gate failed (IQ firewall)"
+      fi
+      rm -f "$IQ_JSON"
       PLAN_WS_LEN=$(python3 -c "import json; print(len(json.load(open('$HANDOFF_DIR/plan.json')).get('write_set',[])))" 2>/dev/null || echo 0)
       if [[ "$PLAN_WS_LEN" == "0" ]]; then
         DH=$(diff_hash)
@@ -763,6 +816,64 @@ JSON
       assert_pipeline_chain
     fi
     pass "implement gate"
+    ;;
+
+
+  quality)
+    if [[ "$PHASE" == "pre" ]]; then
+      [[ -f "$HANDOFF_DIR/implement.json" ]] || fail "implement handoff missing — run implement gate --post first"
+      pass "quality pre"
+    fi
+    SMOKE_MD="$GOAL_EVIDENCE_DIR/runtime-smoke.md"
+    if [[ ! -f "$SMOKE_MD" ]]; then
+      fail "evidence/runtime-smoke.md missing — run runtime-smoke.sh before quality gate"
+    fi
+    TIER=$(resolve_quality_tier)
+    REPO_FOR_QG="${GIT_ROOT:-$PROJECT_ROOT}"
+    QG_ARGS=(--task-dir "$TASK_DIR" --repo-root "$REPO_FOR_QG" --tier "$TIER")
+    if ! bash "$SCRIPT_DIR/quality-gate.sh" "${QG_ARGS[@]}"; then
+      QH=$(content_hash "$SMOKE_MD")
+      ISSUES='[{"id":"QG-01","severity":"blocker","summary":"quality-gate.sh failed","root_cause":"quality_gate"}]'
+      gate_fail_with_issues "quality" "$QH" "fix_and_rerun" "$ISSUES" "quality gate failed"
+    fi
+    if [[ "$PHASE" == "post" ]]; then
+      GH=$(git_head_short)
+      SMOKE_RESULT="unknown"
+      if [[ -f "$SMOKE_MD" ]]; then
+        SMOKE_RESULT=$(python3 - "$SMOKE_MD" << 'PYSR2'
+import re, sys
+t = open(sys.argv[1]).read()
+m = re.match(r"^---\s*\n(.*?)\n---", t, re.DOTALL)
+if m:
+    for line in m.group(1).splitlines():
+        if line.strip().startswith("result:"):
+            print(line.split(":",1)[1].strip().strip(chr(34))); break
+else:
+    print("unknown")
+PYSR2
+)
+      fi
+      TMP=$(mktemp)
+      cat > "$TMP" << JSON
+{
+  "stage": "quality",
+  "schema_version": 1,
+  "skill_expected": "goal-quality",
+  "skill_executed": true,
+  "tier": "$TIER",
+  "smoke_result": "$SMOKE_RESULT",
+  "git_head": "$GH",
+  "artifact_paths": ["evidence/runtime-smoke.md"],
+  "runtime_artifact_paths": ["evidence/runtime-smoke.md"]
+}
+JSON
+      py_write_handoff quality "$TMP" >/dev/null
+      rm -f "$TMP"
+      update_state_gate "quality"
+      sync_index_current_stage "$(stage_to_index_current quality)"
+      assert_pipeline_chain
+    fi
+    pass "quality gate"
     ;;
 
 

@@ -1,0 +1,48 @@
+{
+  "schema_version": 1,
+  "fuzzy_phrases": [
+    "功能正常",
+    "无明显问题",
+    "后续对账",
+    "基本可用",
+    "应该没问题"
+  ],
+  "rules": {
+    "PQ-01": {
+      "id": "PQ-01",
+      "summary": "write_set 非空",
+      "standard": "block",
+      "strict": "block"
+    },
+    "PQ-02": {
+      "id": "PQ-02",
+      "summary": "acceptance_matrix_ids 至少 1 个",
+      "standard": "block",
+      "strict": "block"
+    },
+    "PQ-03": {
+      "id": "PQ-03",
+      "summary": "验收矩阵行含执行方式/验证列",
+      "standard": "warn",
+      "strict": "block"
+    },
+    "PQ-04": {
+      "id": "PQ-04",
+      "summary": "禁止模糊验收措辞",
+      "standard": "warn",
+      "strict": "block"
+    },
+    "PQ-05": {
+      "id": "PQ-05",
+      "summary": "blockers 章节无未解决 P0",
+      "standard": "block",
+      "strict": "block"
+    },
+    "PQ-06": {
+      "id": "PQ-06",
+      "summary": "伪代码最低字数",
+      "standard_min_chars": 200,
+      "strict_min_chars": 500
+    }
+  }
+}

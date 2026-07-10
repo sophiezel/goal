@@ -8,7 +8,7 @@ guazi-flow-goal 阶段衔接的单一事实来源。硬约束：**不修改 guaz
 |---------|----------------------------|---------------------------|
 | plan | 仅 guazi-flow-plan | goal-pipeline plan 卡片 |
 | implement | 仅 guazi-flow-implement | goal-pipeline implement |
-| runtime_smoke | goal-pipeline 脚本 | 同左 |
+| quality | goal-quality + quality-gate.sh | 同左 |
 | review | guazi-flow-review **+** goal-pipeline 独立审核（并集） | 仅 goal-pipeline review |
 | complete | guazi-flow-complete + goal-pipeline 质量报告 | 仅 goal-pipeline complete |
 
@@ -20,6 +20,7 @@ Tier-R handoff **不在 repo**。路径由 `resolve-artifact-paths.py` 解析为
 ~/.goal-state/projects/<pid>/<branch>/<task>/artifacts/handoff/
 ├── plan.json
 ├── implement.json
+├── quality.json
 ├── smoke.json
 ├── review.json
 ├── review-packet.json

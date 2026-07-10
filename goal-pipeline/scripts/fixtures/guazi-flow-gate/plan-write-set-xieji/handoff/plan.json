@@ -18,7 +18,7 @@
   "index_execution_tail_hash": "0eaafff5b3453342",
   "index_schema_hash": "6eca03ac0dc83206",
   "verification": {},
-  "git_head": "c8a0ebf8ddc52240",
+  "git_head": "8d49bdeba9464114",
   "artifact_paths": [
     "index.md"
   ],
@@ -26,6 +26,6 @@
   "gate": {
     "script": "gate-guazi-flow-stage.sh",
     "version": 1,
-    "passed_at": "2026-07-09T03:20:06Z"
+    "passed_at": "2026-07-10T06:44:53Z"
   }
 }

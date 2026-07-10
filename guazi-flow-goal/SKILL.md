@@ -20,7 +20,7 @@ description: guazi-flow-goal 统一入口。加载 goal-pipeline 管线引擎，
 - **NEVER 跳过 [1/5] plan 进度输出**——缺少 [1/5] 输出说明 plan 被跳过，必须立即暂停并报告
 - **NEVER 在 implement 代码/测试完成后跳过 Stage Exit**——MUST 先 gate --post implement → goal-advance-stage → validate-pipeline-chain（exit 0）再输出 [2/5] ✅
 - **NEVER 在 [5/5] complete 前以「如需继续」「需要我跑 review 吗」交还控制权**——implement 完成 ≠ goal 完成，必须自动进入 review → complete
-- **NEVER 跳过 [3/5] smoke 或未跑 gate --post smoke**——runtime-smoke.sh 产出 evidence/runtime-smoke.md 后 MUST gate --stage smoke --post
+- **NEVER 跳过 [3/5] quality 或未跑 gate --post quality**——runtime-smoke.sh + quality-gate.sh 后 MUST gate --stage quality --post
 - **NEVER 跳过 [4/5] review 或未跑 run-independent-review.sh**——review-run.json provenance 缺失则 gate --post review 失败
 - **NEVER 自填 review-unified.json 绕过独立审核**——MUST assemble-review-packet → run-independent-review → merge-review-issues
 - **NEVER 手改 review 产物**——修复前 MUST Read `evidence/review-fix-input.json`；禁止直接解析 review-unified.json / review.md 做修复分流
@@ -77,6 +77,7 @@ else:
 |------|---------|
 | plan 开始前 | `guazi-flow-plan/SKILL.md` |
 | implement 开始前 | `guazi-flow-implement/SKILL.md` |
+| quality 开始前 | `goal-pipeline/stages/goal-quality/SKILL.md` |
 | review 开始前 | `guazi-flow-review/SKILL.md` |
 | complete 开始前 | `guazi-flow-complete/SKILL.md` |
 
@@ -186,7 +187,7 @@ gate-guazi-flow-stage.sh --assert-complete --state-file <state> --task-dir <task
 |------|------|------|--------|
 | plan | 加载 guazi-flow-plan/SKILL.md | goal-pipeline 通用 plan | 中——结构化产出，内容自主 |
 | implement | guazi-flow-implement/SKILL.md + index.md 非空 | goal-pipeline 通用 implement | 高——实现方式自主 |
-| runtime_smoke | 无 | — | 低——固定脚本 |
+| quality | goal-quality | goal-quality | 低——固定脚本 |
 | review | 加载 guazi-flow-review/SKILL.md | 仅 goal-pipeline 独立审核 | 低——按流程执行 |
 | complete | 加载 guazi-flow-complete/SKILL.md | goal-pipeline 通用 complete | 低——门禁驱动 |
 

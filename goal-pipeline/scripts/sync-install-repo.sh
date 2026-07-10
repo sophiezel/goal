@@ -127,7 +127,7 @@ deploy_runtime() {
 
   rm -f "$GOAL_STATE_HOME/scripts/inject-docs-gitignore.sh"
 
-  for script in verify.sh verify-review.sh detect-review-channels review-channel-guard.py detect-platform check-consistency runtime-smoke.sh gate-guazi-flow-stage.sh format-gate-issues.sh goal-advance-stage.sh assemble-review-packet.sh merge-review-issues.sh merge_review_core.py run-independent-review.sh platform-review-adapter.sh platform_review_adapter_core.py validate-pipeline-chain.sh validate-pipeline-chain.py goal-pipeline-stop-hook.sh goal-stage-driver.sh goal-run-review-chain.sh goal-pipeline-recover.sh goal-pipeline-doctor.sh goal-pipeline-session-start-hook.sh resolve-artifact-paths.py source-artifact-paths.sh migrate-artifacts.py sync-install-repo.sh index_contract_hash.py refresh-handoffs-after-index.sh; do
+  for script in verify.sh verify-review.sh detect-review-channels review-channel-guard.py detect-platform check-consistency runtime-smoke.sh gate-guazi-flow-stage.sh format-gate-issues.sh goal-advance-stage.sh assemble-review-packet.sh merge-review-issues.sh merge_review_core.py run-independent-review.sh platform-review-adapter.sh platform_review_adapter_core.py validate-pipeline-chain.sh validate-pipeline-chain.py goal-pipeline-stop-hook.sh goal-stage-driver.sh goal-run-review-chain.sh goal-pipeline-recover.sh goal-pipeline-doctor.sh goal-pipeline-session-start-hook.sh resolve-artifact-paths.py source-artifact-paths.sh migrate-artifacts.py sync-install-repo.sh index_contract_hash.py refresh-handoffs-after-index.sh plan-quality-gate.py implement-qc-gate.py quality-gate.sh goal-metrics-calibrate.sh; do
     src="$source_root/goal-pipeline/scripts/$script"
     dst="$GOAL_STATE_HOME/scripts/$script"
     if [[ -f "$src" ]]; then

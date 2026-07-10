@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "quality handoff",
+  "type": "object",
+  "required": ["stage", "schema_version", "tier"],
+  "properties": {
+    "stage": { "const": "quality" },
+    "schema_version": { "type": "integer" },
+    "skill_expected": { "type": "string" },
+    "skill_executed": { "type": "boolean" },
+    "tier": { "enum": ["standard", "strict"] },
+    "smoke_result": { "type": "string" },
+    "git_head": { "type": "string" },
+    "artifact_paths": { "type": "array", "items": { "type": "string" } },
+    "runtime_artifact_paths": { "type": "array", "items": { "type": "string" } }
+  }
+}

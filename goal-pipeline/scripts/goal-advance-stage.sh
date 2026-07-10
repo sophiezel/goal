@@ -219,14 +219,14 @@ if ! handoff_ok "$HANDOFF/implement.json" && ! gate_passed_in_state "implement";
   exit 0
 fi
 
-# runtime_smoke — gate required when script available
+# quality (lean stage — smoke + quality-gate)
 SMOKE_SCRIPT="$GOAL_STATE_HOME/scripts/runtime-smoke.sh"
 [[ -x "$SMOKE_SCRIPT" ]] || SMOKE_SCRIPT="$SCRIPT_DIR/runtime-smoke.sh"
 GATE_SCRIPT="$GOAL_STATE_HOME/scripts/gate-guazi-flow-stage.sh"
 [[ -x "$GATE_SCRIPT" ]] || GATE_SCRIPT="$SCRIPT_DIR/gate-guazi-flow-stage.sh"
 if [[ -x "$SMOKE_SCRIPT" ]]; then
   if [[ ! -f "$GOAL_EVIDENCE/runtime-smoke.md" ]]; then
-    emit "runtime_smoke" "" "false" '["runtime-smoke.sh --repo-root PROJECT --task-dir TASK","gate-guazi-flow-stage.sh --stage smoke --post"]'
+    emit "quality" "" "false" '["runtime-smoke.sh --repo-root PROJECT --task-dir TASK","quality-gate.sh --task-dir TASK","gate-guazi-flow-stage.sh --stage quality --post"]'
     exit 0
   fi
   SMOKE_RESULT=$(python3 - "$GOAL_EVIDENCE/runtime-smoke.md" << 'PYSR'
@@ -243,8 +243,8 @@ PYSR
 )
   if [[ "$SMOKE_RESULT" == "skipped" ]]; then
     : # allow skip when no dev command
-  elif ! handoff_ok "$HANDOFF/smoke.json" && ! gate_passed_in_state "smoke"; then
-    emit "runtime_smoke" "smoke_gate_pending" "false" '["gate-guazi-flow-stage.sh --stage smoke --post --mode guazi"]'
+  elif ! handoff_ok "$HANDOFF/quality.json" && ! gate_passed_in_state "quality"; then
+    emit "quality" "quality_gate_pending" "false" '["quality-gate.sh --task-dir TASK","gate-guazi-flow-stage.sh --stage quality --post --mode guazi"]'
     exit 0
   fi
 fi

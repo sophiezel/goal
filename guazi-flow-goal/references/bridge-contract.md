@@ -10,6 +10,17 @@
 - **NEVER 让 guazi-flow-review 替代 goal-pipeline 独立审核**——两者都运行，issues 合并去重，guazi-flow-review 仅作为 Step 1.5 注入
 - **NEVER 让契约融入步骤阻断 guazi-flow-plan 或后续阶段的执行**——融入失败时静默跳过，不影响 implement/review/complete
 
+## 双轨与质检防火墙（v4）
+
+兼容轨（`/guazi-flow-goal`）在 plan/implement 后插入共享脚本：
+
+- `plan-quality-gate.py`（PQ-01..06）
+- `implement-qc-gate.py`（IQ-01..02）
+
+进化轨（`/goal-pipeline` + `pipeline_track=evolution`）加载 `goal-pipeline/stages/goal-*`，调用同一脚本。
+
+详见 `goal-pipeline/references/dual-track-contract.md`。
+
 ## 核心桥接规则
 
 1. **review 注入点**：Step 1.5（在 Step 1 确定性检查之后、Step 2 独立审核之前）。注入的 issues 合并到 Step 2 结果中。

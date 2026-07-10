@@ -26,7 +26,7 @@ else:
 | implement | guazi-flow-implement | goal-pipeline 通用 implement |
 | review | guazi-flow-review + goal-pipeline 独立审核（**两者都运行**） | 仅 goal-pipeline 独立审核 |
 | complete | guazi-flow-complete | goal-pipeline 通用 complete |
-| runtime_smoke | 始终用 goal-pipeline 通用脚本 | — |
+| runtime_smoke / quality | 始终用 goal-quality + quality-gate | goal-pipeline 通用 quality |
 
 ### 第二类：条件触发阶段——按 guazi-flow 自身规则决定
 
@@ -54,6 +54,7 @@ if guazi_flow_available:
        gate-guazi-flow-stage.sh --task-dir docs/guazi-flow/<task> --stage plan --pre --mode guazi
        # ... 执行 guazi-flow-plan 9 步 ...
        gate-guazi-flow-stage.sh --task-dir docs/guazi-flow/<task> --stage plan --post --mode guazi
+       python3 plan-quality-gate.py --task-dir docs/guazi-flow/<task>  # 亦在 gate --post 内强制执行
        ```
        - `--post` 校验 index.md schema（frontmatter + 核心事实/完整伪代码/验收与验证矩阵/执行记录）
        - 通过则写入 `handoff/plan.json`；失败 exit 1 → blocked(plan_schema_incomplete)
@@ -99,7 +100,7 @@ if guazi_flow_available:
        4. 检查 Stop Conditions: 新增依赖? 修改接口协议? 命中 → 暂停
        5. 审计结果写入 evidence/implement.md scope_compliance 字段
     → 写入 evidence/implement.md（guazi-flow schema）
-    → gate --post(implement) → goal-advance-stage.sh → **立即**进入 [3/5] smoke 或 [4/5] review（不得结束 turn）
+    → gate --post(implement) → implement-qc-gate（亦在 gate 内）→ goal-advance-stage.sh → **立即**进入 [3/5] quality
     → 输出: "[2/5] guazi-flow-implement: ✅ X files changed"
 else:
     → goal-pipeline 通用 implement
@@ -113,19 +114,22 @@ else:
 implement 业务完成后的 **唯一合法出口**：
 
 ```
-gate --post(implement) → validate-pipeline-chain (exit 0) → goal-advance-stage → 立即 smoke/review
+gate --post(implement) → validate-pipeline-chain (exit 0) → goal-advance-stage → 立即 quality/review
 ```
 
 - `validate-pipeline-chain` 检测到「执行记录表明 implement 完成但无 handoff/implement.json」→ **error**（failure: implement_gate_pending）
 - Agent 禁止在 chain 报错或 gate 未 exit 0 时输出 `[2/5] implement: ✅`
 
-### smoke 阶段——gate 对齐
+### quality 阶段——gate 对齐
 
 **Step 0**: implement gate --post 通过后 **立即** `runtime-smoke.sh`
-**Step 1**: `gate --stage smoke --post` → handoff/smoke.json
+**Step 1**: `quality-gate.sh` 汇总 L0+L1
+**Step 2**: `gate --stage quality --post` → handoff/quality.json
 - skipped（无 dev 命令）允许继续 review，但须记录 classification: none
 - not_pass 须带 classification（environmental | code_issue | runtime_crash）
-**NEVER [3/5] ✅ 而无 handoff/smoke.json gate.passed_at**
+**Step 3**: `goal-advance-stage.sh` → review
+
+**NEVER [3/5] ✅ 而无 handoff/quality.json gate.passed_at**
 
 ### review 阶段——增量注入
 
