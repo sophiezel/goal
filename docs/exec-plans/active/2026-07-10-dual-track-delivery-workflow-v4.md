@@ -1135,3 +1135,14 @@ install.sh 默认两者均安装；README 明确双轨说明。
 - **goal-pipeline** = 自有进化引擎（fork 优化 stages，最佳流程）
 - **guazi-flow-goal** = 兼容外壳（原 skill 黑盒 + **共用** plan/implement 质检防火墙）
 - **共享** = 产物 schema + gate 脚本 + fix_loop + state.json
+
+### 15.10 skill-optimization2 生产门槛（UVO v2.1）
+
+`enhance/skill-optimization2` 在 **jian-h5 replay benchmark 通过前** 标记为 **experimental**：
+
+- L1 裁决收敛为 **verification-oracle 一次**（`evidence/verification-oracle.json`）
+- review-pre **只读 UVO freshness + scope/secret**，不重跑 test+build
+- quality-gate **读 smoke evidence**，不重跑 runtime-smoke（pattern 未触发时可 skipped）
+- 生产默认可用条件：`benchmark-pipeline-replay.sh` passed + `run-all-gate-tests.sh` passed + 墙钟 ≤ 1.3× `enhance/review` 基线
+
+详见 [`2026-07-10-skill-optimization2-critical-path-audit.md`](active/2026-07-10-skill-optimization2-critical-path-audit.md)。

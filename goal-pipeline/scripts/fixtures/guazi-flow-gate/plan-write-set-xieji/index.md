@@ -54,6 +54,7 @@ function DetailPage() {
 | ID | Case | Expected |
 |----|------|----------|
 | C01 | Renders | Page loads |
+| V02 | Build | `yarn build:beta` pass |
 
 ## 执行记录
 

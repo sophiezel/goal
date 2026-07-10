@@ -8,6 +8,8 @@ description: guazi-flow-goal 统一入口。加载 goal-pipeline 管线引擎，
 
 **本 skill 合并了原 guazi-flow-goal（入口）、guazi-flow-goal-auto（执行引擎）、guazi-flow-goal-manage（生命周期）的全部职责。**
 
+> **Production（skill-optimization2 / UVO v2.1）**：在 jian-h5 replay benchmark 通过前，本分支管线为 **experimental**。L1 权威裁决为 `verification-oracle.sh` 一次；禁止 stage-driver mandatory 全量 `yarn test`；review-pre 只读 UVO evidence freshness。
+
 ## NEVER
 
 - **NEVER 在 GATE 检查失败后继续执行 guazi-flow 调度**——GATE 不可读必须设 `guazi_flow_available = false` 并降级为纯 goal-pipeline
@@ -18,9 +20,9 @@ description: guazi-flow-goal 统一入口。加载 goal-pipeline 管线引擎，
 - **NEVER 在 guazi-flow-plan 产出前修改项目代码**——plan 未完成时改代码会导致 write_set 不匹配，implement 阶段无法正确驱动
 - **NEVER 在 guazi-flow-plan 产出 index.md 前进入 implement**——MUST 先执行 guazi-flow-plan 完整流程（见关键执行协议），验证 index.md 存在且包含必需章节（核心事实/完整伪代码/验收矩阵/执行记录），否则 blocked（failure_code: plan_artifact_missing / plan_schema_incomplete）
 - **NEVER 跳过 [1/5] plan 进度输出**——缺少 [1/5] 输出说明 plan 被跳过，必须立即暂停并报告
-- **NEVER 在 implement 代码/测试完成后跳过 Stage Exit**——MUST 先 gate --post implement → goal-advance-stage → validate-pipeline-chain（exit 0）再输出 [2/5] ✅
+- **NEVER 在 implement 代码/测试完成后跳过 Stage Exit**——MUST 先 gate --post implement（内含 **verification-oracle 一次**）→ goal-advance-stage → validate-pipeline-chain（exit 0）再输出 [2/5] ✅
 - **NEVER 在 [5/5] complete 前以「如需继续」「需要我跑 review 吗」交还控制权**——implement 完成 ≠ goal 完成，必须自动进入 review → complete
-- **NEVER 跳过 [3/5] quality 或未跑 gate --post quality**——runtime-smoke.sh + quality-gate.sh 后 MUST gate --stage quality --post
+- **NEVER 跳过 [3/5] quality 或未跑 gate --post quality**——条件 smoke + quality-gate（读 evidence，不重跑 UVO/smoke）后 MUST gate --stage quality --post
 - **NEVER 跳过 [4/5] review 或未跑 run-independent-review.sh**——review-run.json provenance 缺失则 gate --post review 失败
 - **NEVER 自填 review-unified.json 绕过独立审核**——MUST assemble-review-packet → run-independent-review → merge-review-issues
 - **NEVER 手改 review 产物**——修复前 MUST Read `evidence/review-fix-input.json`；禁止直接解析 review-unified.json / review.md 做修复分流

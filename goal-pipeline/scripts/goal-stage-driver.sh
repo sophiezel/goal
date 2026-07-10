@@ -105,35 +105,29 @@ track = load_pipeline_track()
 STAGE_SKILL = STAGE_SKILL_EVOLUTION if track == "evolution" else STAGE_SKILL_COMPAT
 
 def build_mandatory(stage):
-    pq = f"python3 {script_dir}/plan-quality-gate.py --task-dir {task_dir!r}"
-    iq = f"python3 {script_dir}/implement-qc-gate.py --task-dir {task_dir!r} --repo-root {project_root!r}"
-    qg = f"bash {script_dir}/quality-gate.sh --task-dir {task_dir!r} --repo-root {project_root!r}"
     plan_skill = STAGE_SKILL.get("plan", "guazi-flow-plan")
     impl_skill = STAGE_SKILL.get("implement", "guazi-flow-implement")
+    uvo = f"bash {script_dir}/verification-oracle.sh --task-dir {task_dir!r} --repo-root {project_root!r} --state-file {state_file!r} --project-root {project_root!r}"
     if stage == "plan":
         return [
             gate_cmd("plan", "pre"),
             f"Load {plan_skill}/SKILL.md and execute full plan flow",
-            pq,
             gate_cmd("plan", "post"),
-            f"{script_dir}/validate-pipeline-chain.sh --task-dir {task_dir!r} --state-file {state_file!r}",
             f"{script_dir}/goal-advance-stage.sh --state-file {state_file!r} --task-dir {task_dir!r} --project-root {project_root!r}",
         ]
     if stage == "implement":
         return [
             gate_cmd("implement", "pre"),
             f"Load {impl_skill}/SKILL.md and implement within write_set",
-            "CI=true yarn test --watchAll=false (or project equivalent)",
-            iq,
+            "(optional Dev Loop) scoped/findRelatedTests on write_set — non-gate, for fast feedback",
             gate_cmd("implement", "post"),
-            f"{script_dir}/validate-pipeline-chain.sh --task-dir {task_dir!r} --state-file {state_file!r}",
             f"{script_dir}/goal-advance-stage.sh --state-file {state_file!r} --task-dir {task_dir!r} --project-root {project_root!r}",
         ]
     if stage in ("quality", "runtime_smoke"):
         return [
             f"{script_dir}/runtime-smoke.sh --repo-root {project_root!r} --task-dir {task_dir!r} "
-            f"--state-file {state_file!r} --project-root {project_root!r}",
-            qg,
+            f"--state-file {state_file!r} --project-root {project_root!r} "
+            f"(skip if verification-oracle.json smoke_required=false)",
             gate_cmd("quality", "post"),
             f"{script_dir}/goal-advance-stage.sh --state-file {state_file!r} --task-dir {task_dir!r} --project-root {project_root!r}",
         ]

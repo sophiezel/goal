@@ -46,6 +46,7 @@ function DetailPage() {
 | C01 | List columns | No audit log column |
 | C02 | Detail label | 提交时间 shown |
 | V01 | Evaluator filter | Depends on city id |
+| V02 | Build | `yarn build:beta` pass |
 
 ## 执行记录
 

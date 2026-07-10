@@ -6,6 +6,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+export GATE_SCRIPT_DIR="$SCRIPT_DIR"
 SCHEMA_DIR="${SCRIPT_DIR}/../references/guazi-flow-artifact-schema"
 GATE_VERSION=1
 
@@ -295,7 +296,30 @@ PYNORM
 
 diff_hash() {
   if [[ -n "$GIT_ROOT" ]]; then
-    git -C "$GIT_ROOT" diff HEAD 2>/dev/null | shasum -a 256 2>/dev/null | cut -c1-16 || echo "unknown"
+    python3 - "$GIT_ROOT" << 'PYDH' 2>/dev/null || echo "unknown"
+import importlib.util, os, sys
+gate_script = os.environ.get('GATE_SCRIPT_DIR', '')
+if gate_script:
+    path = os.path.join(gate_script, 'verification_oracle_core.py')
+    if os.path.isfile(path):
+        spec = importlib.util.spec_from_file_location('uvo', path)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        print(mod.diff_hash(sys.argv[1]))
+        sys.exit(0)
+import hashlib, subprocess
+repo = sys.argv[1]
+diff = subprocess.check_output(['git', '-C', repo, 'diff', 'HEAD'], text=True, stderr=subprocess.DEVNULL)
+un = subprocess.check_output(['git', '-C', repo, 'ls-files', '--others', '--exclude-standard'], text=True, stderr=subprocess.DEVNULL).splitlines()
+for f in un:
+    fp = os.path.join(repo, f)
+    if os.path.isfile(fp):
+        try:
+            diff += f"\n--- new file: {f} ---\n{open(fp, encoding='utf-8', errors='replace').read()}\n"
+        except OSError:
+            pass
+print(hashlib.sha256(diff.encode()).hexdigest()[:16])
+PYDH
   else
     echo "unknown"
   fi
@@ -771,9 +795,35 @@ JSON
     fi
     if [[ "$PHASE" == "post" ]]; then
       TIER=$(resolve_quality_tier)
-      REPO_FOR_IQ="${GIT_ROOT:-$PROJECT_ROOT}"
+      REPO_FOR_UVO="${GIT_ROOT:-$PROJECT_ROOT}"
+      export GOAL_HANDOFF_DIR="$HANDOFF_DIR"
+      export GOAL_EVIDENCE_DIR="$GOAL_EVIDENCE_DIR"
+      UVO="$SCRIPT_DIR/verification-oracle.sh"
+      [[ -x "$UVO" ]] || fail "verification-oracle.sh not found"
+      UVO_ARGS=(--task-dir "$TASK_DIR" --repo-root "$REPO_FOR_UVO" --tier "$TIER")
+      [[ -n "$STATE_FILE" ]] && UVO_ARGS+=(--state-file "$STATE_FILE")
+      [[ -n "$PROJECT_ROOT" ]] && UVO_ARGS+=(--project-root "$PROJECT_ROOT")
+      if ! "$UVO" "${UVO_ARGS[@]}" >/dev/null 2>&1; then
+        DH_PRE=$(diff_hash)
+        UVO_OUT=$("$UVO" "${UVO_ARGS[@]}" 2>/dev/null || echo '{"overall":"not_pass"}')
+        UVO_ISSUES=$(python3 - "$UVO_OUT" << 'PYUVO'
+import json, sys
+try:
+    data = json.loads(sys.argv[1])
+except json.JSONDecodeError:
+    data = {"overall": "not_pass"}
+out = [{"id": "UVO-01", "severity": "block", "message": f"verification-oracle {data.get('overall','not_pass')}", "root_cause": "implement_qc"}]
+for s in data.get("steps", []):
+    if s.get("ok") is False or s.get("pass") is False:
+        out.append({"id": f"UVO-{s.get('id','step')}", "severity": "block", "message": str(s.get("output_tail", s.get("output", "failed")))[:200], "root_cause": "implement_qc"})
+print(json.dumps(out, ensure_ascii=False))
+PYUVO
+)
+        gate_fail_with_issues "implement" "$DH_PRE" "fix_and_rerun" "$UVO_ISSUES" "verification-oracle failed (UVO)"
+      fi
+      # IQ thin wrapper: structural checks only (UVO evidence already written)
       IQ_JSON=$(mktemp)
-      if ! python3 "$SCRIPT_DIR/implement-qc-gate.py" --task-dir "$TASK_DIR" --repo-root "$REPO_FOR_IQ" --tier "$TIER" --json > "$IQ_JSON" 2>/dev/null; then
+      if ! python3 "$SCRIPT_DIR/implement-qc-gate.py" --task-dir "$TASK_DIR" --repo-root "$REPO_FOR_UVO" --tier "$TIER" --skip-test-lint --json > "$IQ_JSON" 2>/dev/null; then
         DH_PRE=$(diff_hash)
         IQ_ISSUES=$(python3 - "$IQ_JSON" << 'PYIQ'
 import json, sys
@@ -786,7 +836,7 @@ print(json.dumps(out, ensure_ascii=False))
 PYIQ
 )
         rm -f "$IQ_JSON"
-        gate_fail_with_issues "implement" "$DH_PRE" "fix_and_rerun" "$IQ_ISSUES" "implement-qc-gate failed (IQ firewall)"
+        gate_fail_with_issues "implement" "$DH_PRE" "fix_and_rerun" "$IQ_ISSUES" "implement-qc-gate structural check failed"
       fi
       rm -f "$IQ_JSON"
       PLAN_WS_LEN=$(python3 -c "import json; print(len(json.load(open('$HANDOFF_DIR/plan.json')).get('write_set',[])))" 2>/dev/null || echo 0)
@@ -799,6 +849,8 @@ PYIQ
       CF=$(echo "$CHANGED" | python3 -c "import json,sys; print(json.dumps(json.load(sys.stdin).get('changed_files',[])))")
       DH=$(diff_hash)
       GH=$(git_head_short)
+      UVO_GH=$(python3 -c "import json; print(json.load(open('$GOAL_EVIDENCE_DIR/verification-oracle.json')).get('git_head',''))" 2>/dev/null || echo "")
+      UVO_DH=$(python3 -c "import json; print(json.load(open('$GOAL_EVIDENCE_DIR/verification-oracle.json')).get('candidate_diff_hash',''))" 2>/dev/null || echo "")
       TMP=$(mktemp)
       cat > "$TMP" << JSON
 {
@@ -810,7 +862,9 @@ PYIQ
   "changed_files": $CF,
   "git_head": "$GH",
   "candidate_diff_hash": "$DH",
-  "artifact_paths": ["index.md"]
+  "uvo_git_head": "$UVO_GH",
+  "uvo_diff_hash": "$UVO_DH",
+  "artifact_paths": ["index.md", "evidence/verification-oracle.json"]
 }
 JSON
       py_write_handoff implement "$TMP" >/dev/null
@@ -829,12 +883,41 @@ JSON
       pass "quality pre"
     fi
     SMOKE_MD="$GOAL_EVIDENCE_DIR/runtime-smoke.md"
-    if [[ ! -f "$SMOKE_MD" ]]; then
-      fail "evidence/runtime-smoke.md missing — run runtime-smoke.sh before quality gate"
-    fi
-    TIER=$(resolve_quality_tier)
     REPO_FOR_QG="${GIT_ROOT:-$PROJECT_ROOT}"
-    QG_ARGS=(--task-dir "$TASK_DIR" --repo-root "$REPO_FOR_QG" --tier "$TIER")
+    TIER=$(resolve_quality_tier)
+    SMOKE_REQUIRED=$(python3 - "$TASK_DIR" "$REPO_FOR_QG" "$TIER" "$SCRIPT_DIR" << 'PYSR'
+import importlib.util, os, sys
+_, task_dir, repo, tier, gs = sys.argv
+path = os.path.join(gs, "verification_oracle_core.py")
+spec = importlib.util.spec_from_file_location("uvo", path)
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+plan = mod.load_plan_handoff(task_dir)
+ws = mod._write_set_from_plan(plan, task_dir)
+changed = mod.git_changed_files(repo)
+print("yes" if mod.smoke_required(changed, ws, tier) else "no")
+PYSR
+)
+    if [[ "$SMOKE_REQUIRED" == "yes" && ! -f "$SMOKE_MD" ]]; then
+      fail "evidence/runtime-smoke.md missing — pattern requires smoke (App.tsx/routes/config-overrides/package.json)"
+    fi
+    if [[ "$SMOKE_REQUIRED" == "no" && ! -f "$SMOKE_MD" ]]; then
+      mkdir -p "$GOAL_EVIDENCE_DIR"
+      cat > "$SMOKE_MD" << SMYAML
+---
+result: skipped
+classification: build_sufficient
+reason: smoke_not_required_by_pattern
+dev_cmd: ""
+duration_ms: 0
+---
+# runtime-smoke skipped
+
+UVO build passed; changed files did not match smoke-required patterns.
+SMYAML
+    fi
+    QG_ARGS=(--task-dir "$TASK_DIR" --repo-root "$REPO_FOR_QG" --tier "$TIER" --skip-iq)
+    [[ "$SMOKE_REQUIRED" == "no" ]] && QG_ARGS+=(--skip-smoke)
     if ! bash "$SCRIPT_DIR/quality-gate.sh" "${QG_ARGS[@]}"; then
       QH=$(content_hash "$SMOKE_MD")
       ISSUES='[{"id":"QG-01","severity":"blocker","summary":"quality-gate.sh failed","root_cause":"quality_gate"}]'
@@ -994,23 +1077,23 @@ PYFRESH
       fi
       VERIFY_REV="$SCRIPT_DIR/verify-review.sh"
       [[ -x "$VERIFY_REV" ]] || fail "verify-review.sh not found"
-      # Export verification hints from plan handoff for verify-review
-      eval "$(python3 - "$HANDOFF_DIR/plan.json" << 'PYEXP' || true
-import json, sys
-plan = json.load(open(sys.argv[1], encoding="utf-8"))
-v = plan.get("verification") or {}
-tp = v.get("test_pattern") or ""
-bc = v.get("build_command") or ""
-if tp:
-    print(f'export GOAL_TEST_PATTERN={json.dumps(tp)}')
-if bc:
-    print(f'export GOAL_BUILD_COMMAND={json.dumps(bc)}')
-PYEXP
-)"
+      UVO="$SCRIPT_DIR/verification-oracle.sh"
+      REPO_FOR_REV="${GIT_ROOT:-$PROJECT_ROOT}"
+      [[ -n "$REPO_FOR_REV" ]] || REPO_FOR_REV="$(pwd)"
+      export GOAL_HANDOFF_DIR="$HANDOFF_DIR"
+      export GOAL_EVIDENCE_DIR="$GOAL_EVIDENCE_DIR"
+      UVO_CHECK_ARGS=(--task-dir "$TASK_DIR" --repo-root "$REPO_FOR_REV" --check-freshness)
+      [[ -n "$STATE_FILE" ]] && UVO_CHECK_ARGS+=(--state-file "$STATE_FILE")
+      [[ -n "$PROJECT_ROOT" ]] && UVO_CHECK_ARGS+=(--project-root "$PROJECT_ROOT")
+      if ! "$UVO" "${UVO_CHECK_ARGS[@]}" >/dev/null 2>&1; then
+        fail "verification-oracle evidence missing or stale — rerun gate --post implement"
+      fi
       WS=$(python3 -c "import json; print(','.join(json.load(open('$HANDOFF_DIR/plan.json')).get('write_set',[])))" 2>/dev/null || echo "")
+      export GOAL_SKIP_TEST=1 GOAL_SKIP_BUILD=1 GOAL_SKIP_LINT=1
       VOUT=$("$VERIFY_REV" "$TASK_DIR" "$WS" json 2>/dev/null || echo '{"overall":"not_pass"}')
-      VOK=$(echo "$VOUT" | python3 -c "import json,sys; print(json.load(sys.stdin).get('overall','not_pass'))" 2>/dev/null || echo "not_pass")
-      [[ "$VOK" == "pass" ]] || fail "verify-review pre-check not pass"
+      unset GOAL_SKIP_TEST GOAL_SKIP_BUILD GOAL_SKIP_LINT
+      VOK=$(echo "$VOUT" | python3 -c "import json,sys; d=json.load(sys.stdin); c=d.get('checks',d); print('pass' if c.get('scope',{}).get('pass') and c.get('secret',{}).get('pass') else 'not_pass')" 2>/dev/null || echo "not_pass")
+      [[ "$VOK" == "pass" ]] || fail "review-pre scope/secret check not pass"
       pass "review gate"
     fi
     if [[ "$PHASE" == "post" ]]; then

@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""implement-qc-gate — IQ firewall after implement (shared by both tracks)."""
+"""implement-qc-gate — thin wrapper around UVO (IQ firewall).
+
+Legacy entry point: runs UVO or validates existing verification-oracle.json freshness.
+"""
 from __future__ import annotations
 
 import argparse
@@ -7,25 +10,13 @@ import importlib.util
 import json
 import os
 import re
-import subprocess
 import sys
 
 
-def parse_args():
-    p = argparse.ArgumentParser(description="Implement QC gate (IQ-01..IQ-02)")
-    p.add_argument("--task-dir", required=True)
-    p.add_argument("--repo-root", default="")
-    p.add_argument("--tier", choices=("standard", "strict"), default="standard")
-    p.add_argument("--skip-test-lint", action="store_true")
-    p.add_argument("--profile", default="h5")
-    p.add_argument("--json", action="store_true", dest="as_json")
-    return p.parse_args()
-
-
-def _load_resolver():
+def _load_core():
     script_dir = os.path.dirname(os.path.abspath(__file__))
-    path = os.path.join(script_dir, "resolve_verification_commands.py")
-    spec = importlib.util.spec_from_file_location("resolve_verification_commands", path)
+    path = os.path.join(script_dir, "verification_oracle_core.py")
+    spec = importlib.util.spec_from_file_location("verification_oracle_core", path)
     if spec is None or spec.loader is None:
         raise RuntimeError(f"cannot load {path}")
     mod = importlib.util.module_from_spec(spec)
@@ -49,61 +40,11 @@ def front_matter(path: str) -> dict:
     return out
 
 
-def run_shell_command(cmd: str, repo_root: str) -> dict:
-    result = subprocess.run(
-        cmd,
-        shell=True,
-        cwd=repo_root,
-        capture_output=True,
-        text=True,
-        timeout=900,
-    )
-    tail = (result.stdout or "") + (result.stderr or "")
-    tail = tail[-1500:] if tail else ""
-    return {
-        "cmd": cmd,
-        "exit_code": result.returncode,
-        "ok": result.returncode == 0,
-        "output_tail": tail,
-    }
-
-
-def check_iq01_verification(repo_root: str, task_dir: str, profile: str, skip: bool) -> tuple[list[dict], list[dict]]:
-    if skip or not repo_root or not os.path.isdir(repo_root):
-        return (
-            [{"id": "IQ-01", "severity": "warn", "message": "verification not run (no repo-root or skipped)"}],
-            [],
-        )
-
-    resolver = _load_resolver()
-    resolved = resolver.resolve_verification_commands(task_dir, repo_root, profile)
-    commands = resolved.get("commands") or []
-    executions: list[dict] = []
-    issues: list[dict] = []
-
-    if not commands:
-        return (
-            [{"id": "IQ-01", "severity": "warn", "message": "no verification commands resolved"}],
-            executions,
-        )
-
-    for item in commands:
-        cmd = item["cmd"]
-        cmd_id = item.get("id", cmd[:40])
-        exec_result = run_shell_command(cmd, repo_root)
-        exec_result["id"] = cmd_id
-        exec_result["source"] = item.get("source", "")
-        executions.append(exec_result)
-        if not exec_result["ok"]:
-            issues.append(
-                {
-                    "id": "IQ-01",
-                    "severity": "block",
-                    "message": f"{cmd_id} failed (exit {exec_result['exit_code']}): {cmd[:120]}",
-                }
-            )
-
-    return issues, executions
+def resolve_evidence_dir(task_dir: str) -> str:
+    env = os.environ.get("GOAL_EVIDENCE_DIR")
+    if env:
+        return env
+    return os.path.join(task_dir, "evidence")
 
 
 def check_iq02(index_text: str, tier: str) -> list[dict]:
@@ -135,17 +76,64 @@ def run_gate(
     tier: str,
     skip_test_lint: bool,
     profile: str = "h5",
+    run_oracle: bool = False,
 ) -> dict:
+    core = _load_core()
     index_path = os.path.join(task_dir, "index.md")
     text = open(index_path, encoding="utf-8").read() if os.path.isfile(index_path) else ""
     fm = front_matter(index_path)
     tier = fm.get("quality_tier", tier) or tier
 
     issues: list[dict] = []
-    iq01_issues, executions = check_iq01_verification(repo_root, task_dir, profile, skip_test_lint)
-    issues.extend(iq01_issues)
-    issues.extend(check_iq02(text, tier))
+    executions: list[dict] = []
+    evidence_dir = resolve_evidence_dir(task_dir)
+    oracle_path = os.path.join(evidence_dir, "verification-oracle.json")
 
+    if skip_test_lint:
+        if not os.path.isfile(oracle_path):
+            issues.append(
+                {
+                    "id": "IQ-01",
+                    "severity": "block",
+                    "message": "verification-oracle.json missing — run verification-oracle.sh first",
+                }
+            )
+        else:
+            fresh = core.check_freshness(oracle_path, repo_root)
+            if not fresh.get("fresh"):
+                issues.append(
+                    {
+                        "id": "IQ-01",
+                        "severity": "block",
+                        "message": f"UVO evidence stale: {fresh.get('reason', 'unknown')}",
+                    }
+                )
+            else:
+                executions.append({"id": "UVO-freshness", "ok": True, "source": "verification-oracle.json"})
+    elif run_oracle or not os.path.isfile(oracle_path):
+        oracle_mode = "full_suite" if tier == "strict" else "related_union"
+        result = core.run_oracle(task_dir, repo_root, tier=tier, oracle_mode=oracle_mode, evidence_dir=evidence_dir)
+        executions.extend(result.get("steps", []))
+        if result.get("overall") != "pass":
+            issues.append(
+                {
+                    "id": "IQ-01",
+                    "severity": "block",
+                    "message": f"verification-oracle not_pass (mode={oracle_mode})",
+                }
+            )
+    else:
+        fresh = core.check_freshness(oracle_path, repo_root)
+        if not fresh.get("fresh"):
+            oracle_mode = "full_suite" if tier == "strict" else "related_union"
+            result = core.run_oracle(task_dir, repo_root, tier=tier, oracle_mode=oracle_mode, evidence_dir=evidence_dir)
+            executions.extend(result.get("steps", []))
+            if result.get("overall") != "pass":
+                issues.append({"id": "IQ-01", "severity": "block", "message": "verification-oracle rerun failed"})
+        else:
+            executions.append({"id": "UVO-freshness", "ok": True, "source": oracle_path})
+
+    issues.extend(check_iq02(text, tier))
     blocked = any(i["severity"] == "block" for i in issues)
     return {
         "passed": not blocked,
@@ -157,11 +145,17 @@ def run_gate(
 
 
 def main():
-    args = parse_args()
-    repo = args.repo_root or os.environ.get("GOAL_REPO_ROOT", "")
-    if not repo:
-        repo = os.getcwd()
-    result = run_gate(args.task_dir, repo, args.tier, args.skip_test_lint, args.profile)
+    p = argparse.ArgumentParser(description="Implement QC gate (IQ thin wrapper → UVO)")
+    p.add_argument("--task-dir", required=True)
+    p.add_argument("--repo-root", default="")
+    p.add_argument("--tier", choices=("standard", "strict"), default="standard")
+    p.add_argument("--skip-test-lint", action="store_true", help="Only check UVO evidence freshness")
+    p.add_argument("--run-oracle", action="store_true", help="Force run UVO")
+    p.add_argument("--profile", default="h5")
+    p.add_argument("--json", action="store_true", dest="as_json")
+    args = p.parse_args()
+    repo = args.repo_root or os.environ.get("GOAL_REPO_ROOT", "") or os.getcwd()
+    result = run_gate(args.task_dir, repo, args.tier, args.skip_test_lint, args.profile, args.run_oracle)
     if args.as_json:
         print(json.dumps(result, ensure_ascii=False, indent=2))
     else:

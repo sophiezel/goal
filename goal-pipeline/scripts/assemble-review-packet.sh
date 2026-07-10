@@ -43,7 +43,7 @@ VERIFY_SCRIPT="$SCRIPT_DIR/verify-review.sh"
 
 mkdir -p "$HANDOFF_DIR"
 
-export VERIFY_SCRIPT TASK_DIR INDEX HANDOFF_PLAN HANDOFF_IMPL EVIDENCE OUT MAX_DIFF_BYTES MAX_PSEUDOCODE_CHARS GIT_ROOT STATE_DIR REPO_TASK_DIR HANDOFF_DIR
+export VERIFY_SCRIPT TASK_DIR INDEX HANDOFF_PLAN HANDOFF_IMPL EVIDENCE OUT MAX_DIFF_BYTES MAX_PSEUDOCODE_CHARS GIT_ROOT STATE_DIR REPO_TASK_DIR HANDOFF_DIR GOAL_EVIDENCE_DIR
 
 python3 << 'PY'
 import json, re, os, sys, subprocess, hashlib
@@ -193,13 +193,40 @@ if git_root:
 checklist = plan.get('acceptance_matrix_ids', []) or re.findall(r'\b(?:C|V|AC|TC)\d+\b', text)
 
 deterministic = {}
-if os.path.isfile(verify_script):
-    ws_csv = ','.join(write_set)
+uvo_path = os.path.join(os.environ.get('GOAL_EVIDENCE_DIR', evidence_dir), 'verification-oracle.json')
+if os.path.isfile(uvo_path):
     try:
-        out = subprocess.check_output([verify_script, task_dir, ws_csv, 'json'], text=True, stderr=subprocess.DEVNULL)
-        deterministic = json.loads(out)
+        uvo = json.load(open(uvo_path, encoding='utf-8'))
+        deterministic = {
+            'overall': uvo.get('overall', 'not_pass'),
+            'checks': {
+                'scope': next((s for s in uvo.get('steps', []) if s.get('id') == 'scope'), {}),
+                'secret': next((s for s in uvo.get('steps', []) if s.get('id') == 'secret'), {}),
+                'test': {'pass': uvo.get('overall') == 'pass'},
+                'lint': next((s for s in uvo.get('steps', []) if s.get('id') == 'lint'), {}),
+                'build': next((s for s in uvo.get('steps', []) if s.get('id') == 'build'), {}),
+            },
+            'provenance': 'verification-oracle.json',
+            'oracle_mode': uvo.get('oracle_mode'),
+            'git_head': uvo.get('git_head'),
+        }
     except Exception as e:
-        deterministic = {'pass': False, 'error': str(e)}
+        deterministic = {'overall': 'not_pass', 'error': str(e)}
+else:
+    deterministic = {'overall': 'not_pass', 'error': 'verification-oracle.json missing — run gate --post implement'}
+
+reference_impl_diff = ''
+ref_branch = plan.get('reference_branch') or plan.get('reference_impl_branch') or ''
+ref_paths = plan.get('reference_impl_paths') or []
+if ref_branch and git_root:
+    try:
+        ref_diff_args = ['git', '-C', git_root, 'diff', ref_branch, '--'] + (ref_paths if ref_paths else [])
+        reference_impl_diff = subprocess.check_output(ref_diff_args, text=True, stderr=subprocess.DEVNULL)
+        if len(reference_impl_diff.encode('utf-8')) > max_diff:
+            reference_impl_diff = reference_impl_diff[:max_diff] + '\n...[reference diff truncated]...'
+            truncated['reference_impl_diff'] = f'exceeded {max_diff} bytes'
+    except Exception as e:
+        reference_impl_diff = f'(reference diff unavailable: {e})'
 
 issues_gf = []
 review_md = os.path.join(evidence_dir, 'review.md')
@@ -270,6 +297,8 @@ packet = {
     'task_dir': task_dir,
     'contract': contract,
     'diff': diff_text,
+    'reference_impl_diff': reference_impl_diff,
+    'reference_branch': ref_branch,
     'constraints': constraints,
     'verification_checklist': checklist,
     'deterministic_checks': deterministic,

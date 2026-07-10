@@ -72,8 +72,18 @@ impl = {
   "gate": {"script": "gate-guazi-flow-stage.sh", "version": 1, "passed_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")},
 }
 (fix/"handoff/implement.json").write_text(json.dumps(impl, indent=2))
-# empty packet so auto-assemble or skip — create stub packet
 (fix/"handoff/review-packet.json").write_text("{}")
+(fix/"evidence").mkdir(exist_ok=True)
+uvo = {
+  "schema_version": 1,
+  "overall": "pass",
+  "oracle_mode": "related_union",
+  "git_head": "unknown",
+  "candidate_diff_hash": "unknown",
+  "passed_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+  "steps": [{"id": "scope", "pass": True}, {"id": "secret", "pass": True}],
+}
+(fix/"evidence/verification-oracle.json").write_text(json.dumps(uvo, indent=2))
 # ensure implement marker in index
 t = idx.read_text(encoding="utf-8")
 if "guazi-flow-implement" not in t:
@@ -120,6 +130,17 @@ impl = {
 }
 (fix/"handoff/implement.json").write_text(json.dumps(impl, indent=2))
 (fix/"handoff/review-packet.json").write_text("{}")
+(fix/"evidence").mkdir(exist_ok=True)
+uvo = {
+  "schema_version": 1,
+  "overall": "pass",
+  "oracle_mode": "related_union",
+  "git_head": "unknown",
+  "candidate_diff_hash": "unknown",
+  "passed_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+  "steps": [{"id": "scope", "pass": True}, {"id": "secret", "pass": True}],
+}
+(fix/"evidence/verification-oracle.json").write_text(json.dumps(uvo, indent=2))
 PY
 if "$GATE" --task-dir "$FIX2" --stage review --pre --mode guazi; then
   echo "FAIL plan-stale-contract-changed expected FAIL"; exit 1

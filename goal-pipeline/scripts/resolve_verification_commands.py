@@ -64,8 +64,15 @@ def _parse_write_set_from_index(index_path: str) -> list[str]:
     return paths
 
 
+def _handoff_dir(task_dir: str) -> str:
+    env = os.environ.get("GOAL_HANDOFF_DIR") or os.environ.get("HANDOFF_DIR")
+    if env and os.path.isdir(env):
+        return env
+    return os.path.join(task_dir, "handoff")
+
+
 def _load_write_set(task_dir: str) -> list[str]:
-    handoff = os.path.join(task_dir, "handoff", "plan.json")
+    handoff = os.path.join(_handoff_dir(task_dir), "plan.json")
     if os.path.isfile(handoff):
         try:
             ws = json.load(open(handoff, encoding="utf-8")).get("write_set") or []
@@ -77,7 +84,7 @@ def _load_write_set(task_dir: str) -> list[str]:
 
 
 def _load_handoff_commands(task_dir: str) -> list[dict[str, Any]]:
-    handoff = os.path.join(task_dir, "handoff", "plan.json")
+    handoff = os.path.join(_handoff_dir(task_dir), "plan.json")
     if not os.path.isfile(handoff):
         return []
     try:
