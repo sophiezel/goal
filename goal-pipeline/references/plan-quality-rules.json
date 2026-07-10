@@ -43,6 +43,12 @@
       "summary": "伪代码最低字数",
       "standard_min_chars": 200,
       "strict_min_chars": 500
+    },
+    "PQ-07": {
+      "id": "PQ-07",
+      "summary": "写集含 src/pages 时验收矩阵须声明 build:beta",
+      "standard": "block",
+      "strict": "block"
     }
   }
 }

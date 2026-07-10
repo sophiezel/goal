@@ -498,6 +498,7 @@ payload['gate'] = {
     'script': 'gate-guazi-flow-stage.sh',
     'version': 1,
     'passed_at': datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ'),
+    'post_exit_code': 0,
 }
 out = os.path.join(handoff_dir, f'{stage}.json')
 with open(out, 'w', encoding='utf-8') as f:
@@ -665,7 +666,10 @@ entry['gate'] = {
     'version': 1,
     'passed_at': passed_at,
     'handoff_hash': handoff_hash,
+    'post_exit_code': 0,
 }
+gates = state.setdefault('gates', {})
+gates.setdefault(stage, {})['post'] = {'exit_code': 0, 'passed_at': passed_at}
 _next = {'plan': 'implement', 'implement': 'quality', 'quality': 'review', 'smoke': 'review', 'review': 'complete', 'complete': 'complete'}
 state['current_stage'] = _next.get(stage, stage)
 with open(state_path, 'w', encoding='utf-8') as f:

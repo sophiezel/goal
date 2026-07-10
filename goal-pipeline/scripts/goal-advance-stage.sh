@@ -122,7 +122,10 @@ import json, sys
 try:
     d = json.load(open(sys.argv[1]))
     gate = d.get("gate") or {}
-    sys.exit(0 if gate.get("passed_at") else 1)
+    exit_code = gate.get("post_exit_code")
+    if exit_code is None:
+        exit_code = 0 if gate.get("passed_at") else 1
+    sys.exit(0 if gate.get("passed_at") and exit_code == 0 else 1)
 except Exception:
     sys.exit(1)
 PY
@@ -138,7 +141,12 @@ stage = sys.argv[2]
 stages = state.get("guazi_flow_stages") or {}
 entry = stages.get(stage) or {}
 gate = entry.get("gate") or {}
-sys.exit(0 if gate.get("passed_at") else 1)
+gates = (state.get("gates") or {}).get(stage) or {}
+post = gates.get("post") or {}
+exit_code = post.get("exit_code", gate.get("post_exit_code"))
+if exit_code is None:
+    exit_code = 0 if gate.get("passed_at") else 1
+sys.exit(0 if gate.get("passed_at") and exit_code == 0 else 1)
 PY
 }
 
