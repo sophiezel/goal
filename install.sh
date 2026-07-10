@@ -307,15 +307,18 @@ SYNC_SCRIPT="$REPO_DIR/goal-pipeline/scripts/sync-install-repo.sh"
 if [ -f "$SYNC_SCRIPT" ]; then
   bash "$SYNC_SCRIPT" --deploy-only
 else
-for script in verify.sh verify-review.sh detect-review-channels review-channel-guard.py detect-platform check-consistency runtime-smoke.sh gate-guazi-flow-stage.sh format-gate-issues.sh goal-advance-stage.sh assemble-review-packet.sh merge-review-issues.sh merge_review_core.py run-independent-review.sh platform-review-adapter.sh platform_review_adapter_core.py validate-pipeline-chain.sh validate-pipeline-chain.py goal-pipeline-stop-hook.sh goal-stage-driver.sh goal-run-review-chain.sh goal-pipeline-recover.sh goal-pipeline-doctor.sh goal-pipeline-session-start-hook.sh resolve-artifact-paths.py source-artifact-paths.sh migrate-artifacts.py sync-install-repo.sh index_contract_hash.py refresh-handoffs-after-index.sh plan-quality-gate.py implement-qc-gate.py quality-gate.sh goal-metrics-calibrate.sh; do
-  src="$REPO_DIR/goal-pipeline/scripts/$script"
-  dst="$GOAL_STATE_HOME/scripts/$script"
-  if [ -f "$src" ]; then
-    cp "$src" "$dst"
-    chmod +x "$dst"
-  fi
-done
-echo "  ✅ Scripts deployed to $GOAL_STATE_HOME/scripts/"
+  SCRIPTS_SRC="$REPO_DIR/goal-pipeline/scripts"
+  mkdir -p "$GOAL_STATE_HOME/scripts"
+  rm -f "$GOAL_STATE_HOME/scripts/inject-docs-gitignore.sh"
+  deployed=0
+  for src in "$SCRIPTS_SRC"/*.sh "$SCRIPTS_SRC"/*.py "$SCRIPTS_SRC"/check-consistency; do
+    [ -f "$src" ] || continue
+    base="$(basename "$src")"
+    cp "$src" "$GOAL_STATE_HOME/scripts/$base"
+    chmod +x "$GOAL_STATE_HOME/scripts/$base"
+    deployed=$((deployed + 1))
+  done
+  echo "  ✅ Scripts deployed to $GOAL_STATE_HOME/scripts/ ($deployed files)"
 # Write VERSION manifest with gate script hash for drift detection
 GATE_SRC="$REPO_DIR/goal-pipeline/scripts/gate-guazi-flow-stage.sh"
 GATE_HASH=$(shasum -a 256 "$GATE_SRC" 2>/dev/null | cut -c1-16 || sha256sum "$GATE_SRC" 2>/dev/null | cut -c1-16 || echo "unknown")

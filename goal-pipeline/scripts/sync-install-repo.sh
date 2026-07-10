@@ -127,14 +127,30 @@ deploy_runtime() {
 
   rm -f "$GOAL_STATE_HOME/scripts/inject-docs-gitignore.sh"
 
-  for script in verify.sh verify-review.sh detect-review-channels review-channel-guard.py detect-platform check-consistency runtime-smoke.sh gate-guazi-flow-stage.sh format-gate-issues.sh goal-advance-stage.sh assemble-review-packet.sh merge-review-issues.sh merge_review_core.py run-independent-review.sh platform-review-adapter.sh platform_review_adapter_core.py validate-pipeline-chain.sh validate-pipeline-chain.py goal-pipeline-stop-hook.sh goal-stage-driver.sh goal-run-review-chain.sh goal-pipeline-recover.sh goal-pipeline-doctor.sh goal-pipeline-session-start-hook.sh resolve-artifact-paths.py source-artifact-paths.sh migrate-artifacts.py sync-install-repo.sh index_contract_hash.py refresh-handoffs-after-index.sh plan-quality-gate.py implement-qc-gate.py quality-gate.sh goal-metrics-calibrate.sh; do
-    src="$source_root/goal-pipeline/scripts/$script"
-    dst="$GOAL_STATE_HOME/scripts/$script"
-    if [[ -f "$src" ]]; then
-      cp "$src" "$dst"
-      chmod +x "$dst"
-    fi
+  local scripts_dir="$source_root/goal-pipeline/scripts"
+  [[ -d "$scripts_dir" ]] || {
+    warn "scripts dir missing: $scripts_dir"
+    return 1
+  }
+
+  # Deploy all top-level runtime scripts (*.sh, *.py, check-consistency).
+  # Excludes fixtures/ — new pipeline scripts auto-sync on install/update.
+  shopt -s nullglob
+  local deployed=0
+  for src in "$scripts_dir"/*.sh "$scripts_dir"/*.py "$scripts_dir"/check-consistency; do
+    [[ -f "$src" ]] || continue
+    local base
+    base="$(basename "$src")"
+    cp "$src" "$GOAL_STATE_HOME/scripts/$base"
+    chmod +x "$GOAL_STATE_HOME/scripts/$base"
+    deployed=$((deployed + 1))
   done
+  shopt -u nullglob
+
+  if [[ "$deployed" -eq 0 ]]; then
+    warn "no runtime scripts deployed from $scripts_dir"
+    return 1
+  fi
 
   SCHEMA_SRC="$source_root/goal-pipeline/references/guazi-flow-artifact-schema"
   SCHEMA_DST="$GOAL_STATE_HOME/references/guazi-flow-artifact-schema"
@@ -158,7 +174,7 @@ deploy_runtime() {
 }
 VEREOF
 
-  log "✅ Runtime scripts synced to $GOAL_STATE_HOME/scripts/ (git_rev=$GIT_REV)"
+  log "✅ Runtime scripts synced to $GOAL_STATE_HOME/scripts/ ($deployed files, git_rev=$GIT_REV)"
 }
 
 main() {
