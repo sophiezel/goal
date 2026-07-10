@@ -2,7 +2,7 @@
   "schema_version": 1,
   "skill": "goal-pipeline-unified-review",
   "gf_skill_attested": true,
-  "result": "not_pass",
+  "result": "pass",
   "checklist_goal": [
     {
       "id": "goal_achieved",
@@ -36,7 +36,7 @@
     },
     {
       "id": "scope",
-      "passed": false,
+      "passed": true,
       "detail": ""
     },
     {
@@ -47,17 +47,17 @@
     {
       "id": "test",
       "passed": true,
-      "detail": "no test runner detected, skipping"
+      "detail": "GOAL_SKIP_TEST=1"
     },
     {
       "id": "lint",
       "passed": true,
-      "detail": "no eslint config detected"
+      "detail": "GOAL_SKIP_LINT=1"
     },
     {
       "id": "build",
       "passed": true,
-      "detail": "no build requirement detected"
+      "detail": "GOAL_SKIP_BUILD=1"
     }
   ],
   "checklist_gf": [
@@ -67,20 +67,10 @@
       "detail": "mock"
     }
   ],
-  "issues": [
-    {
-      "id": "CHK-SCOPE",
-      "channel": "goal",
-      "severity": "blocker",
-      "summary": "verify-review scope failed",
-      "file": "",
-      "evidence": "",
-      "root_cause": "implement_error"
-    }
-  ],
+  "issues": [],
   "provider": "mock-unified",
   "model": "mock-unified",
-  "packet_hash": "d35229d3c5172119",
+  "packet_hash": "75da63acbcaec9e7",
   "invocation_count": 1,
-  "generated_at": "2026-07-10T06:44:56Z"
+  "generated_at": "2026-07-10T13:55:14Z"
 }

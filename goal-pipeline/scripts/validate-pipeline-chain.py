@@ -13,6 +13,7 @@ def parse_args():
     p = argparse.ArgumentParser()
     p.add_argument("--task-dir", required=True)
     p.add_argument("--state-file", default="")
+    p.add_argument("--exclude-stage", default="", help="skip handoff checks for this stage (e.g. quality during post)")
     return p.parse_args()
 
 
@@ -152,17 +153,32 @@ def main():
             except Exception:
                 git_root = None
             if stored_dh and git_root:
-                import subprocess
+                import importlib.util
 
-                diff = subprocess.check_output(
-                    ["git", "-C", git_root, "diff", "HEAD"],
-                    text=True,
-                    stderr=subprocess.DEVNULL,
-                )
-                cur_dh = hashlib.sha256(diff.encode("utf-8")).hexdigest()[:16]
-                if cur_dh != stored_dh:
+                uvo_core = os.path.join(script_dir, "verification_oracle_core.py")
+                if os.path.isfile(uvo_core):
+                    spec = importlib.util.spec_from_file_location("verification_oracle_core", uvo_core)
+                    mod = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(mod)
+                    ws = impl_doc.get("write_set") or []
+                    ref = ""
+                    if os.path.isfile(plan_handoff):
+                        plan_doc = json.load(open(plan_handoff, encoding="utf-8"))
+                        ref = plan_doc.get("reference_branch") or plan_doc.get("reference_impl_branch") or ""
+                    cur_dh = mod.code_subject_hash(git_root, ws, ref)
+                else:
+                    import subprocess
+
+                    diff = subprocess.check_output(
+                        ["git", "-C", git_root, "-c", "core.quotepath=false", "diff", "HEAD"],
+                        text=True,
+                        stderr=subprocess.DEVNULL,
+                    )
+                    cur_dh = hashlib.sha256(diff.encode("utf-8")).hexdigest()[:16]
+                stored_csh = impl_doc.get("code_subject_hash") or stored_dh
+                if cur_dh != stored_csh:
                     warnings.append(
-                        f"implement: candidate_diff_hash drifted ({stored_dh} → {cur_dh}) — refresh via gate --post implement"
+                        f"implement: code_subject_hash drifted ({stored_csh} → {cur_dh}) — refresh via gate --post implement"
                     )
                     if not recommended_fix_command:
                         recommended_fix_command = (
@@ -188,9 +204,14 @@ def main():
 
     sm_path = os.path.join(goal_evidence_dir, "runtime-smoke.md")
     quality_handoff = os.path.join(handoff_dir, "quality.json")
+    exclude = (args.exclude_stage or "").strip()
     if os.path.isfile(impl):
         if os.path.isfile(sm_path):
-            if not os.path.isfile(quality_handoff) and not os.path.isfile(os.path.join(handoff_dir, "smoke.json")):
+            if (
+                exclude != "quality"
+                and not os.path.isfile(quality_handoff)
+                and not os.path.isfile(os.path.join(handoff_dir, "smoke.json"))
+            ):
                 res = fm(sm_path, "result")
                 if res != "skipped":
                     errors.append("quality: handoff/quality.json gate not passed")

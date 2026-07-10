@@ -6,11 +6,13 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 TASK_DIR=""
 STATE_FILE=""
+EXCLUDE_STAGE=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --task-dir) TASK_DIR="$2"; shift 2 ;;
     --state-file) STATE_FILE="$2"; shift 2 ;;
+    --exclude-stage) EXCLUDE_STAGE="$2"; shift 2 ;;
     *) shift ;;
   esac
 done
@@ -19,4 +21,4 @@ done
 [[ "$TASK_DIR" != /* ]] && TASK_DIR="$(pwd)/$TASK_DIR"
 TASK_DIR="$(cd "$TASK_DIR" && pwd)"
 
-exec python3 "$SCRIPT_DIR/validate-pipeline-chain.py" --task-dir "$TASK_DIR" ${STATE_FILE:+--state-file "$STATE_FILE"}
+exec python3 "$SCRIPT_DIR/validate-pipeline-chain.py" --task-dir "$TASK_DIR" ${STATE_FILE:+--state-file "$STATE_FILE"} ${EXCLUDE_STAGE:+--exclude-stage "$EXCLUDE_STAGE"}

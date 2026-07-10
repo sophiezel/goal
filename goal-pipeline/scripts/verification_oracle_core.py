@@ -77,8 +77,8 @@ def git_changed_files(repo_root: str) -> list[str]:
         return []
     files: list[str] = []
     for args in (
-        ["git", "-C", repo_root, "diff", "--name-only", "HEAD"],
-        ["git", "-C", repo_root, "ls-files", "--others", "--exclude-standard"],
+        ["git", "-C", repo_root, "-c", "core.quotepath=false", "diff", "--name-only", "HEAD"],
+        ["git", "-C", repo_root, "-c", "core.quotepath=false", "ls-files", "--others", "--exclude-standard"],
     ):
         try:
             r = subprocess.run(args, capture_output=True, text=True, timeout=30)
@@ -90,18 +90,18 @@ def git_changed_files(repo_root: str) -> list[str]:
 
 
 def diff_hash(repo_root: str) -> str:
-    """Hash working tree diff including untracked (for stale/noop detection)."""
+    """Hash full working tree diff including untracked (legacy / artifact tracking)."""
     if not repo_root or not os.path.isdir(os.path.join(repo_root, ".git")):
         return "unknown"
     try:
         diff = subprocess.check_output(
-            ["git", "-C", repo_root, "diff", "HEAD"],
+            ["git", "-C", repo_root, "-c", "core.quotepath=false", "diff", "HEAD"],
             text=True,
             stderr=subprocess.DEVNULL,
             timeout=30,
         )
         untracked = subprocess.check_output(
-            ["git", "-C", repo_root, "ls-files", "--others", "--exclude-standard"],
+            ["git", "-C", repo_root, "-c", "core.quotepath=false", "ls-files", "--others", "--exclude-standard"],
             text=True,
             stderr=subprocess.DEVNULL,
             timeout=30,
@@ -115,6 +115,27 @@ def diff_hash(repo_root: str) -> str:
                     pass
         return hashlib.sha256(diff.encode("utf-8")).hexdigest()[:16]
     except (OSError, subprocess.TimeoutExpired):
+        return "unknown"
+
+
+def _load_diff_resolver():
+    path = os.path.join(_script_dir(), "diff_resolver.py")
+    return _load_module("diff_resolver", path)
+
+
+def code_subject_hash(repo_root: str, write_set: list[str] | None = None, ref_branch: str = "") -> str:
+    try:
+        dr = _load_diff_resolver()
+        return dr.code_subject_hash(repo_root, write_set, ref_branch)
+    except Exception:
+        return diff_hash(repo_root)
+
+
+def artifact_diff_hash(repo_root: str, task_dir: str) -> str:
+    try:
+        dr = _load_diff_resolver()
+        return dr.artifact_diff_hash(repo_root, task_dir)
+    except Exception:
         return "unknown"
 
 
@@ -176,7 +197,13 @@ def _related_source_files(changed_files: list[str], write_set: list[str]) -> lis
 
 def _test_files_for_write_set(changed_files: list[str], repo_root: str) -> list[str]:
     tests: list[str] = []
-    basenames = {os.path.splitext(os.path.basename(f))[0] for f in changed_files}
+    code_changed = [
+        f for f in changed_files
+        if f.startswith("src/") and not f.endswith(".md") and "index.md" not in f
+    ]
+    basenames = {os.path.splitext(os.path.basename(f))[0] for f in code_changed}
+    basenames.discard("index")
+    basenames = {b for b in basenames if len(b) > 2}
     for root, _, files in os.walk(repo_root):
         if "node_modules" in root.split(os.sep):
             continue
@@ -184,10 +211,15 @@ def _test_files_for_write_set(changed_files: list[str], repo_root: str) -> list[
             if not re.search(r"\.(test|spec)\.(tsx?|jsx?)$", name):
                 continue
             stem = re.sub(r"\.(test|spec)\.", ".", name).split(".")[0]
-            if stem in basenames or any(stem in os.path.basename(f) for f in changed_files):
+            if stem in basenames:
                 rel = os.path.relpath(os.path.join(root, name), repo_root).replace("\\", "/")
                 tests.append(rel)
     return list(dict.fromkeys(tests))
+
+
+def _is_build_command(cmd: str) -> bool:
+    c = cmd.lower()
+    return ("build" in c or "build:" in c) and "test" not in c
 
 
 def build_test_commands(
@@ -211,19 +243,31 @@ def build_test_commands(
             cmd = str(item.get("cmd", ""))
             if "test" in str(item.get("id", "")).lower() or "test" in cmd.lower():
                 if oracle_mode != "full_suite" and "watchAll=false" in cmd and "--findRelatedTests" not in cmd:
-                    continue  # skip full suite from profile in standard mode
-                cmds.append({"id": item.get("id", "handoff-test"), "cmd": cmd, "source": item.get("source", "handoff")})
+                    continue
+                kind = "build" if _is_build_command(cmd) else "test"
+                cmds.append({"id": item.get("id", "handoff-test"), "cmd": cmd, "source": item.get("source", "handoff"), "kind": kind})
 
     handoff_cmds = plan.get("verification_commands") or []
     for item in handoff_cmds:
         if isinstance(item, dict) and item.get("cmd"):
-            cmds.append({"id": item.get("id", "plan-cmd"), "cmd": str(item["cmd"]), "source": "plan"})
+            cmd = str(item["cmd"])
+            entry = {"id": item.get("id", "plan-cmd"), "cmd": cmd, "source": "plan"}
+            if _is_build_command(cmd):
+                entry["kind"] = "build"
+            else:
+                entry["kind"] = "test"
+            cmds.append(entry)
+
+    has_plan_test = any(c.get("kind") == "test" for c in cmds)
 
     if oracle_mode == "full_suite":
         if os.path.isfile(os.path.join(repo_root, "yarn.lock")):
             cmds.append({"id": "full-suite", "cmd": "CI=true yarn test --watchAll=false", "source": "oracle_mode"})
         elif os.path.isfile(os.path.join(repo_root, "package.json")):
             cmds.append({"id": "full-suite", "cmd": "CI=true npm test -- --watchAll=false", "source": "oracle_mode"})
+        return _dedupe_commands(cmds)
+
+    if has_plan_test:
         return _dedupe_commands(cmds)
 
     related = _related_source_files(changed_files, write_set)
@@ -364,7 +408,9 @@ def run_oracle(
     write_set = _write_set_from_plan(plan, task_dir)
     changed = git_changed_files(repo_root)
     gh = git_head(repo_root)
-    dh = diff_hash(repo_root)
+    ref_branch = plan.get("reference_branch") or plan.get("reference_impl_branch") or ""
+    dh = code_subject_hash(repo_root, write_set, ref_branch)
+    artifact_h = artifact_diff_hash(repo_root, task_dir)
 
     start_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
     steps: list[dict[str, Any]] = []
@@ -376,7 +422,10 @@ def run_oracle(
     lint = check_lint(repo_root)
     steps.append({"id": "lint", **lint})
 
-    test_cmds = build_test_commands(repo_root, task_dir, plan, changed, mode)
+    all_cmds = build_test_commands(repo_root, task_dir, plan, changed, mode)
+    test_cmds = [c for c in all_cmds if c.get("kind") != "build" and not _is_build_command(c.get("cmd", ""))]
+    build_cmds = [c for c in all_cmds if c.get("kind") == "build" or _is_build_command(c.get("cmd", ""))]
+
     test_ok = True
     if test_cmds:
         for tc in test_cmds:
@@ -390,7 +439,12 @@ def run_oracle(
         steps.append({"id": "test", "pass": True, "command": "skipped", "output": "no test commands resolved"})
 
     build_ok = True
-    build_cmd = build_build_command(plan, task_dir)
+    build_cmd = None
+    if build_cmds:
+        build_cmd = build_cmds[0]["cmd"]
+    elif not skip_build:
+        build_cmd = build_build_command(plan, task_dir)
+
     if not skip_build and build_cmd:
         ex = run_shell(build_cmd, repo_root)
         ex["id"] = "build"
@@ -416,6 +470,8 @@ def run_oracle(
         "tier": tier,
         "git_head": gh,
         "candidate_diff_hash": dh,
+        "code_subject_hash": dh,
+        "artifact_hash": artifact_h,
         "write_set": write_set,
         "changed_files": changed,
         "smoke_required": smoke_required(changed, write_set, tier),
@@ -445,8 +501,8 @@ def check_freshness(evidence_path: str, repo_root: str) -> dict[str, Any]:
     stored_gh = data.get("git_head") or ""
     if stored_gh and stored_gh not in ("unknown", "") and gh not in ("unknown", "") and stored_gh != gh:
         return {"fresh": False, "reason": "git_head_mismatch", "expected": gh, "stored": stored_gh}
-    dh = diff_hash(repo_root)
-    stored_dh = data.get("candidate_diff_hash") or ""
+    dh = code_subject_hash(repo_root, data.get("write_set") or [], "")
+    stored_dh = data.get("code_subject_hash") or data.get("candidate_diff_hash") or ""
     if stored_dh and stored_dh not in ("unknown", "") and dh not in ("unknown", "") and stored_dh != dh:
         return {"fresh": False, "reason": "diff_hash_mismatch", "expected": dh, "stored": stored_dh}
     return {"fresh": True, "evidence": data}

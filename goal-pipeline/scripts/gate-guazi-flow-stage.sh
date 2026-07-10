@@ -309,8 +309,8 @@ if gate_script:
         sys.exit(0)
 import hashlib, subprocess
 repo = sys.argv[1]
-diff = subprocess.check_output(['git', '-C', repo, 'diff', 'HEAD'], text=True, stderr=subprocess.DEVNULL)
-un = subprocess.check_output(['git', '-C', repo, 'ls-files', '--others', '--exclude-standard'], text=True, stderr=subprocess.DEVNULL).splitlines()
+diff = subprocess.check_output(['git', '-C', repo, '-c', 'core.quotepath=false', 'diff', 'HEAD'], text=True, stderr=subprocess.DEVNULL)
+un = subprocess.check_output(['git', '-C', repo, '-c', 'core.quotepath=false', 'ls-files', '--others', '--exclude-standard'], text=True, stderr=subprocess.DEVNULL).splitlines()
 for f in un:
     fp = os.path.join(repo, f)
     if os.path.isfile(fp):
@@ -320,6 +320,26 @@ for f in un:
             pass
 print(hashlib.sha256(diff.encode()).hexdigest()[:16])
 PYDH
+  else
+    echo "unknown"
+  fi
+}
+
+code_subject_hash() {
+  if [[ -n "$GIT_ROOT" ]]; then
+    local ws_json ref_branch
+    ws_json=$(python3 -c "import json; print(json.dumps(json.load(open('$HANDOFF_DIR/plan.json')).get('write_set',[])))" 2>/dev/null || echo '[]')
+    ref_branch=$(python3 -c "import json; p=json.load(open('$HANDOFF_DIR/plan.json')); print(p.get('reference_branch') or p.get('reference_impl_branch') or '')" 2>/dev/null || echo "")
+    python3 - "$GIT_ROOT" "$ws_json" "$ref_branch" << 'PYCS' 2>/dev/null || echo "unknown"
+import importlib.util, json, os, sys
+gate_script = os.environ.get('GATE_SCRIPT_DIR', '')
+path = os.path.join(gate_script, 'verification_oracle_core.py')
+spec = importlib.util.spec_from_file_location('uvo', path)
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+ws = json.loads(sys.argv[2])
+print(mod.code_subject_hash(sys.argv[1], ws, sys.argv[3]))
+PYCS
   else
     echo "unknown"
   fi
@@ -577,10 +597,12 @@ mkdir -p "$HANDOFF_DIR" "$REPO_EVIDENCE_DIR" "$GOAL_EVIDENCE_DIR"
 
 
 assert_pipeline_chain() {
+  local exclude_stage="${1:-}"
   local validator="$SCRIPT_DIR/validate-pipeline-chain.sh"
   [[ -x "$validator" ]] || fail "validate-pipeline-chain.sh missing"
   local args=(--task-dir "$TASK_DIR")
   [[ -n "$STATE_FILE" ]] && args+=(--state-file "$STATE_FILE")
+  [[ -n "$exclude_stage" ]] && args+=(--exclude-stage "$exclude_stage")
   if ! "$validator" "${args[@]}" >/dev/null 2>&1; then
     "$validator" "${args[@]}" 2>&1 | head -20 >&2 || true
     fail "pipeline chain invalid — fix before gate --post $STAGE"
@@ -821,6 +843,13 @@ PYUVO
 )
         gate_fail_with_issues "implement" "$DH_PRE" "fix_and_rerun" "$UVO_ISSUES" "verification-oracle failed (UVO)"
       fi
+      RATCHET="$SCRIPT_DIR/acceptance-matrix-ratchet.py"
+      if [[ -f "$RATCHET" ]]; then
+        RAT_ARGS=(--task-dir "$TASK_DIR" --repo-root "$REPO_FOR_UVO" --evidence-dir "$GOAL_EVIDENCE_DIR" --json)
+        if ! python3 "$RATCHET" "${RAT_ARGS[@]}" >/dev/null 2>&1; then
+          gate_fail_with_issues "implement" "$(code_subject_hash)" "fix_and_rerun" '[{"id":"AM-01","severity":"blocker","summary":"acceptance-matrix-ratchet failed","root_cause":"implement_error"}]' "acceptance-matrix-ratchet not_pass"
+        fi
+      fi
       # IQ thin wrapper: structural checks only (UVO evidence already written)
       IQ_JSON=$(mktemp)
       if ! python3 "$SCRIPT_DIR/implement-qc-gate.py" --task-dir "$TASK_DIR" --repo-root "$REPO_FOR_UVO" --tier "$TIER" --skip-test-lint --json > "$IQ_JSON" 2>/dev/null; then
@@ -847,10 +876,20 @@ PYIQ
       fi
       CHANGED=$(check_write_set_subset "$PLAN_WS")
       CF=$(echo "$CHANGED" | python3 -c "import json,sys; print(json.dumps(json.load(sys.stdin).get('changed_files',[])))")
-      DH=$(diff_hash)
+      DH=$(code_subject_hash)
+      ART_HASH=$(python3 - "$GIT_ROOT" "$REPO_TASK_DIR" << 'PYAH' 2>/dev/null || echo "unknown"
+import importlib.util, os, sys
+gate_script = os.environ.get('GATE_SCRIPT_DIR', '')
+path = os.path.join(gate_script, 'verification_oracle_core.py')
+spec = importlib.util.spec_from_file_location('uvo', path)
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+print(mod.artifact_diff_hash(sys.argv[1], sys.argv[2]))
+PYAH
+)
       GH=$(git_head_short)
       UVO_GH=$(python3 -c "import json; print(json.load(open('$GOAL_EVIDENCE_DIR/verification-oracle.json')).get('git_head',''))" 2>/dev/null || echo "")
-      UVO_DH=$(python3 -c "import json; print(json.load(open('$GOAL_EVIDENCE_DIR/verification-oracle.json')).get('candidate_diff_hash',''))" 2>/dev/null || echo "")
+      UVO_DH=$(python3 -c "import json; print(json.load(open('$GOAL_EVIDENCE_DIR/verification-oracle.json')).get('code_subject_hash', json.load(open('$GOAL_EVIDENCE_DIR/verification-oracle.json')).get('candidate_diff_hash','')))" 2>/dev/null || echo "")
       TMP=$(mktemp)
       cat > "$TMP" << JSON
 {
@@ -862,6 +901,8 @@ PYIQ
   "changed_files": $CF,
   "git_head": "$GH",
   "candidate_diff_hash": "$DH",
+  "code_subject_hash": "$DH",
+  "artifact_hash": "$ART_HASH",
   "uvo_git_head": "$UVO_GH",
   "uvo_diff_hash": "$UVO_DH",
   "artifact_paths": ["index.md", "evidence/verification-oracle.json"]
@@ -918,6 +959,9 @@ SMYAML
     fi
     QG_ARGS=(--task-dir "$TASK_DIR" --repo-root "$REPO_FOR_QG" --tier "$TIER" --skip-iq)
     [[ "$SMOKE_REQUIRED" == "no" ]] && QG_ARGS+=(--skip-smoke)
+    if [[ "$PHASE" == "post" ]]; then
+      assert_pipeline_chain quality
+    fi
     if ! bash "$SCRIPT_DIR/quality-gate.sh" "${QG_ARGS[@]}"; then
       QH=$(content_hash "$SMOKE_MD")
       ISSUES='[{"id":"QG-01","severity":"blocker","summary":"quality-gate.sh failed","root_cause":"quality_gate"}]'
@@ -1094,6 +1138,14 @@ PYFRESH
       unset GOAL_SKIP_TEST GOAL_SKIP_BUILD GOAL_SKIP_LINT
       VOK=$(echo "$VOUT" | python3 -c "import json,sys; d=json.load(sys.stdin); c=d.get('checks',d); print('pass' if c.get('scope',{}).get('pass') and c.get('secret',{}).get('pass') else 'not_pass')" 2>/dev/null || echo "not_pass")
       [[ "$VOK" == "pass" ]] || fail "review-pre scope/secret check not pass"
+      PREFLIGHT="$SCRIPT_DIR/review_packet_preflight.py"
+      if [[ -f "$PREFLIGHT" ]]; then
+        PF_ARGS=(--packet "$HANDOFF_DIR/review-packet.json" --uvo "$GOAL_EVIDENCE_DIR/verification-oracle.json")
+        if ! python3 "$PREFLIGHT" "${PF_ARGS[@]}" >/dev/null 2>&1; then
+          python3 "$PREFLIGHT" "${PF_ARGS[@]}" --json 2>&1 | head -20 >&2 || true
+          fail "review-packet preflight failed (PKT-01/02/03)"
+        fi
+      fi
       pass "review gate"
     fi
     if [[ "$PHASE" == "post" ]]; then
@@ -1107,11 +1159,11 @@ PYFRESH
       RESULT_VAL=$(echo "$RRESULT" | python3 -c "import json,sys; print(json.load(sys.stdin).get('result','unknown'))")
       RSH=$(echo "$RRESULT" | python3 -c "import json,sys; print(json.load(sys.stdin).get('review_subject_hash',''))")
       GH=$(git_head_short)
-      # stale check: implement diff changed since review
-      CUR_DH=$(diff_hash)
-      IMP_DH=$(python3 -c "import json; print(json.load(open('$HANDOFF_DIR/implement.json')).get('candidate_diff_hash',''))" 2>/dev/null || echo "")
-      if [[ -n "$IMP_DH" && "$IMP_DH" != "$CUR_DH" ]]; then
-        fail "review stale — candidate_diff_hash changed since implement handoff"
+      # stale check: src implementation diff changed since implement (evidence writes ignored)
+      CUR_CSH=$(code_subject_hash)
+      IMP_CSH=$(python3 -c "import json; d=json.load(open('$HANDOFF_DIR/implement.json')); print(d.get('code_subject_hash') or d.get('candidate_diff_hash',''))" 2>/dev/null || echo "")
+      if [[ -n "$IMP_CSH" && "$IMP_CSH" != "$CUR_CSH" && "$IMP_CSH" != "unknown" && "$CUR_CSH" != "unknown" ]]; then
+        fail "review stale — code_subject_hash changed since implement handoff"
       fi
       GOAL_COUNT=0
       if [[ -f "$GOAL_EVIDENCE_DIR/review-unified.json" ]]; then

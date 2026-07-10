@@ -1,6 +1,6 @@
 {
-  "merged_result": "not_pass",
-  "action": "fix_and_rerun_review",
+  "merged_result": "pass",
+  "action": "proceed_complete",
   "issues_gf_count": 0,
-  "issues_goal_count": 1
+  "issues_goal_count": 0
 }

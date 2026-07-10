@@ -136,7 +136,11 @@ def build_unified_prompt(packet, diff_budget=60000):
 
     det = packet.get("deterministic_checks") or {}
     if det:
-        parts.append("\n## deterministic_checks\n" + json.dumps(det, ensure_ascii=False)[:4000])
+        parts.append("\n## deterministic_checks (L1 attestation — do NOT re-fail scope/test/build/secret)\n" + json.dumps(det, ensure_ascii=False)[:4000])
+
+    am = packet.get("acceptance_matrix_ratchet") or {}
+    if am:
+        parts.append("\n## acceptance_matrix_ratchet (deterministic)\n" + json.dumps(am, ensure_ascii=False)[:3000])
 
     goal_cl = packet.get("goal_checklist") or []
     if goal_cl:
@@ -155,10 +159,14 @@ def build_unified_prompt(packet, diff_budget=60000):
         parts.append("\n## acceptance_matrix excerpt\n" + str(contract.get("acceptance_matrix", ""))[:3000])
 
     diff_text = packet.get("diff") or ""
+    if not diff_text.strip():
+        diff_text = packet.get("reference_impl_diff") or ""
     diff_bytes = diff_text.encode("utf-8")
     if len(diff_bytes) > diff_budget:
         diff_text = diff_bytes[:diff_budget].decode("utf-8", errors="ignore") + "\n...[diff truncated]..."
     parts.append("\n## diff\n" + diff_text)
+    if packet.get("diff_source"):
+        parts.append("\n## diff_source\n" + str(packet.get("diff_source")))
 
     meta = {
         "task_dir": packet.get("task_dir", ""),

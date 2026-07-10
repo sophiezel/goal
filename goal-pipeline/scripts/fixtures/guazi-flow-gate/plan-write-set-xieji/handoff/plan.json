@@ -12,13 +12,16 @@
   ],
   "write_set_normalized": true,
   "acceptance_matrix_ids": [
-    "C01"
+    "C01",
+    "V02"
   ],
-  "index_contract_hash": "6eca03ac0dc83206",
+  "index_contract_hash": "1ba43d0c0ce8cda4",
   "index_execution_tail_hash": "0eaafff5b3453342",
-  "index_schema_hash": "6eca03ac0dc83206",
-  "verification": {},
-  "git_head": "8d49bdeba9464114",
+  "index_schema_hash": "1ba43d0c0ce8cda4",
+  "verification": {
+    "build_command": "CI= yarn build:beta"
+  },
+  "git_head": "39f1cd45d3a88072",
   "artifact_paths": [
     "index.md"
   ],
@@ -26,6 +29,7 @@
   "gate": {
     "script": "gate-guazi-flow-stage.sh",
     "version": 1,
-    "passed_at": "2026-07-10T06:44:53Z"
+    "passed_at": "2026-07-10T13:55:09Z",
+    "post_exit_code": 0
   }
 }

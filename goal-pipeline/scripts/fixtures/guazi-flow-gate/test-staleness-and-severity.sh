@@ -72,7 +72,17 @@ impl = {
   "gate": {"script": "gate-guazi-flow-stage.sh", "version": 1, "passed_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")},
 }
 (fix/"handoff/implement.json").write_text(json.dumps(impl, indent=2))
-(fix/"handoff/review-packet.json").write_text("{}")
+MIN_DIFF = "diff --git a/src/fixture.ts b/src/fixture.ts\n" + "+export const fixture = 1;\n" * 25
+MIN_PKT = {
+  "schema_version": 1,
+  "diff": MIN_DIFF,
+  "diff_source": "reference_branch",
+  "reference_branch": "main...HEAD",
+  "integrity": {"ok": True, "errors": []},
+  "deterministic_checks": {"overall": "pass"},
+  "changed_files": ["src/fixture.ts"],
+}
+(fix/"handoff/review-packet.json").write_text(json.dumps(MIN_PKT, indent=2))
 (fix/"evidence").mkdir(exist_ok=True)
 uvo = {
   "schema_version": 1,
@@ -129,7 +139,17 @@ impl = {
   "gate": {"passed_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")},
 }
 (fix/"handoff/implement.json").write_text(json.dumps(impl, indent=2))
-(fix/"handoff/review-packet.json").write_text("{}")
+MIN_DIFF = "diff --git a/src/fixture.ts b/src/fixture.ts\n" + "+export const fixture = 1;\n" * 25
+MIN_PKT = {
+  "schema_version": 1,
+  "diff": MIN_DIFF,
+  "diff_source": "reference_branch",
+  "reference_branch": "main...HEAD",
+  "integrity": {"ok": True, "errors": []},
+  "deterministic_checks": {"overall": "pass"},
+  "changed_files": ["src/fixture.ts"],
+}
+(fix/"handoff/review-packet.json").write_text(json.dumps(MIN_PKT, indent=2))
 (fix/"evidence").mkdir(exist_ok=True)
 uvo = {
   "schema_version": 1,

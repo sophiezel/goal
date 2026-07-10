@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "assembled_at": "2026-07-10T06:44:55Z",
+  "assembled_at": "2026-07-10T13:55:13Z",
   "task_dir": "/Users/xuwei/Profession/goal/goal-pipeline/scripts/fixtures/guazi-flow-gate/review-unified-good",
   "contract": {
     "goal": "unified mock fixture",
@@ -10,6 +10,9 @@
     "pseudocode_summary": "// minimal"
   },
   "diff": "",
+  "diff_source": "working_tree",
+  "reference_impl_diff": "",
+  "reference_branch": "main...HEAD",
   "constraints": {
     "allowed_files": [
       "src/"
@@ -22,69 +25,9 @@
   ],
   "deterministic_checks": {
     "overall": "not_pass",
-    "checks": {
-      "scope": {
-        "pass": false,
-        "modified_files": [
-          "docs/exec-plans/INDEX.md",
-          "goal-pipeline/SKILL.md",
-          "goal-pipeline/scripts/fixtures/guazi-flow-gate/plan-good/handoff/plan.json",
-          "goal-pipeline/scripts/fixtures/guazi-flow-gate/plan-write-set-xieji/handoff/plan.json",
-          "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-fake-good/handoff/review.json",
-          "goal-pipeline/scripts/fixtures/guazi-flow-gate/run-all-gate-tests.sh",
-          "goal-pipeline/scripts/fixtures/guazi-flow-gate/smoke-good/handoff/smoke.json",
-          "goal-pipeline/scripts/gate-guazi-flow-stage.sh",
-          "goal-pipeline/scripts/goal-advance-stage.sh",
-          "goal-pipeline/scripts/goal-stage-driver.sh",
-          "goal-pipeline/scripts/sync-install-repo.sh",
-          "goal-pipeline/scripts/validate-pipeline-chain.py",
-          "guazi-flow-goal/SKILL.md",
-          "guazi-flow-goal/references/bridge-contract.md",
-          "guazi-flow-goal/references/guazi-flow-integration.md",
-          "guazi-flow-goal/references/stage-script-matrix.md",
-          "install.sh"
-        ],
-        "out_of_scope": [
-          "docs/exec-plans/INDEX.md",
-          "goal-pipeline/SKILL.md",
-          "goal-pipeline/scripts/fixtures/guazi-flow-gate/plan-good/handoff/plan.json",
-          "goal-pipeline/scripts/fixtures/guazi-flow-gate/plan-write-set-xieji/handoff/plan.json",
-          "goal-pipeline/scripts/fixtures/guazi-flow-gate/review-fake-good/handoff/review.json",
-          "goal-pipeline/scripts/fixtures/guazi-flow-gate/run-all-gate-tests.sh",
-          "goal-pipeline/scripts/fixtures/guazi-flow-gate/smoke-good/handoff/smoke.json",
-          "goal-pipeline/scripts/gate-guazi-flow-stage.sh",
-          "goal-pipeline/scripts/goal-advance-stage.sh",
-          "goal-pipeline/scripts/goal-stage-driver.sh",
-          "goal-pipeline/scripts/sync-install-repo.sh",
-          "goal-pipeline/scripts/validate-pipeline-chain.py",
-          "guazi-flow-goal/SKILL.md",
-          "guazi-flow-goal/references/bridge-contract.md",
-          "guazi-flow-goal/references/guazi-flow-integration.md",
-          "guazi-flow-goal/references/stage-script-matrix.md",
-          "install.sh"
-        ]
-      },
-      "secret": {
-        "pass": true,
-        "findings": []
-      },
-      "test": {
-        "pass": true,
-        "command": "not_found",
-        "output": "no test runner detected, skipping"
-      },
-      "lint": {
-        "pass": true,
-        "command": "skipped",
-        "output": "no eslint config detected"
-      },
-      "build": {
-        "pass": true,
-        "command": "skipped",
-        "output": "no build requirement detected"
-      }
-    }
+    "error": "verification-oracle.json missing — run gate --post implement"
   },
+  "acceptance_matrix_ratchet": {},
   "changed_files": [],
   "issues_gf": [],
   "guazi_flow_rubric": {
@@ -128,6 +71,8 @@
   "smoke_diagnostic": {},
   "hashes": {
     "candidate_diff_hash": "e3b0c44298fc1c14",
+    "code_subject_hash": "e3b0c44298fc1c14",
+    "artifact_hash": "085c13f179a54933",
     "review_subject_hash": "6ca13d52ca70c883",
     "git_head": "abc123",
     "index_schema_hash": "979590212245d766"

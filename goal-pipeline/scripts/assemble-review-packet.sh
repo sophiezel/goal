@@ -43,11 +43,19 @@ VERIFY_SCRIPT="$SCRIPT_DIR/verify-review.sh"
 
 mkdir -p "$HANDOFF_DIR"
 
-export VERIFY_SCRIPT TASK_DIR INDEX HANDOFF_PLAN HANDOFF_IMPL EVIDENCE OUT MAX_DIFF_BYTES MAX_PSEUDOCODE_CHARS GIT_ROOT STATE_DIR REPO_TASK_DIR HANDOFF_DIR GOAL_EVIDENCE_DIR
+export VERIFY_SCRIPT TASK_DIR INDEX HANDOFF_PLAN HANDOFF_IMPL EVIDENCE OUT MAX_DIFF_BYTES MAX_PSEUDOCODE_CHARS GIT_ROOT STATE_DIR REPO_TASK_DIR HANDOFF_DIR GOAL_EVIDENCE_DIR SCRIPT_DIR="$SCRIPT_DIR"
 
 python3 << 'PY'
-import json, re, os, sys, subprocess, hashlib
+import json, re, os, sys, subprocess, hashlib, importlib.util
 from datetime import datetime, timezone
+
+_script_dir = os.environ.get('SCRIPT_DIR', '')
+_spec = importlib.util.spec_from_file_location('diff_resolver', os.path.join(_script_dir, 'diff_resolver.py'))
+if _spec is None or _spec.loader is None:
+    print(json.dumps({'ok': False, 'errors': ['diff_resolver.py missing']}), file=sys.stderr)
+    sys.exit(1)
+dr = importlib.util.module_from_spec(_spec)
+_spec.loader.exec_module(dr)
 
 task_dir = os.environ['TASK_DIR']
 index_path = os.environ['INDEX']
@@ -121,63 +129,21 @@ contract = {
     'pseudocode_summary': pseudo,
 }
 
-diff_text = ''
-if git_root:
-    try:
-        diff_text = subprocess.check_output(['git', '-C', git_root, '-c', 'core.quotepath=false', 'diff', 'HEAD'], text=True, stderr=subprocess.DEVNULL)
-        untracked = subprocess.check_output(['git', '-C', git_root, '-c', 'core.quotepath=false', 'ls-files', '--others', '--exclude-standard'], text=True, stderr=subprocess.DEVNULL).splitlines()
-        for f in untracked:
-            if write_set and not path_allowed(f, write_set):
-                continue
-            fp = os.path.join(git_root, f)
-            if os.path.isfile(fp):
-                try:
-                    content = open(fp, encoding='utf-8', errors='replace').read()
-                    diff_text += f'\n--- new file: {f} ---\n{content}\n'
-                except Exception:
-                    pass
-    except Exception:
-        pass
+if not plan.get('reference_branch') and not plan.get('reference_impl_branch'):
+    plan = dict(plan)
+    plan['reference_branch'] = 'main...HEAD'
 
-if write_set and diff_text:
-    lines = diff_text.splitlines(keepends=True)
-    filtered = []
-    include = False
-    current_path = ''
-    for line in lines:
-        if line.startswith('diff --git '):
-            parts = line.split()
-            current_path = parts[-1].lstrip('b/') if len(parts) >= 4 else ''
-            include = path_allowed(current_path, write_set) if current_path else False
-        elif line.startswith('--- new file:'):
-            m = re.search(r'--- new file:\s+(\S+)', line)
-            current_path = m.group(1) if m else ''
-            include = path_allowed(current_path, write_set) if current_path else False
-        if include:
-            filtered.append(line)
-    diff_text = ''.join(filtered)
+diff_text, diff_source, diff_trunc = dr.resolve_implementation_diff(git_root, plan, write_set, max_diff)
+if diff_trunc:
+    truncated['diff'] = f'exceeded {max_diff} bytes'
 
 changed_files = list(impl.get('changed_files') or [])
 if git_root and not changed_files:
-    try:
-        names = subprocess.check_output(
-            ['git', '-C', git_root, '-c', 'core.quotepath=false', 'diff', '--name-only', 'HEAD'],
-            text=True, stderr=subprocess.DEVNULL,
-        ).splitlines()
-        unt = subprocess.check_output(
-            ['git', '-C', git_root, '-c', 'core.quotepath=false', 'ls-files', '--others', '--exclude-standard'],
-            text=True, stderr=subprocess.DEVNULL,
-        ).splitlines()
-        changed_files = [n.strip() for n in names + unt if n.strip()]
-    except Exception:
-        pass
-if write_set and changed_files:
-    changed_files = [f for f in changed_files if path_allowed(f, write_set)]
+    changed_files = dr.changed_files_for_plan(git_root, plan, write_set)
 
 diff_text = redact_secrets(diff_text)
-if len(diff_text.encode('utf-8')) > max_diff:
-    diff_text = diff_text[:max_diff] + '\n...[diff truncated]...'
-    truncated['diff'] = f'exceeded {max_diff} bytes'
+reference_impl_diff = diff_text if diff_source == 'reference_branch' else ''
+ref_branch = plan.get('reference_branch') or plan.get('reference_impl_branch') or ''
 
 constraints = {'allowed_files': write_set, 'stop_conditions': [], 'agents_summary': ''}
 if state_dir and os.path.isfile(os.path.join(state_dir, 'state.json')):
@@ -215,13 +181,19 @@ if os.path.isfile(uvo_path):
 else:
     deterministic = {'overall': 'not_pass', 'error': 'verification-oracle.json missing — run gate --post implement'}
 
-reference_impl_diff = ''
-ref_branch = plan.get('reference_branch') or plan.get('reference_impl_branch') or ''
-ref_paths = plan.get('reference_impl_paths') or []
-if ref_branch and git_root:
+ratchet_path = os.path.join(os.environ.get('GOAL_EVIDENCE_DIR', evidence_dir), 'acceptance-matrix-ratchet.json')
+acceptance_matrix_ratchet = {}
+if os.path.isfile(ratchet_path):
     try:
-        ref_diff_args = ['git', '-C', git_root, 'diff', ref_branch, '--'] + (ref_paths if ref_paths else [])
-        reference_impl_diff = subprocess.check_output(ref_diff_args, text=True, stderr=subprocess.DEVNULL)
+        acceptance_matrix_ratchet = json.load(open(ratchet_path, encoding='utf-8'))
+    except Exception:
+        acceptance_matrix_ratchet = {}
+
+if diff_source == 'working_tree' and ref_branch and git_root:
+    try:
+        reference_impl_diff = dr.git_diff_reference(git_root, ref_branch, plan.get('reference_impl_paths') or None)
+        if write_set:
+            reference_impl_diff = dr.filter_diff_by_write_set(reference_impl_diff, write_set)
         if len(reference_impl_diff.encode('utf-8')) > max_diff:
             reference_impl_diff = reference_impl_diff[:max_diff] + '\n...[reference diff truncated]...'
             truncated['reference_impl_diff'] = f'exceeded {max_diff} bytes'
@@ -249,11 +221,15 @@ if os.path.isfile(smoke_md):
             break
 
 git_head = impl.get('git_head', plan.get('git_head', 'unknown'))
-candidate_diff_hash = impl.get('candidate_diff_hash', sha16(diff_text))
+code_subject_hash = impl.get('code_subject_hash') or dr.code_subject_hash(git_root, write_set, ref_branch)
+artifact_hash = impl.get('artifact_hash') or dr.artifact_diff_hash(git_root, task_dir)
+candidate_diff_hash = impl.get('candidate_diff_hash', code_subject_hash)
 review_subject_hash = sha16(diff_text + git_head)
 
 hashes = {
     'candidate_diff_hash': candidate_diff_hash,
+    'code_subject_hash': code_subject_hash,
+    'artifact_hash': artifact_hash,
     'review_subject_hash': review_subject_hash,
     'git_head': git_head,
     'index_schema_hash': plan.get('index_schema_hash', ''),
@@ -297,11 +273,13 @@ packet = {
     'task_dir': task_dir,
     'contract': contract,
     'diff': diff_text,
+    'diff_source': diff_source,
     'reference_impl_diff': reference_impl_diff,
     'reference_branch': ref_branch,
     'constraints': constraints,
     'verification_checklist': checklist,
     'deterministic_checks': deterministic,
+    'acceptance_matrix_ratchet': acceptance_matrix_ratchet,
     'changed_files': changed_files,
     'issues_gf': issues_gf[:50],
     'guazi_flow_rubric': guazi_flow_rubric,
@@ -323,6 +301,16 @@ with open(out_path, 'w', encoding='utf-8') as f:
 if not packet['integrity']['ok']:
     print(json.dumps({'ok': False, 'errors': errors}), file=sys.stderr)
     sys.exit(1)
+
+_pf_path = os.path.join(_script_dir, 'review_packet_preflight.py')
+if os.path.isfile(_pf_path):
+    _ps = importlib.util.spec_from_file_location('review_packet_preflight', _pf_path)
+    _pm = importlib.util.module_from_spec(_ps)
+    _ps.loader.exec_module(_pm)
+    _pf = _pm.run_preflight(packet, uvo_path)
+    if not _pf.get('ok'):
+        print(json.dumps({'ok': False, 'preflight': _pf}, ensure_ascii=False), file=sys.stderr)
+        sys.exit(1)
 
 print(out_path)
 PY

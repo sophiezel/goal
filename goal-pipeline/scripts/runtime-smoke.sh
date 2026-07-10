@@ -287,3 +287,23 @@ PY
 
 rm -f "$STDOUT_LOG" "$STDERR_LOG"
 echo "$SMOKE_JSON"
+
+if [[ "$RESULT" == "pass" || "$RESULT" == "skipped" ]]; then
+  _HS_DIR="${HANDOFF_DIR:-$TASK_DIR/handoff}"
+  mkdir -p "$_HS_DIR"
+  python3 - "$_HS_DIR/smoke.json" "$RESULT" "$DEV_CMD" "$SMOKE_PORT" "$DURATION" << 'PYHS'
+import json, sys
+path, result, dev_cmd, port, duration = sys.argv[1], sys.argv[2], sys.argv[3], sys.argv[4], sys.argv[5]
+doc = {
+  "schema_version": 1,
+  "stage": "smoke",
+  "result": result,
+  "dev_cmd": dev_cmd,
+  "port": int(port or 0),
+  "duration_ms": int(duration or 0),
+}
+with open(path, "w", encoding="utf-8") as f:
+    json.dump(doc, f, indent=2, ensure_ascii=False)
+    f.write("\n")
+PYHS
+fi
