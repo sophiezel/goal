@@ -133,7 +133,11 @@ if not plan.get('reference_branch') and not plan.get('reference_impl_branch'):
     plan = dict(plan)
     plan['reference_branch'] = 'main...HEAD'
 
-diff_text, diff_source, diff_trunc = dr.resolve_implementation_diff(git_root, plan, write_set, max_diff)
+diff_mode = os.environ.get('GOAL_REVIEW_DIFF_SOURCE', 'code_subject_hash')
+if diff_mode == 'code_subject_hash':
+    diff_text, diff_source, diff_trunc = dr.resolve_code_subject_diff(git_root, plan, write_set, max_diff)
+else:
+    diff_text, diff_source, diff_trunc = dr.resolve_implementation_diff(git_root, plan, write_set, max_diff)
 if diff_trunc:
     truncated['diff'] = f'exceeded {max_diff} bytes'
 

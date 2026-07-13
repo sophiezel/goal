@@ -5,6 +5,9 @@
 
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+UVO_CORE="$SCRIPT_DIR/verification_oracle_core.py"
+
 TASK_DIR="${1:-.}"
 WRITE_SET="${2:-}"  # comma-separated file list from unit.md
 FORMAT="${3:-json}"
@@ -118,12 +121,49 @@ check_secrets() {
   fi
 }
 
+# === UVO freshness (skip duplicate test/build when implement gate already passed) ===
+uvo_attestation_skip_heavy() {
+  if [ "${GOAL_SKIP_TEST:-0}" = "1" ] && [ "${GOAL_SKIP_BUILD:-0}" = "1" ]; then
+    echo "true"
+    return
+  fi
+  if [ ! -f "$UVO_CORE" ]; then
+    echo "false"
+    return
+  fi
+  local uvo_path=""
+  for cand in "${GOAL_EVIDENCE_DIR:-}/verification-oracle.json" "$TASK_DIR/evidence/verification-oracle.json"; do
+    if [ -f "$cand" ]; then
+      uvo_path="$cand"
+      break
+    fi
+  done
+  if [ -z "$uvo_path" ]; then
+    echo "false"
+    return
+  fi
+  python3 - "$uvo_path" "$GIT_ROOT" "$TASK_DIR" "$UVO_CORE" << 'PYUVO' 2>/dev/null || echo "false"
+import importlib.util, os, sys
+uvo_path, git_root, task_dir, core_path = sys.argv[1:5]
+spec = importlib.util.spec_from_file_location("verification_oracle_core", core_path)
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+fresh = mod.check_freshness(uvo_path, git_root, task_dir)
+print("true" if fresh.get("fresh") and (fresh.get("evidence") or {}).get("overall") == "pass" else "false")
+PYUVO
+}
+
 # === 3. 测试检查 ===
 check_tests() {
   cd "$GIT_ROOT"
 
   if [ "${GOAL_SKIP_TEST:-0}" = "1" ]; then
     echo '{"pass":true,"command":"skipped","output":"GOAL_SKIP_TEST=1"}'
+    return
+  fi
+
+  if [ "$(uvo_attestation_skip_heavy)" = "true" ]; then
+    echo '{"pass":true,"command":"skipped","output":"UVO fresh pass — test attested by verification-oracle.json"}'
     return
   fi
   
@@ -256,6 +296,11 @@ check_build() {
   # Skip when GOAL_SKIP_BUILD=1 (fixtures / CI without node_modules)
   if [ "${GOAL_SKIP_BUILD:-0}" = "1" ]; then
     echo '{"pass":true,"command":"skipped","output":"GOAL_SKIP_BUILD=1"}'
+    return
+  fi
+
+  if [ "$(uvo_attestation_skip_heavy)" = "true" ]; then
+    echo '{"pass":true,"command":"skipped","output":"UVO fresh pass — build attested by verification-oracle.json"}'
     return
   fi
 

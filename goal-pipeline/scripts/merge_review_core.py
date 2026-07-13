@@ -62,6 +62,31 @@ def normalize_issue(issue, channel, idx):
     }
 
 
+def severity_label_zh(sev: str) -> str:
+    s = (sev or "").lower()
+    if s in ("blocker", "high", "critical"):
+        return "阻断"
+    return "警告"
+
+
+def action_label_zh(action: str) -> str:
+    mapping = {
+        "proceed_complete": "继续 complete",
+        "fix_and_rerun_review": "修复后重跑 review",
+        "mini_replan": "迷你 replan",
+        "blocked_user_decision": "需用户决策",
+    }
+    return mapping.get(action, action)
+
+
+def result_label_zh(result: str) -> str:
+    if result == "pass":
+        return "通过"
+    if result == "review_undetermined":
+        return "未决"
+    return "未通过"
+
+
 def issue_key(issue):
     return "%s|%s|%s" % (issue.get("channel"), issue.get("file", ""), issue.get("summary", "")[:80])
 
@@ -179,24 +204,30 @@ def main():
             "## 审查范围\nauto\n\n## 发现项\nnone\n"
         )
     annex = (
-        "\n## Goal Pipeline Review\n\n_merged at %s_\n\n**goal_result**: %s\n**merged_result**: %s\n**action**: %s\n\n"
-        "### issues_goal\n\n| ID | Severity | Summary | Root cause |\n|----|----------|---------|------------|\n"
-        % (datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"), result_goal, merged_result, action)
+        "\n## Goal Pipeline Review\n\n_合并时间 %s_\n\n"
+        "**goal 通道结果**: %s\n**合并结果**: %s\n**建议动作**: %s\n\n"
+        "### goal 通道问题\n\n| ID | 严重程度 | 摘要 | 根因 |\n|----|----------|------|------|\n"
+        % (
+            datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+            result_label_zh(str(result_goal)),
+            result_label_zh(str(merged_result)),
+            action_label_zh(str(action)),
+        )
     )
     for iss in flat:
         if iss["channel"] == "goal":
             annex += "| %s | %s | %s | %s |\n" % (
                 iss["id"],
-                iss["severity"],
+                severity_label_zh(iss["severity"]),
                 iss["summary"][:200],
                 iss.get("root_cause", ""),
             )
-    annex += "\n### issues_gf\n\n| ID | Severity | Summary | Root cause |\n|----|----------|---------|------------|\n"
+    annex += "\n### guazi-flow 通道问题\n\n| ID | 严重程度 | 摘要 | 根因 |\n|----|----------|------|------|\n"
     for iss in flat:
         if iss["channel"] == "guazi-flow-review":
             annex += "| %s | %s | %s | %s |\n" % (
                 iss["id"],
-                iss["severity"],
+                severity_label_zh(iss["severity"]),
                 iss["summary"][:200],
                 iss.get("root_cause", ""),
             )
@@ -222,9 +253,16 @@ def main():
 
     with open(os.path.join(goal_evidence, "review-transcript.md"), "w", encoding="utf-8") as f:
         f.write(
-            "# Review transcript\n\n| Channel | Result | Issues |\n|---------|--------|--------|\n"
-            "| guazi-flow-review | %s | %d |\n| goal | %s | %d |\n| merged | %s | action=%s |\n"
-            % (gf_result, len(issues_gf_raw), result_goal, len(issues_goal_raw), merged_result, action)
+            "# Review transcript\n\n| 通道 | 结果 | 问题数 |\n|------|------|--------|\n"
+            "| guazi-flow-review | %s | %d |\n| goal | %s | %d |\n| 合并 | %s | action=%s |\n"
+            % (
+                result_label_zh(str(gf_result)),
+                len(issues_gf_raw),
+                result_label_zh(str(result_goal)),
+                len(issues_goal_raw),
+                result_label_zh(str(merged_result)),
+                action_label_zh(str(action)),
+            )
         )
 
     out = os.path.join(handoff_dir, "merge-result.json")

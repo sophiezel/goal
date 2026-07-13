@@ -40,20 +40,30 @@ def api_key_for(provider, cfg):
 
 def http_json(url, headers, body, timeout=120):
     req = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"), headers=headers, method="POST")
-    with urllib.request.urlopen(req, timeout=timeout) as resp:
-        return json.loads(resp.read().decode("utf-8"))
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            return json.loads(resp.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        detail = e.read().decode("utf-8", errors="replace")[:300]
+        raise RuntimeError(f"HTTP {e.code}: {detail}") from e
+    except urllib.error.URLError as e:
+        reason = getattr(e, "reason", e)
+        if "timed out" in str(reason).lower():
+            raise TimeoutError(f"HTTP timeout after {timeout}s") from e
+        raise RuntimeError(f"HTTP error: {reason}") from e
 
 
-def call_openai_compat(base_url, api_key, model, system, user, provider_label):
+def call_openai_compat(base_url, api_key, model, system, user, provider_label, timeout=120):
     url = base_url.rstrip("/") + "/chat/completions"
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     body = {
         "model": model,
         "messages": [{"role": "system", "content": system}, {"role": "user", "content": user}],
         "temperature": 0.1,
+        "max_tokens": 4096,
         "response_format": {"type": "json_object"},
     }
-    data = http_json(url, headers, body)
+    data = http_json(url, headers, body, timeout=timeout)
     text = data["choices"][0]["message"]["content"]
     out = json.loads(text)
     out.setdefault("model", model)
@@ -62,7 +72,7 @@ def call_openai_compat(base_url, api_key, model, system, user, provider_label):
     return out
 
 
-def call_anthropic(api_key, model, system, user):
+def call_anthropic(api_key, model, system, user, timeout=120):
     url = "https://api.anthropic.com/v1/messages"
     headers = {
         "x-api-key": api_key,
@@ -75,7 +85,7 @@ def call_anthropic(api_key, model, system, user):
         "system": system,
         "messages": [{"role": "user", "content": user}],
     }
-    data = http_json(url, headers, body)
+    data = http_json(url, headers, body, timeout=timeout)
     text = data["content"][0]["text"]
     out = json.loads(text)
     out.setdefault("model", model)
@@ -84,14 +94,14 @@ def call_anthropic(api_key, model, system, user):
     return out
 
 
-def call_gemini(api_key, model, system, user):
+def call_gemini(api_key, model, system, user, timeout=120):
     url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
     headers = {"Content-Type": "application/json"}
     body = {
         "contents": [{"parts": [{"text": system + "\n\n" + user}]}],
-        "generationConfig": {"temperature": 0.1, "responseMimeType": "application/json"},
+        "generationConfig": {"temperature": 0.1, "responseMimeType": "application/json", "maxOutputTokens": 4096},
     }
-    data = http_json(url, headers, body)
+    data = http_json(url, headers, body, timeout=timeout)
     text = data["candidates"][0]["content"]["parts"][0]["text"]
     out = json.loads(text)
     out.setdefault("model", model)
@@ -99,7 +109,7 @@ def call_gemini(api_key, model, system, user):
     return out
 
 
-def call_ollama(model, system, user):
+def call_ollama(model, system, user, timeout=180):
     url = "http://127.0.0.1:11434/api/chat"
     body = {
         "model": model,
@@ -108,8 +118,13 @@ def call_ollama(model, system, user):
         "format": "json",
     }
     req = urllib.request.Request(url, data=json.dumps(body).encode("utf-8"), headers={"Content-Type": "application/json"})
-    with urllib.request.urlopen(req, timeout=180) as resp:
-        data = json.loads(resp.read().decode("utf-8"))
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            data = json.loads(resp.read().decode("utf-8"))
+    except urllib.error.URLError as e:
+        if "timed out" in str(getattr(e, "reason", e)).lower():
+            raise TimeoutError(f"ollama timeout after {timeout}s") from e
+        raise
     text = data["message"]["content"]
     out = json.loads(text)
     out.setdefault("model", model)
@@ -129,6 +144,11 @@ def build_unified_prompt(packet, diff_budget=60000):
     prompt_doc = _read_prompt(UNIFIED_PROMPT_PATH, UNIFIED_OUTPUT_HINT)
     parts.append(prompt_doc[:5000])
     parts.append(UNIFIED_OUTPUT_HINT)
+    parts.append(
+        "\n## language\n"
+        "Write all human-readable issue summaries, suggestions, and checklist detail fields in Simplified Chinese (简体中文). "
+        "Keep code paths, file names, and diff snippets literal."
+    )
 
     changed = packet.get("changed_files") or []
     if changed:
@@ -203,7 +223,7 @@ def normalize_unified_out(out, packet):
     return out
 
 
-def invoke(provider, model, packet, channel):
+def invoke(provider, model, packet, channel, timeout=120):
     cfg = load_config()
     system = "Return valid JSON only. No markdown fences."
     user = build_user_prompt(packet, channel)
@@ -216,17 +236,20 @@ def invoke(provider, model, packet, channel):
     if provider == "anthropic":
         if not key:
             raise RuntimeError("ANTHROPIC_API_KEY missing")
-        out = call_anthropic(key, model or "claude-haiku-4-5", system, user)
+        out = call_anthropic(key, model or "claude-haiku-4-5", system, user, timeout=timeout)
     elif provider == "gemini":
         if not key:
             raise RuntimeError("GEMINI_API_KEY missing")
-        out = call_gemini(key, model or "gemini-2.0-flash", system, user)
+        out = call_gemini(key, model or "gemini-2.0-flash", system, user, timeout=timeout)
     elif provider == "ollama":
-        out = call_ollama(model or "llama3.2", system, user)
+        out = call_ollama(model or "llama3.2", system, user, timeout=min(timeout + 60, 180))
     elif provider in bases:
         if not key:
             raise RuntimeError(f"{provider} API key missing")
-        out = call_openai_compat(bases[provider], key, model or "gpt-4o-mini", system, user, provider)
+        default_models = {"openai": "gpt-4o-mini", "deepseek": "deepseek-v4-flash", "groq": "llama-3.3-70b-versatile"}
+        out = call_openai_compat(
+            bases[provider], key, model or default_models.get(provider, "gpt-4o-mini"), system, user, provider, timeout=timeout
+        )
     else:
         raise RuntimeError(f"unsupported provider: {provider}")
 
@@ -243,16 +266,32 @@ def main():
     p.add_argument("--model", default="")
     p.add_argument("--packet", required=True)
     p.add_argument("--channel", default="unified", choices=["goal", "unified"])
+    p.add_argument("--timeout", type=int, default=int(os.environ.get("GOAL_REVIEW_ATTEMPT_TIMEOUT_SEC", "90")))
     args = p.parse_args()
     packet = json.load(open(args.packet, encoding="utf-8"))
-    out = invoke(args.provider, args.model, packet, args.channel)
+    out = invoke(args.provider, args.model, packet, args.channel, timeout=args.timeout)
     print(json.dumps(out, ensure_ascii=False))
 
 
 if __name__ == "__main__":
     try:
         main()
+    except TimeoutError as e:
+        print(
+            json.dumps(
+                {
+                    "result": "review_undetermined",
+                    "issues": [{"id": "ADP-TIMEOUT", "severity": "medium", "summary": str(e)[:200], "channel": "goal"}],
+                    "checklist_goal": [],
+                    "checklist_gf": [],
+                    "error": str(e),
+                    "error_kind": "timeout",
+                }
+            )
+        )
+        sys.exit(0)
     except Exception as e:
+        err_kind = "timeout" if "timeout" in str(e).lower() else "error"
         print(
             json.dumps(
                 {
@@ -261,6 +300,7 @@ if __name__ == "__main__":
                     "checklist_goal": [],
                     "checklist_gf": [],
                     "error": str(e),
+                    "error_kind": err_kind,
                 }
             )
         )

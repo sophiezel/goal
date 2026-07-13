@@ -260,7 +260,8 @@ fi
 # review
 REVIEW_MD="$EVIDENCE/review.md"
 if [[ ! -f "$REVIEW_MD" ]] || ! handoff_ok "$HANDOFF/review.json"; then
-  emit "review" "" "false" '["gate --pre review","guazi-flow-review","assemble-review-packet.sh","gate --post review"]'
+  REVIEW_CMDS='["git commit 本地 feature 快照（review 前）","gate --pre review","assemble-review-packet.sh","review_depth.py --packet handoff/review-packet.json --persist","run-independent-review.sh","merge-review-issues.sh","gate --post review"]'
+  emit "review" "" "false" "$REVIEW_CMDS"
   exit 0
 fi
 

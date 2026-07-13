@@ -101,7 +101,31 @@ def run_ratchet(
     else:
         checks.append({"id": "AM-05", "pass": True, "detail": "skipped — no plan cmds or UVO"})
 
-    blockers = [c for c in checks if not c.get("pass")]
+    # AM-06: UI refresh / seamless loading heuristic (C04 class — warning only)
+    index_path = os.path.join(task_dir, "index.md")
+    pseudo = ""
+    if os.path.isfile(index_path):
+        try:
+            text = open(index_path, encoding="utf-8").read()
+            m = re.search(r"## 完整伪代码\s*\n(.*?)(?=\n## |\Z)", text, re.DOTALL)
+            pseudo = m.group(1) if m else text
+        except OSError:
+            pseudo = ""
+    wants_seamless = bool(re.search(r"无缝|下拉刷新|pull\s*refresh|refreshing", pseudo, re.I))
+    full_page_loader = bool(re.search(r"DotLoading|PageLoading|全屏.*loading|replace.*content", diff_text, re.I))
+    if wants_seamless and full_page_loader:
+        checks.append(
+            {
+                "id": "AM-06",
+                "pass": False,
+                "severity": "warning",
+                "detail": "伪代码要求无缝刷新，但 diff 含全页 loading 模式（C04 类风险）",
+            }
+        )
+    else:
+        checks.append({"id": "AM-06", "pass": True, "detail": "skipped — no C04 seamless-refresh conflict"})
+
+    blockers = [c for c in checks if not c.get("pass") and c.get("severity") != "warning"]
     return {
         "schema_version": 1,
         "overall": "pass" if not blockers else "not_pass",

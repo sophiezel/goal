@@ -257,7 +257,8 @@ Step 0: gate --pre review（verify-review.sh，0 模型调用）
 Step 1: assemble-review-packet → handoff/review-packet.json
   ↓
 Step 2: run-independent-review --mode unified（始终执行，L2）
-  跨 provider 独立 API 模型 → review-unified.json
+  review_fallback_orchestrator.py：API 横向 cascade + packet 纵向缩包
+  跨 provider 独立 API 模型 → review-unified.json + review-run.json.attempts[]
   ↓
 Step 3: merge-review-issues → review-fix-input.json
   （guazi 可在 Step 0–2 间注入 Step 1.5 guazi-flow-review）
@@ -275,6 +276,10 @@ Step 4: gate --post review → handoff/review.json
 | **scope** | git diff 的文件是否在 write_set 范围内 | 前缀匹配 |
 | **secret** | 扫描 API_KEY、sk-、AKIA、ghp_ 等模式 | grep + 正则 |
 | **packet** | review-packet 就绪、UVO/quality handoff 新鲜 | schema + freshness |
+
+**UVO 去重（Phase 0）**：当 `verification-oracle.json` 经 `verification_oracle_core.check_freshness` 判定为 fresh 且 `overall=pass` 时，`verify-review.sh` **跳过** `check_tests` / `check_build`，输出 attestation 文案（避免 review 前重复全量 `yarn test`）。scope / secret / lint 仍执行。
+
+**Packet 瘦身（Phase 0）**：`assemble-review-packet.sh` 默认 `GOAL_REVIEW_DIFF_SOURCE=code_subject_hash`，仅注入 `src/**` write_set diff（不含 docs/guazi-flow 全文）。完整 diff 可用 `GOAL_REVIEW_DIFF_SOURCE=full` 覆盖。
 
 **为什么零成本更重要**：这些检查能发现审核模型容易漏掉的问题（如 secret 泄露），且不消耗 token。test/lint 由 UVO 在 implement 后、`quality-gate.sh` 在 quality 阶段已执行。
 
@@ -335,6 +340,42 @@ Step 4: gate --post review → handoff/review.json
 | **high** | 审核模型 ≠ 执行模型，且不同 provider | 自动通过 |
 | **medium** | 审核模型 ≠ 执行模型，同 provider 不同规格 | 自动通过 + 标注 |
 | - | 审核模型 = 执行模型（任何情况） | **不允许** |
+
+#### Review 降级链（Phase 0，`review_fallback_orchestrator.py`）
+
+| Layer | 行为 | 环境变量 |
+|-------|------|----------|
+| **0 Preflight** | UVO fresh → verify 跳过 test/build；packet 默认 `code_subject_hash` diff | — |
+| **1 API 横向** | timeout/undetermined → 下一 provider（`detect-review-channels` 排序，最多 3 次） | `GOAL_REVIEW_MAX_API_ATTEMPTS=3` |
+| **2 Packet 纵向** | 大 diff scoped 缩包；full depth 分片并行 | `GOAL_REVIEW_DISABLE_SHARD=1` 关闭 |
+| **3 readonly subagent** | API 耗尽 → `readonly_subagent_review.py`（ollama/mock，separation=medium） | `GOAL_REVIEW_READONLY_MOCK=1`（fixture） |
+| **4 Hard stop** | 链耗尽 → `review_undetermined` + `FB-EXHAUST` | — |
+| **E Emergency** | 同会话自审仅当 `GOAL_REVIEW_EMERGENCY=1` | 禁止默认 |
+
+单次 attempt：`GOAL_REVIEW_ATTEMPT_TIMEOUT_SEC=90`（OpenAI-compat 含 `max_tokens=4096`）。审计：`review-run.json` 新增 `attempts[]`、`fallback_layer`、`review_depth`。
+
+#### Review 深度与分片（Phase 1）
+
+| `review_policy.depth` | 行为 |
+|-----------------------|------|
+| **adaptive**（默认） | changed≤5 且 diff≤25KB → `light`（scoped 单次 L2）；否则 `full` |
+| **light** | 强制 scoped 单次 review，不分片 |
+| **full** | 按路径分片（list / detail / services / components / routing）并行 L2，`merge_unified_reviews` 去重 |
+
+写入 `state.json.review_policy`（`review_depth.py --persist`）。strict tier 自适应强制 `full`。
+
+#### quality_policy tier 路由（Phase 2）
+
+| tier | review 预算 | API attempts | readonly 预算 | 触发 |
+|------|------------|--------------|---------------|------|
+| **standard** | 480s | 3 | 180s | 默认 |
+| **strict** | 900s | 5 | 300s | 显式或 write_set 命中 auth/payment/security 路径 |
+
+`quality_policy_tier.py` 在 plan gate `--post` 自动升级并写入 `state.json.quality_policy.tier_meta`。
+
+#### Benchmark 闭环（Phase 2）
+
+`benchmark-pipeline-replay.sh --profile ctb43806` 对比 CTB-43806 基线（31min review）与目标（≤8min），静态验收 review chain 特性 ≥7/8。
 
 #### 审核 Prompt 设计（防止确认偏误）
 

@@ -741,6 +741,13 @@ case "$STAGE" in
     fi
     if [[ "$PHASE" == "post" ]]; then
       IH_PRE=$(index_contract_hash "$INDEX")
+      if [[ -n "$STATE_FILE" && -f "$STATE_FILE" && -f "$SCRIPT_DIR/quality_policy_tier.py" ]]; then
+        python3 "$SCRIPT_DIR/quality_policy_tier.py" \
+          --task-dir "$TASK_DIR" \
+          --state-file "$STATE_FILE" \
+          --persist \
+          --json >/dev/null 2>&1 || true
+      fi
       TIER=$(resolve_quality_tier)
       PQ_JSON=$(mktemp)
       if ! python3 "$SCRIPT_DIR/plan-quality-gate.py" --task-dir "$TASK_DIR" --tier "$TIER" --json > "$PQ_JSON" 2>/dev/null; then

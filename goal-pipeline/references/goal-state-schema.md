@@ -75,6 +75,23 @@
     "separation_confidence": "high | medium",
     "source": "env_var | agent_introspection | ollama_list | user_config"
   },
+  "review_policy": {
+    "depth": "adaptive | light | full",
+    "depth_meta": {
+      "changed_files": 0,
+      "diff_bytes": 0,
+      "tier": "standard",
+      "reason": "small_change_set | large_change_set | strict_tier | explicit_light | explicit_full"
+    }
+  },
+  "quality_policy": {
+    "tier": "standard | strict",
+    "tier_meta": {
+      "reason": "default_standard | auto_upgrade_security_write_set | explicit_strict",
+      "strict_signals": ["path:src/utils/auth/**"],
+      "upgraded_from": "standard"
+    }
+  },
   "pipeline": {
     "plan": {"status": "done | pending | failed", "evidence_fresh": true},
     "implement": {"status": "done | in_progress | pending | failed", "evidence_fresh": true},

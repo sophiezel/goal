@@ -31,6 +31,7 @@ Use deterministic_checks as attestation only.
 ## Hard rules
 
 - Return **valid JSON only** (no markdown fences)
+- **All `issues[].summary`, `suggestion`, and checklist `detail` fields MUST be written in Simplified Chinese (简体中文)** unless quoting code identifiers or diff paths
 - Every **blocker** MUST include `file` + `evidence` (diff snippet or changed_files hit); otherwise use `warning`
 - Every **checklist_gf** item (Cxx/Vxx) MUST cite diff evidence OR `"NEEDS_E2E"` in `detail`; silent pass without evidence → `not_pass`
 - Tag each issue with `channel`: `goal` or `guazi-flow-review`

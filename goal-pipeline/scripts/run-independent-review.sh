@@ -13,6 +13,7 @@ MODE="${GOAL_REVIEW_MODE:-unified}"
 PACKET=""
 MODEL=""
 ADAPTER="$SCRIPT_DIR/platform-review-adapter.sh"
+ORCHESTRATOR="$SCRIPT_DIR/review_fallback_orchestrator.py"
 GUARD="$SCRIPT_DIR/review-channel-guard.py"
 ASSEMBLE="$SCRIPT_DIR/assemble-review-packet.sh"
 VERIFY="$SCRIPT_DIR/verify-review.sh"
@@ -84,19 +85,64 @@ fi
 
 PACKET_HASH=$(shasum -a 256 "$PACKET" 2>/dev/null | cut -c1-16 || sha256sum "$PACKET" 2>/dev/null | cut -c1-16)
 WRITE_SET=$(python3 -c "import json; print(chr(44).join(json.load(open(\"$HANDOFF_DIR/plan.json\")).get(\"write_set\",[])))" 2>/dev/null || echo "")
-VERIFY_JSON=$("$VERIFY" "$REPO_TASK_DIR" "$WRITE_SET" json 2>/dev/null || echo "{\"overall\":\"not_pass\"}")
+export GOAL_EVIDENCE_DIR
+VERIFY_JSON=$("$VERIFY" "$REPO_TASK_DIR" "$WRITE_SET" json || echo "{\"overall\":\"not_pass\"}")
 
 CHANNEL_ARG="unified"
 [[ "$MODE" == "goal" ]] && CHANNEL_ARG="goal"
 
 REVIEW_BODY=""
-if [[ -x "$ADAPTER" && "$PROVIDER" != "deterministic" ]]; then
-  ADAPTER_ARGS=(--provider "$PROVIDER" --packet "$PACKET" --verify-json "$VERIFY_JSON" --channel "$CHANNEL_ARG")
+REVIEW_ATTEMPTS_JSON="[]"
+FALLBACK_LAYER="none"
+ORCH_ELAPSED_MS=0
+
+if [[ -x "$ORCHESTRATOR" && "$PROVIDER" != "deterministic" && "${REVIEW_HAS_CANDIDATES:-0}" == "1" ]]; then
+  ORCH_ERR=$(mktemp)
+  ORCH_JSON=$("$ORCHESTRATOR" \
+    --script-dir "$SCRIPT_DIR" \
+    --packet "$PACKET" \
+    --verify-json "$VERIFY_JSON" \
+    --channel "$CHANNEL_ARG" \
+    --provider "$PROVIDER" \
+    --model "$MODEL" \
+    --state-file "${STATE_FILE:-}" \
+    --review-depth "${GOAL_REVIEW_DEPTH:-}" \
+    --budget-sec "${GOAL_REVIEW_BUDGET_SEC:-480}" \
+    --attempt-timeout-sec "${GOAL_REVIEW_ATTEMPT_TIMEOUT_SEC:-90}" \
+    --max-api-attempts "${GOAL_REVIEW_MAX_API_ATTEMPTS:-3}" 2>"$ORCH_ERR") || ORCH_JSON='{}'
+  if [[ -s "$ORCH_ERR" ]]; then
+    cat "$ORCH_ERR" >&2
+  fi
+  rm -f "$ORCH_ERR"
+  export ORCH_JSON
+  REVIEW_BODY=$(python3 -c "import json,os; d=json.loads(os.environ.get('ORCH_JSON') or '{}'); print(json.dumps(d.get('review_body') or {}))")
+  REVIEW_ATTEMPTS_JSON=$(python3 -c "import json,os; d=json.loads(os.environ.get('ORCH_JSON') or '{}'); print(json.dumps(d.get('attempts') or []))")
+  FALLBACK_LAYER=$(python3 -c "import json,os; d=json.loads(os.environ.get('ORCH_JSON') or '{}'); print(d.get('fallback_layer') or 'none')")
+  REVIEW_DEPTH=$(python3 -c "import json,os; d=json.loads(os.environ.get('ORCH_JSON') or '{}'); print(d.get('review_depth') or '')")
+  ORCH_ELAPSED_MS=$(python3 -c "import json,os; d=json.loads(os.environ.get('ORCH_JSON') or '{}'); print(int(d.get('elapsed_ms') or 0))")
+  ORCH_PROVIDER=$(python3 -c "import json,os; d=json.loads(os.environ.get('ORCH_JSON') or '{}'); print(d.get('provider') or '')")
+  ORCH_MODEL=$(python3 -c "import json,os; d=json.loads(os.environ.get('ORCH_JSON') or '{}'); print(d.get('model') or '')")
+  if [[ -n "$ORCH_PROVIDER" ]]; then
+    PROVIDER="$ORCH_PROVIDER"
+  fi
+  if [[ -n "$ORCH_MODEL" ]]; then
+    MODEL="$ORCH_MODEL"
+  fi
+elif [[ -x "$ADAPTER" && "$PROVIDER" != "deterministic" ]]; then
+  ADAPTER_ARGS=(--provider "$PROVIDER" --packet "$PACKET" --verify-json "$VERIFY_JSON" --channel "$CHANNEL_ARG" --timeout "${GOAL_REVIEW_ATTEMPT_TIMEOUT_SEC:-90}")
   [[ -n "$MODEL" ]] && ADAPTER_ARGS+=(--model "$MODEL")
-  REVIEW_BODY=$("$ADAPTER" "${ADAPTER_ARGS[@]}" 2>/dev/null || echo "{}")
+  ADAPTER_ERR=$(mktemp)
+  ADAPTER_OUT=$("$ADAPTER" "${ADAPTER_ARGS[@]}" 2>"$ADAPTER_ERR") || ADAPTER_OUT="{}"
+  if [[ -s "$ADAPTER_ERR" ]]; then
+    cat "$ADAPTER_ERR" >&2
+  fi
+  rm -f "$ADAPTER_ERR"
+  REVIEW_BODY=$(python3 -c "import json,sys; raw=sys.argv[1].strip() or '{}';
+try: print(json.dumps(json.loads(raw)))
+except json.JSONDecodeError: print('{}')" "$ADAPTER_OUT")
 fi
 
-export TASK_DIR="$REPO_TASK_DIR" PACKET PACKET_HASH VERIFY_JSON PROVIDER MODEL MODE START_MS OUT_UNIFIED OUT_RUN REVIEW_BODY CHANNEL_ARG REVIEW_HAS_CANDIDATES
+export TASK_DIR="$REPO_TASK_DIR" PACKET PACKET_HASH VERIFY_JSON PROVIDER MODEL MODE START_MS OUT_UNIFIED OUT_RUN REVIEW_BODY CHANNEL_ARG REVIEW_HAS_CANDIDATES REVIEW_ATTEMPTS_JSON FALLBACK_LAYER ORCH_ELAPSED_MS REVIEW_DEPTH
 python3 << 'PY'
 import json, sys, os, hashlib
 from datetime import datetime, timezone
@@ -110,6 +156,14 @@ provider = os.environ["PROVIDER"]
 model = os.environ.get("MODEL", "")
 mode = os.environ.get("MODE", "unified")
 has_candidates = os.environ.get("REVIEW_HAS_CANDIDATES", "0") == "1"
+attempts_json_s = os.environ.get("REVIEW_ATTEMPTS_JSON", "[]")
+fallback_layer = os.environ.get("FALLBACK_LAYER", "none")
+review_depth = os.environ.get("REVIEW_DEPTH", "")
+orch_elapsed_ms = int(os.environ.get("ORCH_ELAPSED_MS", "0") or "0")
+try:
+    review_attempts = json.loads(attempts_json_s) if attempts_json_s.strip() else []
+except json.JSONDecodeError:
+    review_attempts = []
 start_ms = int(os.environ["START_MS"])
 out_unified = os.environ["OUT_UNIFIED"]
 out_run = os.environ["OUT_RUN"]
@@ -244,6 +298,8 @@ elif unified.get("result") not in ("pass", "not_pass", "review_undetermined"):
     unified["result"] = "pass"
 
 separation_confidence = "high" if provider not in ("deterministic",) else "low"
+if provider == "readonly-subagent":
+    separation_confidence = "medium"
 if separation_confidence == "low" and unified["result"] == "pass" and provider == "deterministic":
     unified["result"] = "review_undetermined"
 
@@ -272,11 +328,14 @@ run_doc = {
     "gf_rubric_source": packet_doc.get("guazi_flow_rubric", {}).get("rubric_hash", ""),
     "packet_hash": packet_hash,
     "packet_path": os.path.relpath(packet_path, task_dir),
-    "latency_ms": end_ms - start_ms,
+    "latency_ms": max(end_ms - start_ms, orch_elapsed_ms),
     "tokens": adapter_parsed.get("tokens", {}),
     "output_hash": hashlib.sha256(json.dumps(unified, sort_keys=True).encode()).hexdigest()[:16],
     "started_at": datetime.fromtimestamp(start_ms / 1000, tz=timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
     "finished_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    "fallback_layer": fallback_layer,
+    "review_depth": review_depth,
+    "attempts": review_attempts,
     "channel_guard": {
         "has_candidates": has_candidates,
         "selected_provider": provider if has_candidates else "",

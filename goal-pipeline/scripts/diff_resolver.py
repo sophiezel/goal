@@ -86,6 +86,42 @@ def git_diff_reference(git_root: str, ref_branch: str, ref_paths: list[str] | No
     return _git_diff(git_root, *args)
 
 
+def src_write_set(write_set: list[str] | None) -> list[str]:
+    """Narrow write_set to src/** paths for code-only review packets."""
+    if not write_set:
+        return ["src/"]
+    src_ws: list[str] = []
+    for raw in write_set:
+        w = (raw or "").strip().rstrip("/")
+        if not w:
+            continue
+        norm = w.replace("/**", "").rstrip("/")
+        if norm == "src" or norm.startswith("src/"):
+            src_ws.append(w if w.startswith("src") else norm)
+    return src_ws or ["src/"]
+
+
+def filter_diff_to_src(diff_text: str) -> str:
+    return filter_diff_by_write_set(diff_text, ["src/"])
+
+
+def resolve_code_subject_diff(
+    git_root: str,
+    plan: dict[str, Any],
+    write_set: list[str],
+    max_bytes: int = 80000,
+) -> tuple[str, str, bool]:
+    """Return src/**-only diff for L2 review (excludes docs/guazi-flow noise)."""
+    src_ws = src_write_set(write_set)
+    diff_text, inner_source, truncated = resolve_implementation_diff(
+        git_root, plan, src_ws, max_bytes=max_bytes
+    )
+    diff_text = filter_diff_to_src(diff_text)
+    if diff_text.strip():
+        return diff_text, "code_subject_hash", truncated
+    return diff_text, inner_source if inner_source != "reference_branch" else "code_subject_hash", truncated
+
+
 def resolve_implementation_diff(
     git_root: str,
     plan: dict[str, Any],
