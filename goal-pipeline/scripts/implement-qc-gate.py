@@ -99,7 +99,7 @@ def run_gate(
                 }
             )
         else:
-            fresh = core.check_freshness(oracle_path, repo_root)
+            fresh = core.check_freshness(oracle_path, repo_root, task_dir)
             if not fresh.get("fresh"):
                 issues.append(
                     {
@@ -123,7 +123,7 @@ def run_gate(
                 }
             )
     else:
-        fresh = core.check_freshness(oracle_path, repo_root)
+        fresh = core.check_freshness(oracle_path, repo_root, task_dir)
         if not fresh.get("fresh"):
             oracle_mode = "full_suite" if tier == "strict" else "related_union"
             result = core.run_oracle(task_dir, repo_root, tier=tier, oracle_mode=oracle_mode, evidence_dir=evidence_dir)

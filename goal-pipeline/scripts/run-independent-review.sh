@@ -162,7 +162,9 @@ if adapter_body.strip():
                 if key in adapter_parsed:
                     val = adapter_parsed[key]
                     # Coerce checklist arrays to list[dict]; drop/flag malformed items
-                    if key in ("checklist_goal", "checklist_gf") and isinstance(val, list):
+                    if key in ("checklist_goal", "checklist_gf") and isinstance(val, dict):
+                        unified[key] = [val]
+                    elif key in ("checklist_goal", "checklist_gf") and isinstance(val, list):
                         cleaned = []
                         for item in val:
                             if isinstance(item, dict):
@@ -191,8 +193,18 @@ if adapter_body.strip():
                                     "summary": str(iss)[:200],
                                 })
                         unified[key] = cleaned_iss
+                    elif key == "issues" and isinstance(val, dict):
+                        unified[key] = [val]
+                    elif key == "issues" and not isinstance(val, list):
+                        unified[key] = list(chk_issues)
                     else:
                         unified[key] = val
+            if not isinstance(unified.get("checklist_goal"), list):
+                _cg = unified.get("checklist_goal")
+                unified["checklist_goal"] = [_cg] if isinstance(_cg, dict) else list(chk_checklist)
+            if not isinstance(unified.get("checklist_gf"), list):
+                _gf = unified.get("checklist_gf")
+                unified["checklist_gf"] = [_gf] if isinstance(_gf, dict) else []
             if adapter_parsed.get("gf_skill_attested") is not None:
                 unified["gf_skill_attested"] = bool(adapter_parsed["gf_skill_attested"])
             if adapter_parsed.get("model"):

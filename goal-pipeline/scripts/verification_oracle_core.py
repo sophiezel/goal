@@ -472,7 +472,7 @@ def run_oracle(
         "candidate_diff_hash": dh,
         "code_subject_hash": dh,
         "artifact_hash": artifact_h,
-        "write_set": write_set,
+        "reference_branch": ref_branch,
         "changed_files": changed,
         "smoke_required": smoke_required(changed, write_set, tier),
         "duration_ms": end_ms - start_ms,
@@ -491,7 +491,20 @@ def run_oracle(
     return result
 
 
-def check_freshness(evidence_path: str, repo_root: str) -> dict[str, Any]:
+def _plan_ref_branch(task_dir: str) -> str:
+    if not task_dir:
+        return ""
+    handoff = os.path.join(task_dir, "handoff", "plan.json")
+    if os.path.isfile(handoff):
+        try:
+            plan = json.load(open(handoff, encoding="utf-8"))
+            return plan.get("reference_branch") or plan.get("reference_impl_branch") or ""
+        except (OSError, json.JSONDecodeError):
+            pass
+    return ""
+
+
+def check_freshness(evidence_path: str, repo_root: str, task_dir: str = "") -> dict[str, Any]:
     if not os.path.isfile(evidence_path):
         return {"fresh": False, "reason": "missing"}
     data = json.load(open(evidence_path, encoding="utf-8"))
@@ -501,7 +514,8 @@ def check_freshness(evidence_path: str, repo_root: str) -> dict[str, Any]:
     stored_gh = data.get("git_head") or ""
     if stored_gh and stored_gh not in ("unknown", "") and gh not in ("unknown", "") and stored_gh != gh:
         return {"fresh": False, "reason": "git_head_mismatch", "expected": gh, "stored": stored_gh}
-    dh = code_subject_hash(repo_root, data.get("write_set") or [], "")
+    ref_branch = data.get("reference_branch") or _plan_ref_branch(task_dir) or "main...HEAD"
+    dh = code_subject_hash(repo_root, data.get("write_set") or [], ref_branch)
     stored_dh = data.get("code_subject_hash") or data.get("candidate_diff_hash") or ""
     if stored_dh and stored_dh not in ("unknown", "") and dh not in ("unknown", "") and stored_dh != dh:
         return {"fresh": False, "reason": "diff_hash_mismatch", "expected": dh, "stored": stored_dh}
