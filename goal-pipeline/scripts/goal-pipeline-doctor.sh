@@ -64,6 +64,7 @@ fi
 GATE_REPO="$REPO_DIR/goal-pipeline/scripts/gate-guazi-flow-stage.sh"
 GATE_INST="$GOAL_STATE_HOME/scripts/gate-guazi-flow-stage.sh"
 VERSION_FILE="$GOAL_STATE_HOME/VERSION"
+CONFIG_FILE="$GOAL_STATE_HOME/config.json"
 HOOKS_JSON="$HOME/.cursor/hooks.json"
 DETECT="$GOAL_STATE_HOME/scripts/detect-review-channels"
 DRIVER="$GOAL_STATE_HOME/scripts/goal-stage-driver.sh"
@@ -75,7 +76,8 @@ from pathlib import Path
 
 project_root = Path("${PROJECT_ROOT}").resolve()
 goal_home = Path("${GOAL_STATE_HOME}")
-repo = Path("${REPO_DIR}")
+repo = Path("${REPO_DIR}").resolve()
+config_file = Path("${CONFIG_FILE}")
 version_file = Path("${VERSION_FILE}")
 hooks_json = Path("${HOOKS_JSON}")
 gate_repo = Path("${GATE_REPO}")
@@ -84,8 +86,65 @@ resolver = Path("${RESOLVER}")
 
 checks = []
 
+MANAGED_SKILLS = ("goal-pipeline", "guazi-flow-goal")
+DUPLICATE_ONLY_DIRS = [
+    Path.home() / ".cursor" / "skills",
+    Path.home() / ".pi" / "skills",
+    Path.home() / ".pi" / "agent" / "skills",
+]
+
 def status(name, ok, detail=""):
     checks.append({"check": name, "status": "ok" if ok else "fail", "detail": detail})
+
+def resolve_dev_repo():
+    if not config_file.is_file():
+        return None
+    try:
+        cfg = json.loads(config_file.read_text(encoding="utf-8"))
+    except Exception:
+        return None
+    for key in ("dev_repo", "goal_dev_repo"):
+        val = cfg.get(key) or (cfg.get("goal") or {}).get(key.replace("goal_", ""))
+        if isinstance(val, str) and val.strip():
+            p = Path(val).expanduser().resolve()
+            if p.is_dir() and (p / ".git").is_dir() and p != repo:
+                return p
+    return None
+
+def skill_link_target(skills_dir: Path, name: str):
+    link = skills_dir / name
+    if not link.exists() and not link.is_symlink():
+        return None
+    try:
+        return link.resolve()
+    except Exception:
+        return None
+
+dev_repo = resolve_dev_repo()
+
+for skill in MANAGED_SKILLS:
+    ut = skill_link_target(Path.home() / ".agents" / "skills", skill)
+    if ut is None:
+        status(f"skill_symlink_{skill}_universal", False, "missing ~/.agents/skills/" + skill)
+    else:
+        ok = str(ut).startswith(str(repo) + os.sep) or ut == repo
+        if dev_repo and (str(ut).startswith(str(dev_repo) + os.sep) or ut == dev_repo):
+            ok = False
+        status(f"skill_symlink_{skill}_universal", ok, str(ut))
+
+    for dup_dir in DUPLICATE_ONLY_DIRS:
+        try:
+            if dup_dir.resolve() == (Path.home() / ".agents" / "skills").resolve():
+                continue
+        except Exception:
+            pass
+        dt = skill_link_target(dup_dir, skill)
+        if dt is not None:
+            status(
+                f"skill_symlink_{skill}_duplicate",
+                False,
+                f"remove duplicate {dup_dir / skill} -> {dt}",
+            )
 
 # VERSION drift
 if version_file.is_file() and gate_repo.is_file():

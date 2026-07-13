@@ -18,7 +18,7 @@ Goal 是一个持久化的工程目标。Agent 接到 goal 后持续执行，不
 - **NEVER 跳过 Step 1 确定性检查直接调审核模型**——确定性检查零成本（无模型调用），且能发现 secret 泄漏、scope 越界等审核模型容易漏掉的问题
 - **NEVER 在同一 blocker 上无限重试**——同一 issue 已尝试 3 种策略仍未解决必须 blocked，避免 token 浪费
 - **NEVER 让审核模型与执行模型使用同一 provider**——分离置信度降为 medium，审核独立性受损
-- **NEVER 在 review 通过前将 goal.status 设为 complete**——complete 需要所有门禁（review + smoke + evidence + verify.sh）全部通过
+- **NEVER 在 review 通过前将 goal.status 设为 complete**——complete 需要所有门禁（review + quality + evidence + verify.sh）全部通过
 - **NEVER 在 state.json 中存储明文 API key**——key 存入 `~/.goal-state/config.json`，state.json 仅存审核结论
 - **NEVER 在管线执行中途把控制权还给用户**——除非命中 blocked 条件或 budget 耗尽，Agent 必须持续执行
 - **NEVER 让审核模型看到执行模型的 reasoning chain**——LLM 看到实现推理后会产生确认偏误，倾向于认同实现而非独立判断
@@ -138,41 +138,46 @@ Agent 在确定的范围内修改代码，产出候选 diff。
 
 可选落盘：`evidence/review-transcript.md`（merge 脚本自动写入 provenance 表）
 
-### runtime_smoke 阶段（条件触发）
+### quality 阶段内部子流程（Agent 可见标签 `[3/5] quality`）
 
-如果 `goal/scripts/runtime-smoke.sh` 可用，implement 之后运行：
-- 推导 dev 命令 → 安装依赖（如需要）→ 启动 → HTTP 探测
-- pass → 写入 evidence/runtime-smoke.md → 继续 review
-- not_pass → 分类记录后继续 review（不阻断）：
-  环境问题（端口冲突/依赖缺失）→ 标记 environmental
-  代码问题（编译失败/类型错误）→ 标记 code_issue（review Step 1 覆盖）
-  运行时崩溃 → 标记 runtime_crash（review 作为 Critical 处理）
-  输出："[3/5] smoke: X <原因>（诊断信号，review 将验证）"
-- 无法推导 dev 命令 → skipped
+quality 为 Lean 单阶段；`runtime_smoke` 仅为脚本/gate 别名，不单独对外暴露。
 
-### review 阶段——三步审核流程
+内部编排（`goal-quality` SKILL）：
+
+```text
+runtime-smoke.sh → validate? → e2e? → quality-gate.sh → handoff/quality.json
+```
+
+- 推导 dev 命令 → 安装依赖（如需要）→ 启动 → HTTP 探测 → `evidence/runtime-smoke.md`
+- `quality-gate.sh` 汇总 L0（UVO、handoff 链、secret）+ L1（smoke/validate/e2e/test+lint）
+- gate 失败 → **BLOCK**（修复子循环）；无法推导 dev 命令 → smoke skipped，由 quality-gate 按 tier 裁决
+- 输出：`"[3/5] quality: …"`（由 `goal-stage-driver.sh` 统一标签）
+
+### review 阶段——审核编排（用户视图 + Step 0–4）
 
 **MANDATORY**: 开始前读取 `skill_dir/references/separation-strategies.md`（审核模型通道策略）
 
 ```
-implement complete
+quality complete
   ↓
-Step 1: 确定性检查（verify-review.sh，0 模型调用）
-  scope + secret + test + lint
+Step 0: gate --pre review（确定性检查，0 模型调用）
+  scope + secret + packet 就绪（test+lint 已在 UVO + quality-gate 完成）
   任一 not_pass → 修复子循环
-  全部 pass → 继续
   ↓
-Step 2: 独立审核（始终执行）
+Step 1: assemble-review-packet → handoff/review-packet.json
+  ↓
+Step 2: run-independent-review --mode unified（始终执行）
   独立 API 模型（跨 provider 优先，与执行模型不同 provider）
-  输入: diff + 验收标准 + 约束 + Evaluator Checklist
-  → issues[]（含 file/line_range/evidence 可选字段 + checklist 维度评估）
+  输入: review-packet + 验收标准 + 约束 + Evaluator Checklist
+  → review-unified.json / issues[]
   ↓
-Step 3: 分流
-  pass → complete
-  not_pass → 修复子循环
+Step 3: merge-review-issues → review-fix-input.json
+  ↓
+Step 4: gate --post review → handoff/review.json
+  pass → advance / not_pass → 修复子循环
 ```
 
-**扩展点**：桥接层可在 Step 1 和 Step 2 之间注入额外审核步骤（如专业代码审阅），注入的 issues 合并到 Step 2 的结果中。详见桥接层文档。
+**扩展点**：桥接层可在 Step 0 与 Step 2 之间注入 **Step 1.5**（如 guazi-flow-review），注入的 issues 合并到 Step 3 的结果中。详见桥接层文档。
 
 ### 修复子循环——五种场景分类处理（与 Claude Code /goal 对齐）
 
@@ -229,9 +234,9 @@ review not_pass:
   │   ├─ 同一 issue 出现→消失→又出现 → flaky → blocked
   │   └─ 轮次 >10 → 警告但不强制阻断
   │
-  └─ smoke 冲突:
-      review pass + smoke 标记 code_issue/runtime_crash → 记录但不阻断
-      review pass + smoke 标记 environmental → 忽略
+  └─ quality 冲突（历史）:
+      review pass + quality/smoke 标记 code_issue → 已由 quality-gate BLOCK 前置处理
+      environmental smoke skip → 由 quality-gate 按 tier 裁决
 ```
 
 **为什么不是每轮都调审核模型**：Goal 有明确的管线阶段，review 是集中的审核节点。not_pass 时进入修复子循环，持续到 pass 或命中 blocked 条件。
@@ -244,7 +249,7 @@ review not_pass:
 [1/5] plan:      🔄 目标规划中...
 [1/5] plan:      ✅ plan 卡片已生成
 [2/5] implement: ✅ 5 files changed
-[3/5] smoke:     ✅ pnpm run dev → localhost:8000 (35s)
+[3/5] quality:   ✅ quality-gate pass (smoke: localhost:8000, 35s)
 [4/5] review:    🔄 独立模型审核中...
                  审核模型: deepseek-v4-flash (独立于执行模型)
                  Evaluator Checklist: 6 维度检查
@@ -285,7 +290,7 @@ evidence 文件清单：
 
 ### complete 阶段
 
-- review pass + runtime_smoke pass+fresh
+- review pass + quality pass + evidence fresh
 - 所有 evidence 齐全且 fresh
 - verify.sh → completion_condition_met: true
 - goal.status = complete

@@ -84,7 +84,7 @@ Phase 2: Pipeline Execution（Agent 持续执行）
     │
     ├─ plan:         目标澄清 + 范围确定
     ├─ implement:    Agent 在范围内修改代码
-    ├─ [runtime_smoke]: 验证项目可启动
+    ├─ quality:        smoke/validate/e2e + quality-gate（Lean 单阶段）
     ├─ review:       独立模型审核
     │                pass → advance
     │                not_pass → 修复子循环
@@ -127,10 +127,12 @@ guazi-flow-goal/
 ### 3.1 五阶段管线
 
 ```
-plan → implement → [runtime_smoke] → review → complete
-  ↓        ↓              ↓              ↓         ↓
- 文档    代码          可运行        独立审核   全部门禁通过
+plan → implement → quality → review → complete
+  ↓        ↓           ↓          ↓         ↓
+ 文档    代码      L0+L1 汇总   独立审核   全部门禁通过
 ```
+
+Agent 可见阶段名为 `quality`；脚本层 `runtime_smoke` 为其内部子步骤别名。详见 `goal-pipeline/references/dual-track-contract.md`。
 
 ### 3.2 plan 阶段：三步收敛访谈
 
@@ -198,20 +200,27 @@ Agent 在确定的范围内修改代码，产出候选 diff。
 - guazi-flow 可用时：按 profile/contract/write_set 驱动
 - guazi-flow 不可用时：goal-pipeline 通用实现
 
-### 3.4 runtime_smoke 阶段（条件触发）
+### 3.4 quality 阶段（Lean 单阶段）
 
-如果 `goal/scripts/runtime-smoke.sh` 可用，implement 之后运行：
+Agent 只见 `[3/5] quality`。内部编排（`goal-quality` SKILL）：
 
 ```
-推导 dev 命令 → 安装依赖（如需要）→ 启动 → HTTP 探测
-  ├─ pass → 写入 evidence/runtime-smoke.md → 继续 review
-  ├─ not_pass → blocked（暂停等用户决策）
-  └─ 无法推导 dev 命令 → skipped
+runtime-smoke.sh → validate? → e2e? → quality-gate.sh → handoff/quality.json
 ```
+
+| tier | validate | e2e |
+|------|----------|-----|
+| standard | optional | optional |
+| strict | required | required |
+
+- L0：`verification-oracle.json`（UVO）、handoff 链、secret scan
+- L1：smoke / validate / e2e / test+lint，由 `quality-gate.sh` 汇总
+- `quality-gate.sh` 失败 → **BLOCK**（修复子循环或 blocked）
+- 无法推导 dev 命令 → smoke skipped；由 quality-gate 按 tier 裁决
 
 ### 3.5 review 阶段（详见第 4 节）
 
-独立模型审核，三步流程。
+独立模型审核，Step 0–4 编排（gate-pre → packet → unified LLM → merge → gate-post）。
 
 ### 3.6 complete 阶段
 
@@ -219,8 +228,8 @@ Agent 在确定的范围内修改代码，产出候选 diff。
 
 | 门禁 | 条件 | 验证方式 |
 |------|------|----------|
-| review pass | 独立模型审核通过 | evidence/review.md result=pass |
-| runtime_smoke pass | 项目能跑 | evidence/runtime-smoke.md result=pass |
+| review pass | 独立模型审核通过 | handoff/review.json + evidence |
+| quality pass | quality-gate 通过 | handoff/quality.json + UVO |
 | evidence fresh | 证据对应的 git HEAD = 当前 HEAD | verify.sh 对比 git_head |
 | verify.sh | completion_condition_met: true | 脚本最终判定 |
 
@@ -234,41 +243,40 @@ Agent 在确定的范围内修改代码，产出候选 diff。
 
 独立性等级：跨 provider > 同 provider 不同规格 > 同 model（不允许）
 
-### 4.2 三步审核流程
+### 4.2 Review 编排（Step 0–4）
+
+test+lint 已在 implement UVO + quality-gate L1 完成；review 侧重 scope/secret/packet 就绪与独立 LLM 裁决。
 
 ```
-implement complete
+quality complete
   ↓
-Step 1: 确定性检查（verify-review.sh，0 模型调用）
-  ├─ scope: 修改文件是否在 write_set 范围内
-  ├─ secret: 正则扫描 8 种密钥模式
-  ├─ test: 运行 npm test / go test
-  └─ lint: 运行 eslint
+Step 0: gate --pre review（verify-review.sh，0 模型调用）
+  scope + secret + packet 就绪
   任一 not_pass → 修复子循环
-  全部 pass → 继续
   ↓
-Step 2: 独立审核（始终执行）
-  独立 API 模型（跨 provider 优先，与执行模型不同 provider）
-  输入: diff + 验收标准 + 约束
-  → issues[]
+Step 1: assemble-review-packet → handoff/review-packet.json
   ↓
-Step 3: 分流
-  pass → complete
-  not_pass → 修复子循环
+Step 2: run-independent-review --mode unified（始终执行，L2）
+  跨 provider 独立 API 模型 → review-unified.json
+  ↓
+Step 3: merge-review-issues → review-fix-input.json
+  （guazi 可在 Step 0–2 间注入 Step 1.5 guazi-flow-review）
+  ↓
+Step 4: gate --post review → handoff/review.json
+  pass → advance / not_pass → 修复子循环
 ```
 
-### 4.3 Step 1: 确定性检查（零成本、快速）
+### 4.3 Step 0: 确定性检查（零成本、快速）
 
-由 `verify-review.sh` 脚本执行，**不调用任何 AI 模型**：
+由 `gates/review-pre.sh` / `verify-review.sh` 执行，**不调用任何 AI 模型**：
 
 | 检查项 | 做什么 | 实现 |
 |--------|--------|------|
 | **scope** | git diff 的文件是否在 write_set 范围内 | 前缀匹配 |
-| **secret** | 扫描 API_KEY、sk-、AKIA、ghp_ 等 8 种模式 | grep + 正则 |
-| **test** | 运行项目测试 | npm test / go test |
-| **lint** | 代码风格检查 | eslint |
+| **secret** | 扫描 API_KEY、sk-、AKIA、ghp_ 等模式 | grep + 正则 |
+| **packet** | review-packet 就绪、UVO/quality handoff 新鲜 | schema + freshness |
 
-**为什么零成本更重要**：这些检查能发现审核模型容易漏掉的问题（如 secret 泄露），且不消耗 token。
+**为什么零成本更重要**：这些检查能发现审核模型容易漏掉的问题（如 secret 泄露），且不消耗 token。test/lint 由 UVO 在 implement 后、`quality-gate.sh` 在 quality 阶段已执行。
 
 ### 4.4 Step 2: 独立模型审核
 
@@ -391,9 +399,9 @@ Step 3: 分流
   ↓
 [第2层] implement — Agent 产出候选 diff
   ↓
-[第3层] runtime_smoke — 项目能跑起来吗？
+[第3层] quality — smoke/validate/e2e + quality-gate（L0+L1）
   ↓
-[第4层] review — 三步审核（确定性检查 → 独立模型审核 → 分流）
+[第4层] review — Step 0–4（确定性检查 → unified LLM → merge → gate-post）
          ↓ not_pass
        修复子循环（分类 → 决策 → 重试）
   ↓
@@ -406,7 +414,7 @@ Step 3: 分流
 |---|------|----------|----------|
 | plan | Goal 结构完整 + 用户确认 | 访谈协议 | 重新讨论 |
 | implement | 代码产出 + 在 write_set 范围内 | verify-review.sh scope | 修复子循环 |
-| runtime_smoke | 项目可启动 | HTTP 探测 | blocked |
+| quality | smoke + UVO + quality-gate | quality-gate.sh | blocked |
 | review | 独立模型审核通过 | JSON 解析 | 修复子循环 |
 | complete | 全部门禁 pass + evidence fresh | verify.sh | 不允许标记 complete |
 
@@ -529,20 +537,30 @@ review not_pass:
 
 ## 8. 平台适配
 
+### 8.0 三层目录与 Skill 部署
+
+| 层 | 路径 | 职责 |
+|----|------|------|
+| 开发 | 本地 git clone | 开发、测试、push |
+| 安装 | `~/.goal-pipeline-repo` | install 克隆；pre-push fast-forward |
+| 运行 | `~/.agents/skills` + `~/.goal-state/scripts` | Agent skill + gate 脚本 |
+
+`deploy-skills.sh` 将 `goal-pipeline` / `guazi-flow-goal` 软链到安装仓，并清理 `~/.cursor/skills`、`~/.pi/skills` 等重复副本。`sync-install-repo.sh` 在每次 deploy 后自动调用。
+
 ### 8.1 平台检测
 
-| 平台 | 检测信号 | Skills 目录 |
-|------|---------|-------------|
-| Claude Code | `.claude/` | `~/.claude/skills/` |
-| Cursor | `.cursor/` | `~/.cursor/skills/` |
-| Codex | `.codex/` | `~/.codex/skills/` |
-| Pi | `.pi/` 或 `$PI_HOME` | `~/.pi/skills/` |
-| Windsurf | `.windsurf/` | `~/.windsurf/skills/` |
-| Qoder | `.qoder/` | `~/.qoder/skills/` |
-| Hermes | `.hermes/` | `~/.hermes/skills/` |
-| Continue | `.continue/` | `~/.continue/skills/` |
-| Roo | `.roo/` | `~/.roo/skills/` |
-| Generic | fallback | `~/.agents/skills/` |
+| 平台 | 检测信号 | goal-pipeline skill 位置 |
+|------|---------|-------------------------|
+| 跨平台（Pi / Cursor / …） | — | `~/.agents/skills/`（主入口） |
+| Claude Code | `.claude/` | `~/.agents/skills/` + 可选 `~/.claude/skills/` 副本 |
+| Codex | `.codex/` | `~/.agents/skills/` |
+| Pi | `.pi/` 或 `$PI_HOME` | `~/.agents/skills/`（Pi 原生 `~/.pi/agent/skills` 不重复安装） |
+| Windsurf | `.windsurf/` | `~/.agents/skills/` |
+| Qoder | `.qoder/` | `~/.agents/skills/` |
+| Hermes | `.hermes/` | `~/.agents/skills/` |
+| Continue | `.continue/` | `~/.agents/skills/` |
+| Roo | `.roo/` | `~/.agents/skills/` |
+| Generic fallback | 无 agent 目录 | `~/.agents/skills/` |
 
 ### 8.2 能力矩阵
 
@@ -581,7 +599,7 @@ guazi-flow-goal 是 goal-pipeline 的**增强层**，不是替代品。当项目
 |------|--------------------------------------|----------------|------|
 | plan | 加载 guazi-flow-plan/SKILL.md | MUST：产出 index.md + unit.md | goal-pipeline 通用 plan |
 | implement | 加载 guazi-flow-implement/SKILL.md | MUST：profile/contract/write_set 驱动 | goal-pipeline 通用 implement |
-| runtime_smoke | 无 GATE | 始终用 goal-pipeline 通用脚本 | — |
+| quality | goal-quality + quality-gate.sh | smoke/validate/e2e 内部编排 | goal-quality |
 | review | 加载 guazi-flow-review/SKILL.md | Step 1.5 注入：guazi-flow-review → issues_gf[] | 仅 goal-pipeline 独立审核 |
 | complete | 加载 guazi-flow-complete/SKILL.md | MUST：guazi-flow 收口检查 | goal-pipeline 通用 complete |
 
@@ -697,17 +715,11 @@ goal/
 
 ### 11.2 安装与卸载
 
+安装与卸载速查见 [README.md](README.md)。要点：skill 统一部署到 `~/.agents/skills`；`--agent` 仅影响检测展示与 Claude 副本；卸载通过 `deploy-skills.sh --uninstall` 统一清理。
+
 ```bash
-# 一键安装（自动检测所有平台）
 curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | bash
-
-# 指定平台安装
-bash install.sh --agent cursor
-
-# 一键卸载
 bash install.sh --uninstall
-
-# 彻底卸载（含仓库和状态）
 bash install.sh --uninstall --purge
 ```
 
@@ -729,7 +741,7 @@ bash install.sh --uninstall --purge
 [1/5] plan:      🔄 目标规划中...
 [1/5] plan:      ✅ plan 卡片已生成
 [2/5] implement: ✅ 5 files changed
-[3/5] smoke:     ✅ pnpm run dev → localhost:8000 (35s)
+[3/5] quality:   ✅ quality-gate pass (smoke: localhost:8000, 35s)
 [4/5] review:    🔄 独立模型审核中...
                  审核模型: deepseek-v4-flash (独立于执行模型)
 [4/5] review:    ✅ 通过 (1 轮) | 分离置信度: high (跨provider)
@@ -741,4 +753,4 @@ review 未通过时输出 issue 变动追踪（✅已解决 / 🔁持续 / 🆕�
 ---
 
 *文档版本: 1.0*  
-*最后更新: 2025-06*
+*最后更新: 2026-07*

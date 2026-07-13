@@ -9,6 +9,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 QUIET=false
 PULL_ONLY=false
 DEPLOY_ONLY=false
+SKILLS_ONLY=false
 FROM_DEV=""
 # Preserve DEPLOY_SOURCE when set by caller (e.g. local dev checkout)
 DEPLOY_SOURCE="${DEPLOY_SOURCE:-}"
@@ -18,6 +19,7 @@ while [[ $# -gt 0 ]]; do
     --quiet|-q) QUIET=true; shift ;;
     --pull-only) PULL_ONLY=true; shift ;;
     --deploy-only) DEPLOY_ONLY=true; shift ;;
+    --skills-only) SKILLS_ONLY=true; shift ;;
     --from-dev) FROM_DEV="$2"; shift 2 ;;
     -h|--help)
       cat <<'USAGE'
@@ -29,6 +31,7 @@ Options:
   --quiet         Minimal output
   --pull-only     Git sync only, skip deploy
   --deploy-only   Deploy from current install repo, skip git sync
+  --skills-only   Redeploy skill symlinks only (from install repo)
   --from-dev PATH Fetch/merge from a local dev clone (e.g. Profession/goal)
   -h, --help      Show help
 
@@ -177,6 +180,21 @@ VEREOF
   log "✅ Runtime scripts synced to $GOAL_STATE_HOME/scripts/ ($deployed files, git_rev=$GIT_REV)"
 }
 
+deploy_skills() {
+  local deploy_script="$SCRIPT_DIR/deploy-skills.sh"
+  if [[ ! -f "$deploy_script" ]]; then
+    deploy_script="$REPO_DIR/goal-pipeline/scripts/deploy-skills.sh"
+  fi
+  if [[ ! -f "$deploy_script" ]]; then
+    warn "deploy-skills.sh missing — skip skill redeploy"
+    return 0
+  fi
+  local args=(--also-platform-native)
+  [[ "$QUIET" == "true" ]] && args+=(--quiet)
+  log "📋 Redeploying skills from install repo..."
+  bash "$deploy_script" "${args[@]}"
+}
+
 main() {
   if [[ -z "${DEPLOY_SOURCE:-}" ]]; then
     local dev_path=""
@@ -188,11 +206,14 @@ main() {
     fi
   fi
 
-  if [[ "$DEPLOY_ONLY" != "true" ]]; then
+  if [[ "$DEPLOY_ONLY" != "true" && "$SKILLS_ONLY" != "true" ]]; then
     sync_git || true
   fi
-  if [[ "$PULL_ONLY" != "true" ]]; then
+  if [[ "$PULL_ONLY" != "true" && "$SKILLS_ONLY" != "true" ]]; then
     deploy_runtime
+  fi
+  if [[ "$PULL_ONLY" != "true" ]]; then
+    deploy_skills
   fi
 }
 

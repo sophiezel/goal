@@ -39,11 +39,11 @@ Options:
   --symlink    Create symlinks (default, git pull auto-updates)
   --copy       Copy files (for platforms that don't support symlinks)
   --ssh        Clone via SSH (requires configured SSH key)
-  --agent X    Force agent platform (skip auto-detection)
-               If omitted, installs to ALL detected agents
+  --agent X    Limit detected-agent list for display; skills always deploy to ~/.agents/skills
                Supported: claude_code, cursor, codex, pi, windsurf, qoder, hermes, continue, roo, generic
   --no-guazi  Install goal-pipeline only, skip guazi-flow-goal skill
-  --uninstall Remove skills from all detected agents (use with --agent to target one)
+  --uninstall Remove skills (universal ~/.agents/skills + duplicate cleanup + Claude copy)
+               --agent only affects legacy fallback when deploy-skills.sh is missing
   --purge     With --uninstall: also remove repo and state directory
   -h, --help   Show this help
 
@@ -51,9 +51,8 @@ Examples:
   curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | bash
   bash install.sh --ssh --agent cursor
   bash install.sh --no-guazi --copy
-  bash install.sh --uninstall            # Remove skills from all agents
+  bash install.sh --uninstall            # Universal skill cleanup
   bash install.sh --uninstall --purge   # Also remove repo + state
-  bash install.sh --uninstall --agent qoder  # Remove from Qoder only
 USAGE
       exit 0
       ;;
@@ -145,19 +144,28 @@ if [ "$UNINSTALL" = true ]; then
 
   SKILLS=("goal-pipeline" "guazi-flow-goal")
   echo "🗑️  Removing skills..."
-  for AGENT in $AGENTS; do
-    SKILLS_DIR=$(get_skills_dir "$AGENT")
-    echo "  → $AGENT: $SKILLS_DIR"
-    for skill in "${SKILLS[@]}"; do
-      target="$SKILLS_DIR/$skill"
-      if [ -L "$target" ] || [ -d "$target" ]; then
-        rm -rf "$target"
-        echo "    ✅ Removed: $skill"
-      else
-        echo "    ⏭️  Not found: $skill"
-      fi
+  DEPLOY_SKILLS_UNINSTALL="$REPO_DIR/goal-pipeline/scripts/deploy-skills.sh"
+  if [ ! -f "$DEPLOY_SKILLS_UNINSTALL" ]; then
+    DEPLOY_SKILLS_UNINSTALL="$GOAL_STATE_HOME/scripts/deploy-skills.sh"
+  fi
+  if [ -f "$DEPLOY_SKILLS_UNINSTALL" ]; then
+    bash "$DEPLOY_SKILLS_UNINSTALL" --uninstall --also-platform-native
+  else
+    for AGENT in $AGENTS; do
+      SKILLS_DIR=$(get_skills_dir "$AGENT")
+      echo "  → $AGENT: $SKILLS_DIR"
+      for skill in "${SKILLS[@]}"; do
+        target="$SKILLS_DIR/$skill"
+        if [ -L "$target" ] || [ -d "$target" ]; then
+          rm -rf "$target"
+          echo "    ✅ Removed: $skill"
+        else
+          echo "    ⏭️  Not found: $skill"
+        fi
+      done
     done
-  done
+    rm -rf "$HOME/.agents/skills/goal-pipeline" "$HOME/.agents/skills/guazi-flow-goal" 2>/dev/null || true
+  fi
 
   if [ "$PURGE" = true ]; then
     echo ""
@@ -200,7 +208,7 @@ if [ "$NO_GUAZI" = true ]; then
 fi
 echo ""
 
-# === Step 1: Clone or update repo ===
+# === Step 1: Clone or update install repo (origin only; never merge local dev checkout) ===
 REPO_URL="$REPO_URL_HTTPS"
 [ "$USE_SSH" = true ] && REPO_URL="$REPO_URL_SSH"
 
@@ -209,55 +217,25 @@ if [ ! -d "$REPO_DIR/.git" ]; then
   git clone "$REPO_URL" "$REPO_DIR"
 else
   echo "📦 Updating repository..."
+  if ! git -C "$REPO_DIR" pull --ff-only 2>/dev/null; then
+    echo "  ⚠️  git pull skipped (local changes or no remote); using existing clone"
+  fi
 fi
 
 SYNC_SCRIPT="$REPO_DIR/goal-pipeline/scripts/sync-install-repo.sh"
-if [ -f "$SYNC_SCRIPT" ]; then
-  bash "$SYNC_SCRIPT" ${GOAL_DEV_REPO:+--from-dev "$GOAL_DEV_REPO"}
-else
-  cd "$REPO_DIR" && git pull
-fi
 
-# === Step 2: Deploy skills to all detected agents ===
-SKILLS=("goal-pipeline")
-if [ "$NO_GUAZI" = false ]; then
-  SKILLS+=("guazi-flow-goal")
-fi
-
+# === Step 2: Deploy skills (universal ~/.agents/skills + Claude native) ===
 echo ""
 echo "📋 Deploying skills..."
-
-for AGENT in $AGENTS; do
-  SKILLS_DIR=$(get_skills_dir "$AGENT")
-  mkdir -p "$SKILLS_DIR"
-  echo "  → $AGENT: $SKILLS_DIR"
-
-  for skill in "${SKILLS[@]}"; do
-    target="$SKILLS_DIR/$skill"
-    source="$REPO_DIR/$skill"
-
-    if [ ! -d "$source" ]; then
-      echo "    ⚠️  $source not found, skipping"
-      continue
-    fi
-
-    # Remove existing deployment
-    if [ -L "$target" ]; then
-      rm "$target"
-    elif [ -d "$target" ]; then
-      echo "    🗑️  Removing existing: $target"
-      rm -rf "$target"
-    fi
-
-    if [ "$MODE" = "--symlink" ]; then
-      ln -sfn "$source" "$target"
-      echo "    ✅ $skill → symlink"
-    else
-      cp -r "$source" "$target"
-      echo "    ✅ $skill → copied"
-    fi
-  done
-done
+DEPLOY_SKILLS="$REPO_DIR/goal-pipeline/scripts/deploy-skills.sh"
+if [ -f "$DEPLOY_SKILLS" ]; then
+  DEPLOY_ARGS=(--also-platform-native)
+  [ "$MODE" = "--copy" ] && DEPLOY_ARGS+=(--copy)
+  [ "$NO_GUAZI" = true ] && DEPLOY_ARGS+=(--no-guazi)
+  bash "$DEPLOY_SKILLS" "${DEPLOY_ARGS[@]}"
+else
+  echo "  ⚠️  deploy-skills.sh not found — skip skill deploy"
+fi
 
 # === Step 4: Migrate old paths (before skeleton creation) ===
 if [ -d "$HOME/.guazi-flow-goal" ]; then
@@ -302,10 +280,10 @@ fi
 
 rm -f "$GOAL_STATE_HOME/scripts/inject-docs-gitignore.sh"
 
-# Deploy scripts (also available via sync-install-repo.sh --deploy-only)
+# Deploy scripts from install repo only (ignore dev_repo in config.json)
 SYNC_SCRIPT="$REPO_DIR/goal-pipeline/scripts/sync-install-repo.sh"
 if [ -f "$SYNC_SCRIPT" ]; then
-  bash "$SYNC_SCRIPT" --deploy-only
+  env -u GOAL_DEV_REPO DEPLOY_SOURCE="$REPO_DIR" bash "$SYNC_SCRIPT" --deploy-only
 else
   SCRIPTS_SRC="$REPO_DIR/goal-pipeline/scripts"
   mkdir -p "$GOAL_STATE_HOME/scripts"
@@ -352,15 +330,13 @@ echo "=========================================="
 echo ""
 echo "  State:      $GOAL_STATE_HOME"
 echo "  Repo:       $REPO_DIR"
+echo "  Skills dir:    ~/.agents/skills (universal)"
 echo "  Agents:     $(echo $AGENTS | tr ' ' ', ')"
-echo "  Skills dirs:"
-for AGENT in $AGENTS; do
-  echo "    $(get_skills_dir "$AGENT")"
-done
 echo ""
 if [ "$MODE" = "--symlink" ]; then
-  echo "  Update:     auto via sync-install-repo.sh (pre-push hook / session-start / doctor)"
-  echo "              manual: bash $REPO_DIR/goal-pipeline/scripts/sync-install-repo.sh"
+  echo "  Update skills:  cd $REPO_DIR && git pull"
+  echo "  Update scripts: env DEPLOY_SOURCE=$REPO_DIR bash $REPO_DIR/goal-pipeline/scripts/sync-install-repo.sh --deploy-only"
+  echo "                or re-run: bash install.sh"
 fi
 echo ""
 echo "  Usage:"

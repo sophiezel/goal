@@ -2,25 +2,47 @@
 
 持久化目标执行管线——与 Claude Code `/goal` 对齐的 5 阶段管线引擎。Agent 接到 goal 后持续执行，直到目标完成或遇到阻塞。
 
-**零外部依赖，所有 AI Agent 平台通用。**
+**进化轨（`/goal-pipeline`）零外部 skill 依赖，所有 AI Agent 平台通用。** 兼容轨（`/guazi-flow-goal`）需项目内已安装 `guazi-flow-*` 生态 skill。
 
 ## 架构
 
 ```
-goal-pipeline（通用管线引擎）
+goal-pipeline（通用管线引擎 / 进化轨）
   │
   │  ~/.goal-state/ 持久化
   │  /goal-pipeline-* 生命周期命令
+  │  goal-stage-driver.sh 为每 turn 进度真相
   │
-  └── guazi-flow-goal（可选统一入口）
+  └── guazi-flow-goal（可选统一入口 / 兼容轨）
         内含桥接契约（references/bridge-contract.md）
         将 guazi-flow-* 系列适配到 goal-pipeline
 ```
 
+### 双轨架构
+
+| 轨 | 入口 | 阶段执行 | 外部依赖 |
+|----|------|----------|----------|
+| **进化轨** | `/goal-pipeline` | `goal-pipeline/stages/goal-*` | 无 |
+| **兼容轨** | `/guazi-flow-goal` | 黑盒 `guazi-flow-*` + 质检防火墙 | `guazi-flow-plan` 等生态 skill |
+
+两轨共享：`~/.goal-state/`、`handoff/*.json`、`plan-quality-gate.py` / `implement-qc-gate.py` / `quality-gate.sh`。详见 [`goal-pipeline/references/dual-track-contract.md`](goal-pipeline/references/dual-track-contract.md)。
+
+### 质检防火墙（兼容轨插入点）
+
+```text
+guazi-flow-plan     → plan-quality-gate.py  → gate --post plan
+guazi-flow-implement → implement-qc-gate.py (UVO) → gate --post implement
+quality 阶段         → quality-gate.sh        → gate --post quality
+```
+
+进化轨将 PQ/IQ 规则内嵌到 `goal-plan` / `goal-implement` SKILL，并调用同一脚本。
+
 ## 5 阶段管线
 
+Agent 可见的 Lean 五阶段（脚本层 `runtime_smoke` 为 `quality` 的别名，不单独暴露）：
+
 ```
-plan → implement → runtime_smoke → review ↔ complete
+plan → implement → quality → review ↔ complete
                                 ↓
                           not_pass → 修复子循环
 ```
@@ -28,20 +50,41 @@ plan → implement → runtime_smoke → review ↔ complete
 | 阶段 | 职责 |
 |------|------|
 | **plan** | 目标澄清 + 范围确定 + 审核通道探测 |
-| **implement** | Agent 在范围内修改代码，产出候选 diff |
-| **runtime_smoke** | 验证项目可启动（条件触发） |
-| **review** | 三步审核：确定性检查 → 独立模型审核 → 分流 |
-| **complete** | 所有门禁通过，goal 完成 |
+| **implement** | 范围内修改代码，产出候选 diff；运行 UVO（`verification-oracle.sh`） |
+| **quality** | 内部编排 smoke / validate? / e2e? + `quality-gate.sh` 汇总（L0+L1） |
+| **review** | gate-pre → packet → unified LLM → merge → gate-post |
+| **complete** | `verify.sh` 全链校验，`goal.status = complete` |
 
-### 三步审核流程
+`quality_policy.tier`：`standard`（validate/e2e 可选）| `strict`（validate+e2e 强制）。写入 `state.json.quality_policy.tier`。
 
+### quality 阶段内部编排
+
+```text
+runtime-smoke.sh → validate? → e2e? → quality-gate.sh → handoff/quality.json
 ```
-Step 1: 确定性检查（0 模型调用）— scope + secret + test + lint
-Step 2: 独立审核（跨 provider API 模型）— diff + 验收标准 → issues[]
-Step 3: 分流 — pass → complete / not_pass → 修复子循环
-```
 
-桥接层可在 Step 1 和 Step 2 之间注入额外审核步骤。
+- L0：handoff 链、UVO（`evidence/verification-oracle.json`）、secret scan
+- L1：smoke / validate / e2e / test+lint（由 `quality-gate.sh` 汇总）
+- L2：仅当 L1 为 `inconclusive` / `partial` / `skipped` 时触发子域 LLM judge
+- review 的独立 LLM 始终为 L2（`run-independent-review.sh --mode unified`）
+
+详见 [`goal-pipeline/references/tiered-adjudication.md`](goal-pipeline/references/tiered-adjudication.md)。
+
+### Review 流程
+
+**用户视图**：确定性检查 → 独立审核 → pass / not_pass 分流
+
+**技术步骤**（Agent 聊天输出 Step 0–4）：
+
+| Step | 脚本 | 说明 |
+|------|------|------|
+| 0 | `gate --pre review` | scope / secret / packet 就绪（test+lint 已在 UVO + quality 完成） |
+| 1 | `assemble-review-packet` | 生成 `handoff/review-packet.json` |
+| 2 | `run-independent-review --mode unified` | 跨 provider 独立 LLM → `review-unified.json` |
+| 3 | `merge-review-issues` | 合并 issues → `review-fix-input.json` |
+| 4 | `gate --post review` | 写入 `handoff/review.json` |
+
+桥接层可在 Step 0 与 Step 2 之间注入 **Step 1.5**（如 `guazi-flow-review`），issues 并入 merge 结果。
 
 ## Quick Start
 
@@ -51,7 +94,7 @@ Step 3: 分流 — pass → complete / not_pass → 修复子循环
 curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | bash
 ```
 
-一键完成：克隆仓库 → 检测平台 → 部署 skills → 初始化 `~/.goal-state/` → 迁移旧数据
+一键完成：克隆仓库 → 检测环境 → universal 部署 skills（Claude 可选副本）→ 初始化 `~/.goal-state/` → 部署 Cursor stop hook → 迁移旧数据
 
 安装完成后，在你的 Agent 中输入：
 
@@ -73,9 +116,13 @@ curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | ba
 # 仅安装 goal-pipeline（跳过 guazi-flow 系列）
 curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | bash -s -- --no-guazi
 
-# 指定平台
+# 限制检测展示的平台列表（skill 仍写入 ~/.agents/skills）
 curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | bash -s -- --agent cursor
 ```
+
+`install.sh` 是**通用安装入口**：克隆/更新 `~/.goal-pipeline-repo`（仅 `git pull` 远端）、软链 skill 到 `~/.agents/skills`、部署 `~/.goal-state/scripts`。**不会**读取本机 `GOAL_DEV_REPO` 或 `config.json` 里的 `dev_repo`。
+
+贡献者本地开发的 pre-push 同步见下方「贡献者开发（可选）」。
 
 ### 安装过程
 
@@ -84,62 +131,109 @@ curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | ba
   goal-pipeline installer
 ==========================================
 
-  Detected agents: pi, codex, claude_code, cursor   ← 检测到多个平台
+  Detected agents: pi, codex, claude_code, cursor   ← 环境检测（非 per-agent 安装）
   State dir:       ~/.goal-state
   Install mode:    --symlink
   Clone method:    HTTPS
 
 📦 Cloning repository...
 📋 Deploying skills...
-  → pi:          ~/.pi/skills/
-    ✅ goal-pipeline → symlink
+  → universal: ~/.agents/skills
+    ✅ goal-pipeline → symlink (~/.goal-pipeline-repo/...)
     ✅ guazi-flow-goal → symlink
-  → cursor:      ~/.cursor/skills/
-    ✅ goal-pipeline → symlink
-    ✅ guazi-flow-goal → symlink
-  ...
+  cleaning platform duplicates...
+  → claude_code: ~/.claude/skills   (optional native copy)
 📁 Initializing state directory...
   ✅ config.json created
   ✅ Scripts deployed to ~/.goal-state/scripts/
+  ✅ Stop hook deployed to ~/.cursor/hooks/goal-pipeline-stop-hook.sh
 ```
 
-> 只安装到特定平台：`bash install.sh --agent cursor`
+### 安装布局
+
+| 层 | 路径 | 用途 |
+|----|------|------|
+| 安装 | `~/.goal-pipeline-repo` | `install.sh` 从 GitHub 克隆的 skill 源码 |
+| 运行 | `~/.agents/skills` + `~/.goal-state/` | Agent 读 skill（软链）；goal 状态与 gate 脚本 |
+
+skill 软链指向 `~/.goal-pipeline-repo`，`git pull` 安装仓即可更新 skill 内容。
+
+> `--agent X` 仅收窄安装日志中的「Detected agents」列表，并影响是否安装 Claude 副本；**skill 始终写入** `~/.agents/skills`。
 
 ### 更新
 
-默认会自动同步，无需手动 `git pull`：
+```bash
+cd ~/.goal-pipeline-repo && git pull    # 更新 skill 内容（软链自动生效）
+# 若需同步 gate 脚本到 ~/.goal-state：
+env DEPLOY_SOURCE=~/.goal-pipeline-repo bash ~/.goal-state/scripts/sync-install-repo.sh --deploy-only
+# 或重新运行 install.sh
+```
 
-| 触发时机 | 行为 |
-|---------|------|
-| `git push`（Profession/goal 开发仓） | pre-push hook 同步 `~/.goal-pipeline-repo` + 部署脚本 |
-| Cursor session 启动 | 后台自动 sync |
-| `goal-pipeline-doctor.sh` | 启动时自动 sync |
+仅重部署 skill 软链：
 
-开发仓首次启用（一次性）：
+```bash
+bash ~/.goal-state/scripts/deploy-skills.sh
+# 或
+bash ~/.goal-state/scripts/sync-install-repo.sh --skills-only
+```
+
+copy 模式需重新运行安装脚本。
+
+### 诊断与维护
+
+```bash
+bash ~/.goal-state/scripts/goal-pipeline-doctor.sh <project_root>
+```
+
+典型检查项：skill 软链是否指向 `~/.goal-pipeline-repo`（禁止指向开发 clone）、`~/.pi/skills` 等重复项、gate 脚本 VERSION drift、审核通道、Cursor stop hook。
+
+`goal-pipeline-doctor.sh` 启动时会尝试后台 `sync-install-repo.sh --quiet`。
+
+**Cursor hooks**（install 默认部署）：
+
+| Hook | 路径 | 作用 |
+|------|------|------|
+| stop | `~/.cursor/hooks/goal-pipeline-stop-hook.sh` | turn 结束前 `gate --assert-complete`，未完成则继续 |
+| session-start | `goal-pipeline-session-start-hook.sh` | **未默认安装**；需手动写入 `hooks.json` 方可启用 active-goal 提醒与后台 sync |
+
+### 贡献者开发（可选）
+
+若你在本地 clone 本仓库参与开发（与 `curl | bash` 安装无关），可使用额外同步工具：
+
+| 层 | 路径 | 用途 |
+|----|------|------|
+| 开发 | 本地 git clone | 改代码、跑 gate tests、`git push` |
+| 安装 | `~/.goal-pipeline-repo` | 与上方相同；可由 pre-push 从开发仓 fast-forward |
+
+**硬规则**：skill 软链**禁止**指向本地开发 clone；`--from-dev` 仅用于把 gate 脚本快速拷贝到 `~/.goal-state/scripts`，skill 始终从安装仓部署。
+
+首次启用 pre-push hook（在开发 clone 根目录执行一次）：
 
 ```bash
 bash scripts/setup-dev-sync-hooks.sh
 ```
 
-手动同步：
+之后 `git push` 会自动：同步 `~/.goal-pipeline-repo`、部署 scripts、重部署 skill 软链。
+
+手动从开发 clone 同步：
 
 ```bash
-bash ~/.goal-state/scripts/sync-install-repo.sh
-# 或从本地开发仓（含未提交改动）：
-bash ~/.goal-state/scripts/sync-install-repo.sh --from-dev /path/to/Profession/goal
+bash ~/.goal-state/scripts/sync-install-repo.sh --from-dev /path/to/your/goal-dev-clone
 ```
-
-copy 模式需重新运行安装脚本。
 
 ### 卸载
 
-#### 一键卸载（所有平台）
+#### 统一卸载（推荐）
 
 ```bash
 bash install.sh --uninstall
+# 或
+bash ~/.goal-state/scripts/deploy-skills.sh --uninstall --also-platform-native
 ```
 
-自动检测所有已安装的 agent 平台，逐一删除 `goal-pipeline` 和 `guazi-flow-goal` skills。仓库和状态目录默认保留。
+清除 `~/.agents/skills` 中的 skill、平台目录重复项、以及 `~/.claude/skills` 可选副本。仓库和状态目录默认保留。
+
+`--agent` 在存在 `deploy-skills.sh` 时**不改变**卸载范围；仅当该脚本缺失时，回退逻辑才按检测到的平台列表删除。
 
 #### 彻底卸载（含仓库和状态）
 
@@ -151,30 +245,11 @@ bash install.sh --uninstall --purge
 - `~/.goal-pipeline-repo/`（代码仓库）
 - `~/.goal-state/`（状态目录，含历史 goal）
 
-#### 卸载特定平台
+#### 手动删除
 
 ```bash
-bash install.sh --uninstall --agent cursor
-```
-
-#### 逐平台手动卸载
-
-| 平台 | 命令 |
-|------|------|
-| Claude Code | `rm ~/.claude/skills/goal-pipeline ~/.claude/skills/guazi-flow-goal` |
-| Cursor | `rm ~/.cursor/skills/goal-pipeline ~/.cursor/skills/guazi-flow-goal` |
-| Codex | `rm ~/.codex/skills/goal-pipeline ~/.codex/skills/guazi-flow-goal` |
-| Pi | `rm ~/.pi/skills/goal-pipeline ~/.pi/skills/guazi-flow-goal` |
-| Windsurf | `rm ~/.windsurf/skills/goal-pipeline ~/.windsurf/skills/guazi-flow-goal` |
-| Qoder | `rm ~/.qoder/skills/goal-pipeline ~/.qoder/skills/guazi-flow-goal` |
-| Hermes | `rm ~/.hermes/skills/goal-pipeline ~/.hermes/skills/guazi-flow-goal` |
-| Continue | `rm ~/.continue/skills/goal-pipeline ~/.continue/skills/guazi-flow-goal` |
-| Roo | `rm ~/.roo/skills/goal-pipeline ~/.roo/skills/guazi-flow-goal` |
-| Generic | `rm ~/.agents/skills/goal-pipeline ~/.agents/skills/guazi-flow-goal` |
-
-手动删除仓库和状态：
-
-```bash
+rm ~/.agents/skills/goal-pipeline ~/.agents/skills/guazi-flow-goal
+rm ~/.claude/skills/goal-pipeline ~/.claude/skills/guazi-flow-goal  # 若存在
 rm -rf ~/.goal-pipeline-repo
 rm -rf ~/.goal-state
 ```
@@ -186,27 +261,35 @@ rm -rf ~/.goal-state
 | `--symlink` | 符号链接（默认，git pull 自动更新） |
 | `--copy` | 复制文件 |
 | `--ssh` | SSH 克隆 |
-| `--agent X` | 强制指定平台（跳过自动检测） |
+| `--agent X` | 限制检测展示的平台；skill 仍部署到 `~/.agents/skills` |
 | `--no-guazi` | 仅安装 goal-pipeline |
-| `--uninstall` | 卸载 skills（自动检测所有平台） |
+| `--uninstall` | 统一卸载 skills（universal + 去重 + Claude 副本） |
 | `--purge` | 配合 `--uninstall`，同时删除仓库和状态目录 |
 
 ### 支持平台
 
-自动检测并部署到对应 skills 目录：
+`goal-pipeline` / `guazi-flow-goal` 部署到 **跨平台通用目录** `~/.agents/skills/`（Pi、Cursor 等均会扫描）。Claude Code 额外在 `~/.claude/skills/` 保留一份原生副本。不在 `~/.cursor/skills`、`~/.pi/skills` 等平台目录重复安装，避免 Pi `[Skill conflicts]`。
 
-| 平台 | Skills 目录 | 检测信号 |
-|------|-----------|---------|
-| Claude Code | `~/.claude/skills/` | `.claude/` |
-| Cursor | `~/.cursor/skills/` | `.cursor/` |
-| Codex | `~/.codex/skills/` | `.codex/` |
-| Pi | `~/.pi/skills/` | `.pi/` 或 `$PI_HOME` |
-| Windsurf | `~/.windsurf/skills/` | `.windsurf/` |
-| Qoder | `~/.qoder/skills/` | `.qoder/` |
-| Hermes | `~/.hermes/skills/` | `.hermes/` |
-| Continue | `~/.continue/skills/` | `.continue/` |
-| Roo | `~/.roo/skills/` | `.roo/` |
-| Generic | `~/.agents/skills/` | fallback |
+> 若 `~/.cursor/skills` 已软链到 `~/.agents/skills`（常见配置），`deploy-skills.sh` 会自动跳过对该路径的「重复清理」，避免误删通用入口。`goal-pipeline-doctor.sh` 会报告重复软链。
+
+| 角色 | Skills 目录 | 说明 |
+|------|-----------|------|
+| **通用（主入口）** | `~/.agents/skills/` | goal-pipeline / guazi-flow-goal 唯一入口 |
+| Claude Code（可选副本） | `~/.claude/skills/` | 仅当检测到 `.claude/` |
+| 生态 skill | `~/.agents/skills/` | guazi-flow-plan、e2e-device 等第三方 skill 同目录 |
+| 运行时脚本 | `~/.goal-state/scripts/` | gate / sync / doctor（非 skill） |
+
+检测信号（`install.sh` 用于判定是否安装 Claude 副本等）：
+
+| 平台 | 检测信号 |
+|------|---------|
+| Claude Code | `.claude/` |
+| Cursor | `.cursor/` |
+| Pi | `.pi/` 或 `$PI_HOME` |
+| Codex | `.codex/` |
+| Windsurf | `.windsurf/` |
+| Qoder | `.qoder/` |
+| 其他 | 见 `install.sh` `detect_all_agents` |
 
 ## 使用
 
@@ -222,12 +305,14 @@ rm -rf ~/.goal-state
 | `/goal-pipeline-clear` | 归档到 archive/ |
 | `/goal-pipeline-list` | 查看历史 |
 
+每个 Agent turn 以 `goal-stage-driver.sh` 输出的 `work_order.next_stage` 为进度真相，禁止自行推断阶段。
+
 ### guazi-flow-goal（guazi-flow 项目增强入口）
 
 在 guazi-flow 项目中使用，加载 goal-pipeline 并在各阶段调度 guazi-flow-* 增强。
 
 ```bash
-# 启动（触发 /guazi-flow-plan → /guazi-flow-implement → /guazi-flow-review → /guazi-flow-complete）
+# 启动（5 阶段：plan → implement → quality → review → complete）
 /guazi-flow-goal 给项目加用户认证
 
 # 生命周期命令（/guazi-flow-goal-* 为 /goal-pipeline-* 的别名）
@@ -238,11 +323,19 @@ rm -rf ~/.goal-state
 /guazi-flow-goal-list        # 历史
 ```
 
+| 阶段 | 兼容轨调度 | 防火墙 |
+|------|------------|--------|
+| plan | guazi-flow-plan | plan-quality-gate.py |
+| implement | guazi-flow-implement | implement-qc-gate.py (UVO) |
+| quality | goal-quality | quality-gate.sh |
+| review | guazi-flow-review（Step 1.5）+ unified LLM | gate pre/post |
+| complete | guazi-flow-complete | verify.sh |
+
 与 `/goal-pipeline` 的区别：
 
-- 各阶段自动调度 guazi-flow-plan / guazi-flow-implement / guazi-flow-review / guazi-flow-complete
-- review 阶段在 goal-pipeline 独立审核之外，追加 guazi-flow-review 专业审核（Step 1.5）
-- state.json 包含 guazi-flow 扩展字段（task 目录、profile、stages）
+- 各阶段自动调度 guazi-flow-plan / implement / review / complete，quality 共用 `goal-quality`
+- review 阶段在 unified 独立审核之外，追加 guazi-flow-review 专业审核（Step 1.5）
+- state.json 包含 guazi-flow 扩展字段（task 目录、profile、stages、artifact_layout）
 - guazi-flow 不可用时自动降级为纯 goal-pipeline 运行
 
 ### 示例
@@ -256,10 +349,10 @@ rm -rf ~/.goal-state
 [2/5] implement: 🔄 执行中...
 [2/5] implement: ✅ 5 files changed
 
-[3/5] smoke:     🔄 runtime-smoke 验证项目启动...
-[3/5] smoke:     ✅ pnpm run dev → localhost:8000 (35s)
+[3/5] quality:   🔄 smoke + quality-gate...
+[3/5] quality:   ✅ quality-gate pass (smoke: localhost:8000, 35s)
 
-[4/5] review:    🔄 独立模型审核中...
+[4/5] review:    🔄 Step 2: unified review...
                  审核模型: deepseek-v4-flash (独立于执行模型)
 [4/5] review:    ✅ 通过 (1 轮)
 
@@ -279,20 +372,22 @@ rm -rf ~/.goal-state
                  任务: docs/guazi-flow/user-auth/
 
 [2/5] implement: 🔄 guazi-flow-implement (profile/contract 驱动)...
-[2/5] implement: ✅ 8 files changed, contract 全部匹配
+[2/5] implement: ✅ 8 files changed, UVO pass
 
-[3/5] smoke:     🔄 runtime-smoke 验证项目启动...
-[3/5] smoke:     ✅ pnpm run dev → localhost:8000 (35s)
+[3/5] quality:   🔄 smoke + quality-gate...
+[3/5] quality:   ✅ quality-gate pass
 
-[4/5] review:    🔄 三步审核...
-                 Step 1:   verify-review.sh → pass
+[4/5] review:    🔄 审核编排...
+                 Step 0:   gate --pre → pass
                  Step 1.5: guazi-flow-review → 2 warnings (不阻断)
-                 Step 2:   独立模型 deepseek-v4-flash → pass
+                 Step 2:   unified LLM deepseek-v4-flash → pass
+                 Step 4:   gate --post → handoff/review.json
 [4/5] review:    ✅ 通过 (1 轮)
 
 [5/5] complete:  🔄 guazi-flow-complete 收口中...
 [5/5] complete:  ✅ 目标完成
-                 📁 evidence: review.md, complete.md, runtime-smoke.md
+                 📁 handoff: quality.json, review.json
+                 📁 evidence: verification-oracle.json, review-unified.json
 ```
 
 ### 原生 /goal 集成
@@ -303,14 +398,22 @@ rm -rf ~/.goal-state
 
 ```
 ~/.goal-state/
-├── config.json                     ← API keys + 偏好
+├── config.json                     ← API keys + 偏好 + channel_cache
 ├── projects/
 │   └── <project_id>/
 │       └── <branch>/<task>/
-│           ├── state.json          ← Goal 状态
+│           ├── state.json          ← Goal 状态 + quality_policy + artifact_layout
+│           ├── handoff/            ← plan.json … quality.json … review.json
+│           ├── artifacts/          ← guazi split 模式 Tier-R 产物
 │           └── .lock               ← 并发控制
 ├── archive/                        ← 已归档 goals
-└── scripts/                        ← 管线脚本
+└── scripts/                        ← 管线脚本（gate / sync / doctor）
+
+docs/guazi-flow/<task>/             ← 兼容轨任务目录（Tier-G + evidence）
+  evidence/
+    verification-oracle.json
+    review-unified.json
+    runtime-smoke.md
 ```
 
 `project_id = sha256(项目根绝对路径)[:12]`
@@ -338,6 +441,12 @@ rm -rf ~/.goal-state
 | Budget | Token 预算 | Token 预算 + 三级提示 |
 | 持久化 | Session-scoped | 磁盘 state.json（跨 session） |
 | 扩展 | 无 | 通过桥接层按需增强 |
+
+## 进一步阅读
+
+- [`ARCHITECTURE.md`](ARCHITECTURE.md) — 完整架构设计
+- [`goal-pipeline/references/dual-track-contract.md`](goal-pipeline/references/dual-track-contract.md) — 双轨边界
+- [`goal-pipeline/references/tiered-adjudication.md`](goal-pipeline/references/tiered-adjudication.md) — L0/L1/L2 分层裁决
 
 ## License
 
