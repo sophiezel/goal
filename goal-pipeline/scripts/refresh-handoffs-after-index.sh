@@ -64,6 +64,11 @@ FRESH_OK=$(echo "$FRESH" | python3 -c "import json,sys; print(json.load(sys.stdi
 CASCADE="none"
 if [[ -n "$FORCE_CASCADE" && "$FORCE_CASCADE" != "auto" ]]; then
   CASCADE="$FORCE_CASCADE"
+  # Guard: execution-only drift must never force mini-replan (B1 complete regression).
+  if [[ "$CASCADE" == "plan" && "$CONTRACT_CHANGED" != "True" && "$EXEC_CHANGED" == "True" ]]; then
+    echo "refresh-handoffs: REJECT cascade=plan when only execution record changed — demote to implement" >&2
+    CASCADE="implement"
+  fi
 elif [[ "$CONTRACT_CHANGED" == "True" ]]; then
   CASCADE="plan"
 elif [[ "$EXEC_CHANGED" == "True" || "$FRESH_OK" != "True" ]]; then

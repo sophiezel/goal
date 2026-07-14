@@ -68,7 +68,64 @@ def is_guazi_flow_task_dir(repo_task_dir: Path, project_root: Path | None) -> bo
     return len(parts) >= 2 and parts[0] == "docs" and parts[1] == "guazi-flow"
 
 
+def current_git_branch(project_root: Path) -> str:
+    try:
+        r = subprocess.run(
+            ["git", "-C", str(project_root), "rev-parse", "--abbrev-ref", "HEAD"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        )
+        if r.returncode == 0:
+            return r.stdout.strip()
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+    return ""
+
+
+def state_branch_matches(sf: Path, expected_branch: str, state: dict) -> bool:
+    """Prefer path segment projects/<pid>/<branch>/<task>/state.json; also state.branch."""
+    if not expected_branch:
+        return True
+    st_branch = (state.get("branch") or state.get("git_branch") or "").strip()
+    if st_branch and st_branch == expected_branch:
+        return True
+    # Path: .../projects/<pid>/<branch>/<task>/state.json
+    parts = sf.resolve().parts
+    try:
+        idx = parts.index("projects")
+        if len(parts) >= idx + 4 and parts[idx + 2] == expected_branch:
+            return True
+    except ValueError:
+        pass
+    return False
+
+
+def validate_state_project_id(state_file: Path, project_root: Path | None) -> tuple[bool, str]:
+    """Canonical: project_id === sha256(project_root)[:12]."""
+    if project_root is None or not state_file.is_file():
+        return True, ""
+    try:
+        st = json.loads(state_file.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, OSError):
+        return False, "state_unreadable"
+    expected = project_id(project_root)
+    actual = (st.get("project_id") or "").strip()
+    if actual and actual != expected:
+        return False, f"project_id_mismatch: state={actual} expected={expected}"
+    # Path must live under projects/<expected>/
+    try:
+        parts = state_file.resolve().parts
+        idx = parts.index("projects")
+        if len(parts) > idx + 1 and parts[idx + 1] != expected:
+            return False, f"state_path_wrong_project: path_pid={parts[idx + 1]} expected={expected}"
+    except ValueError:
+        pass
+    return True, ""
+
+
 def find_state_file(task_dir: Path, project_root: Path | None) -> Path | None:
+    """Discover state.json for task — MUST match current git branch (no cross-branch hit)."""
     task_dir = task_dir.resolve()
     if project_root is None:
         project_root = git_root(task_dir)
@@ -80,11 +137,17 @@ def find_state_file(task_dir: Path, project_root: Path | None) -> Path | None:
         return None
     task_name = task_dir.name
     rel_str = task_rel_path(task_dir, project_root)
+    branch = current_git_branch(project_root)
     candidates: list[Path] = []
     for sf in base.rglob("state.json"):
         try:
             st = json.loads(sf.read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
+            continue
+        ok_pid, _ = validate_state_project_id(sf, project_root)
+        if not ok_pid:
+            continue
+        if branch and not state_branch_matches(sf, branch, st):
             continue
         gft = (st.get("guazi_flow_task") or "").strip().rstrip("/")
         if gft and rel_str and (gft == rel_str or gft.endswith("/" + task_name)):
@@ -298,6 +361,10 @@ def resolve(
     sf: Path | None = Path(state_file).resolve() if state_file else None
     if sf is None:
         sf = find_state_file(repo_task_dir, proj)
+    elif proj is not None:
+        ok_pid, pid_err = validate_state_project_id(sf, proj)
+        if not ok_pid:
+            raise SystemExit(f"resolve-artifact-paths: {pid_err}")
 
     env_mode = os.environ.get("GOAL_ARTIFACT_MODE", "").strip()
     state: dict = {}

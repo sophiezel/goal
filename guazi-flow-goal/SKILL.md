@@ -18,8 +18,13 @@ description: guazi-flow-goal 统一入口。加载 goal-pipeline 管线引擎，
 - **NEVER 在 guazi-flow 不可用时强制加载 guazi-flow-* skills**——降级为纯 goal-pipeline 运行，不阻断管线
 - **NEVER 修改 goal-pipeline 的 state.json 基础字段**——guazi-flow 扩展字段（guazi_flow_*）只能追加，不覆盖管线字段
 - **NEVER 在 guazi-flow-plan 产出前修改项目代码**——plan 未完成时改代码会导致 write_set 不匹配，implement 阶段无法正确驱动
+- **NEVER 在 `gate --post plan`（handoff/plan.json.gate.passed_at）之前写 `src/**` 或 write_set 业务代码**——硬门禁 `assert-plan-before-code` / `gate --pre plan|implement`；违规 → `blocked(failure_code: plan_code_order)`，先 stash/reset 再补 plan，禁止「脏树上追文档」
+- **NEVER 将 plan Todo 与「写列表/写服务/写页面」Todo 并列**——仅输出 `[1/5] plan`；`gate --post plan` exit 0 后才可创建 implement 写代码 Todo
 - **NEVER 在 guazi-flow-plan 产出 index.md 前进入 implement**——MUST 先执行 guazi-flow-plan 完整流程（见关键执行协议），验证 index.md 存在且包含必需章节（核心事实/完整伪代码/验收矩阵/执行记录），否则 blocked（failure_code: plan_artifact_missing / plan_schema_incomplete）
 - **NEVER 跳过 [1/5] plan 进度输出**——缺少 [1/5] 输出说明 plan 被跳过，必须立即暂停并报告
+- **NEVER 在 blocked(noop_fix) 后原命令盲重试**——只读 fix-input 的 recommended/next_steps，实质改产物后再 gate
+- **NEVER 在 0 可用 review channel 时强跑完整 L2 API cascade**——走 `separation=degraded` / deterministic_scope_only（goal-run-review-chain 已 fail-fast）
+- **NEVER 在 implement Dev Loop 连跑全量 `yarn build:beta`**——本地仅 related-tests；全量验证留给 implement gate 内 UVO 一次
 - **NEVER 在 implement 代码完成后跳过 Stage Exit**——MUST 先 gate --post implement（内含 **verification-oracle 一次** + **acceptance-matrix-ratchet**）→ goal-advance-stage → validate-pipeline-chain（exit 0）再输出 [2/5] ✅
 - **NEVER 在无 src diff 的 review-packet 上调用 LLM**——assemble 末尾 MUST 通过 `review_packet_preflight.py`（PKT-01/02/03）
 - **推荐 commit feature 后再跑 implement/quality/review gates**——保证 `plan.reference_branch`（默认 `main...HEAD`）diff 稳定

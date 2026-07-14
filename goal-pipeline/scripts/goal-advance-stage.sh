@@ -207,6 +207,21 @@ if [[ -z "$INDEX" || ! -f "$INDEX" ]]; then
 fi
 
 if ! handoff_ok "$HANDOFF/plan.json" && ! gate_passed_in_state "plan"; then
+  # Fail-closed: dirty src/write_set while still needing plan → blocked(plan_code_order).
+  # Do NOT silently "补 plan on dirty tree".
+  ASSERT="$SCRIPT_DIR/assert-plan-before-code.sh"
+  if [[ -f "$ASSERT" && -n "$TASK_DIR" && -d "$TASK_DIR" ]]; then
+    ASSERT_ARGS=(--task-dir "$TASK_DIR" --mode json --project-root "$PROJECT_ROOT")
+    [[ -n "$STATE_FILE" && -f "$STATE_FILE" ]] && ASSERT_ARGS+=(--state-file "$STATE_FILE")
+    ASSERT_OUT=""
+    ASSERT_RC=0
+    ASSERT_OUT=$(bash "$ASSERT" "${ASSERT_ARGS[@]}" 2>&1) || ASSERT_RC=$?
+    if [[ "$ASSERT_RC" -eq 2 ]]; then
+      REQ='["stash or reset guarded src/write_set diffs","gate-guazi-flow-stage.sh --stage plan --pre","complete guazi-flow-plan","gate --post plan"]'
+      emit "plan" "plan_code_order" "true" "$REQ"
+      exit 2
+    fi
+  fi
   emit "plan" "" "false" '["gate-guazi-flow-stage.sh --stage plan --post --mode guazi"]'
   exit 0
 fi

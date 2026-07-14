@@ -198,13 +198,28 @@ if detect.is_file():
         only_det = sel == "deterministic"
         status("review_channels", True, f"selected={sel}")
         if only_det:
-            status("review_unified_ready", False, "only deterministic — configure API key or Ollama")
+            status("review_unified_ready", False, "only deterministic — configure API key or Ollama; review-chain will degrade (skip L2)")
         else:
             status("review_unified_ready", True, sel)
     except Exception as e:
         status("review_channels", False, str(e))
 else:
     status("review_channels", False, "detect-review-channels missing")
+
+# plan_code_order hard guard + state validator
+scripts_dir = goal_home / "scripts"
+assert_pbc = scripts_dir / "assert-plan-before-code.sh"
+if not assert_pbc.is_file():
+    assert_pbc = repo / "goal-pipeline" / "scripts" / "assert-plan-before-code.sh"
+status("plan_before_code_guard", assert_pbc.is_file(), str(assert_pbc) if assert_pbc.is_file() else "assert-plan-before-code.sh missing")
+vsp = scripts_dir / "validate-state-path.sh"
+if not vsp.is_file():
+    vsp = repo / "goal-pipeline" / "scripts" / "validate-state-path.sh"
+status("validate_state_path", vsp.is_file(), str(vsp) if vsp.is_file() else "validate-state-path.sh missing")
+timing_py = scripts_dir / "record-pipeline-timing.py"
+if not timing_py.is_file():
+    timing_py = repo / "goal-pipeline" / "scripts" / "record-pipeline-timing.py"
+status("pipeline_timing", timing_py.is_file(), "UTC pipeline-timing recorder")
 
 # Active goal + driver snapshot
 states_dir = goal_home / "projects"

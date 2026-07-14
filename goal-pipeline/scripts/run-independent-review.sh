@@ -74,8 +74,13 @@ PROVIDER="$RESOLVED_REVIEW_PROVIDER"
 if [[ "${GOAL_REVIEW_DETERMINISTIC_ONLY:-0}" == "1" ]]; then
   if [[ -f "$HANDOFF_DIR/plan.json" ]] || [[ -f "$REPO_TASK_DIR/index.md" ]]; then
     echo "run-independent-review: WARN — unified mode but only deterministic channel available" >&2
-    echo "run-independent-review: configure API key/Ollama or set GOAL_REVIEW_FORCE_DETERMINISTIC=1 for CI" >&2
+    echo "run-independent-review: skipping L2 API timeouts; separation=degraded (deterministic_scope_only)" >&2
+    echo "run-independent-review: configure API key/Ollama for full independent review" >&2
   fi
+  # Fail-fast: never wait on dead API cascade when has_candidates=0
+  PROVIDER="deterministic"
+  MODE="goal"
+  export GOAL_REVIEW_FORCE_DETERMINISTIC=1
 fi
 
 if [[ "${GOAL_REVIEW_FORCE_DETERMINISTIC:-}" == "1" && "${REVIEW_HAS_CANDIDATES:-0}" != "1" ]]; then

@@ -107,11 +107,16 @@ STAGE_SKILL = STAGE_SKILL_EVOLUTION if track == "evolution" else STAGE_SKILL_COM
 def build_mandatory(stage):
     plan_skill = STAGE_SKILL.get("plan", "guazi-flow-plan")
     impl_skill = STAGE_SKILL.get("implement", "guazi-flow-implement")
-    uvo = f"bash {script_dir}/verification-oracle.sh --task-dir {task_dir!r} --repo-root {project_root!r} --state-file {state_file!r} --project-root {project_root!r}"
+    assert_pbc = (
+        f"bash {script_dir}/assert-plan-before-code.sh --task-dir {task_dir!r} "
+        f"--project-root {project_root!r} --state-file {state_file!r} --mode json"
+    )
     if stage == "plan":
         return [
             gate_cmd("plan", "pre"),
-            f"Load {plan_skill}/SKILL.md and execute full plan flow",
+            assert_pbc + "  # must stay OK — NEVER write src/ until gate --post plan",
+            f"Load {plan_skill}/SKILL.md and execute full plan flow (docs/contracts only)",
+            "HARD: do NOT create Todo items that write src/** until plan gate passes",
             gate_cmd("plan", "post"),
             f"{script_dir}/goal-advance-stage.sh --state-file {state_file!r} --task-dir {task_dir!r} --project-root {project_root!r}",
         ]
@@ -119,7 +124,7 @@ def build_mandatory(stage):
         return [
             gate_cmd("implement", "pre"),
             f"Load {impl_skill}/SKILL.md and implement within write_set",
-            "(optional Dev Loop) scoped/findRelatedTests on write_set — non-gate, for fast feedback",
+            "(optional Dev Loop) findRelatedTests / scoped unit tests only — DO NOT run yarn build:beta locally (UVO once at gate --post)",
             gate_cmd("implement", "post"),
             f"{script_dir}/goal-advance-stage.sh --state-file {state_file!r} --task-dir {task_dir!r} --project-root {project_root!r}",
         ]
@@ -180,7 +185,15 @@ work_order = {
         "gate 失败时由 Judge 会话直接改 index.md 或 diff（须读 fix-input 后由 Executor 修）",
         "gate --post 未 exit 0 时输出阶段 ✅",
         "手写 handoff/*.json",
+        "在 gate --post plan 之前写 src/** 或 write_set 业务代码（failure_code: plan_code_order）",
+        "将 plan Todo 与 implement/写代码 Todo 并列；仅 [1/5] plan ✅ 后才可新增写代码 Todo",
+        "blocked(noop_fix) 后原命令盲重试——必须先实质性改产物",
+        "implement 期连跑全量 yarn build:beta（留给 UVO 一次）",
     ],
+    "plan_before_code": True,
+    "code_writes_allowed": next_stage in ("implement", "quality", "runtime_smoke", "review", "complete", "done")
+        and not (blocked or wrong_stage)
+        and next_stage != "plan",
     "turn_exit_condition": (
         f"{gate} --assert-complete --state-file {state_file!r} "
         f"--task-dir {task_dir!r} --project-root {project_root!r} exit 0"

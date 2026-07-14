@@ -152,6 +152,8 @@ check_noop_ratchet() {
       "$FORMAT_ISSUES" --stage-label "$label" --fix-input "$fix_path" >&2
     fi
     echo "gate FAIL [$stage/$PHASE]: blocked(noop_fix) — subject_hash unchanged" >&2
+    echo "noop_fix: DO NOT rerun the same gate command. Apply a substantive fix first." >&2
+    echo "noop_fix: recommended_fix_command — read $fix_path next_steps; change subject then re-gate" >&2
     exit 1
   fi
   return 0
@@ -691,9 +693,21 @@ stage_to_index_current() {
 }
 
 
+record_stage_timing() {
+  local stage="$1"
+  local event="${2:-end}"
+  local timing_py="$SCRIPT_DIR/record-pipeline-timing.py"
+  [[ -f "$timing_py" && -n "$TASK_DIR" ]] || return 0
+  local targs=(--task-dir "$TASK_DIR" --stage "$stage" --event "$event")
+  [[ -n "$STATE_FILE" ]] && targs+=(--state-file "$STATE_FILE")
+  [[ -n "$PROJECT_ROOT" ]] && targs+=(--project-root "$PROJECT_ROOT")
+  python3 "$timing_py" "${targs[@]}" >/dev/null 2>&1 || true
+}
+
 update_state_gate() {
   local stage="$1"
   local handoff_file="$HANDOFF_DIR/${stage}.json"
+  record_stage_timing "$stage" "end"
   [[ -n "$STATE_FILE" && -f "$STATE_FILE" && -f "$handoff_file" ]] || return 0
   python3 - "$STATE_FILE" "$stage" "$handoff_file" << 'PYSTATE'
 import json, sys, hashlib
@@ -724,9 +738,41 @@ PYSTATE
 }
 
 
+# Fail-closed: plan gate not passed ⇒ forbid write_set / src diffs (see assert-plan-before-code.sh).
+run_plan_before_code_guard() {
+  local require_plan="${1:-0}"
+  local assert_sh="$SCRIPT_DIR/assert-plan-before-code.sh"
+  [[ -f "$assert_sh" ]] || return 0
+  local td="${REPO_TASK_DIR:-$TASK_DIR}"
+  [[ -n "$td" && -d "$td" ]] || fail "plan_code_order: task-dir required for assert-plan-before-code"
+  local assert_args=(--task-dir "$td" --mode json)
+  [[ -n "$PROJECT_ROOT" ]] && assert_args+=(--project-root "$PROJECT_ROOT")
+  [[ -n "$STATE_FILE" && -f "$STATE_FILE" ]] && assert_args+=(--state-file "$STATE_FILE")
+  [[ "$require_plan" == "1" ]] && assert_args+=(--require-plan-passed)
+  local assert_out assert_rc=0
+  assert_out=$(bash "$assert_sh" "${assert_args[@]}" 2>&1) || assert_rc=$?
+  if [[ "$assert_rc" -eq 2 ]]; then
+    local detail
+    detail=$(printf '%s' "$assert_out" | python3 -c "
+import json,sys
+raw=sys.stdin.read()
+try:
+  d=json.loads(raw)
+  print(d.get('message') or d.get('failure_code') or 'plan_code_order')
+except Exception:
+  print((raw or 'plan_code_order: src dirty before plan gate')[:500])
+")
+    write_state_blocked "plan_code_order" 2>/dev/null || true
+    fail "plan_code_order: $detail — stash/reset guarded diffs, then complete gate --post plan before writing code"
+  fi
+  return 0
+}
+
 case "$STAGE" in
   plan)
     if [[ "$PHASE" == "pre" ]]; then
+      # Hard ACL: do not allow code-first while still in plan (must run before pass exits).
+      run_plan_before_code_guard 0
       pass "plan pre — no prior handoff required"
     fi
     [[ -f "$INDEX" ]] || fail "index.md not found"
@@ -809,6 +855,11 @@ JSON
     ;;
 
   implement)
+    if [[ "$PHASE" == "pre" ]]; then
+      # CI needs: semantics — no fresh plan gate ⇒ refuse implement entry.
+      run_plan_before_code_guard 1
+      pass "implement pre — plan gate passed; code changes now allowed within write_set"
+    fi
     [[ -f "$HANDOFF_DIR/plan.json" ]] || fail "plan handoff missing — run gate --post plan first"
     [[ -f "$INDEX" ]] || fail "index.md not found"
     grep -q 'guazi-flow-implement' "$INDEX" || fail "index execution record missing guazi-flow-implement"
@@ -965,6 +1016,9 @@ UVO build passed; changed files did not match smoke-required patterns.
 SMYAML
     fi
     QG_ARGS=(--task-dir "$TASK_DIR" --repo-root "$REPO_FOR_QG" --tier "$TIER" --skip-iq)
+    # Always pass state context — avoid cross-branch / wrong-handoff discovery (B1 incident).
+    [[ -n "$STATE_FILE" ]] && QG_ARGS+=(--state-file "$STATE_FILE")
+    [[ -n "$PROJECT_ROOT" ]] && QG_ARGS+=(--project-root "$PROJECT_ROOT")
     [[ "$SMOKE_REQUIRED" == "no" ]] && QG_ARGS+=(--skip-smoke)
     if [[ "$PHASE" == "post" ]]; then
       assert_pipeline_chain quality

@@ -23,6 +23,9 @@ assert cmp.get("target", {}).get("review_wall_clock_min_max") == 8
 ops = d.get("op_counts") or {}
 assert ops.get("readonly_subagent_present") == 1
 assert ops.get("review_uvo_skip_enabled") == 1
+assert ops.get("plan_before_code_guard") == 1, ops
+assert ops.get("state_branch_scoped_discover") == 1, ops
+assert ops.get("pipeline_timing_utc") == 1, ops
 print("benchmark review replay OK")
 PY
 
