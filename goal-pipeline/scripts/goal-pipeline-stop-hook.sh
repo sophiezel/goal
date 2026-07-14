@@ -6,9 +6,11 @@ set -euo pipefail
 
 GOAL_STATE_HOME="${GOAL_STATE_HOME:-$HOME/.goal-state}"
 GATE="$GOAL_STATE_HOME/scripts/gate-guazi-flow-stage.sh"
+KERNEL="$GOAL_STATE_HOME/scripts/goal-pipeline-kernel.sh"
 DRIVER="$GOAL_STATE_HOME/scripts/goal-stage-driver.sh"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 [[ -x "$GATE" ]] || GATE="$SCRIPT_DIR/gate-guazi-flow-stage.sh"
+[[ -x "$KERNEL" ]] || KERNEL="$SCRIPT_DIR/goal-pipeline-kernel.sh"
 [[ -x "$DRIVER" ]] || DRIVER="$SCRIPT_DIR/goal-stage-driver.sh"
 
 INPUT=$(cat)
@@ -177,10 +179,14 @@ if [[ -n "$STATE_FILE" && -f "$STATE_FILE" && -n "$PROJECT_ROOT" && -n "$TASK" &
   [[ "$ASSERT_RC" == "0" ]] && exit 0
 fi
 
-# Build followup via stage driver when possible
+# Build followup via Kernel (preferred) or legacy driver
 WORK_ORDER=""
-if [[ -x "$DRIVER" && -n "$STATE_FILE" && -f "$STATE_FILE" && -n "$PROJECT_ROOT" && -n "$TASK" ]]; then
-  WORK_ORDER=$("$DRIVER" --state-file "$STATE_FILE" --task-dir "$TASK" --project-root "$PROJECT_ROOT" --format json 2>/dev/null || true)
+if [[ -n "$STATE_FILE" && -f "$STATE_FILE" && -n "$PROJECT_ROOT" && -n "$TASK" ]]; then
+  if [[ -x "$KERNEL" ]]; then
+    WORK_ORDER=$("$KERNEL" next --state-file "$STATE_FILE" --task-dir "$TASK" --project-root "$PROJECT_ROOT" --format json 2>/dev/null || true)
+  elif [[ -x "$DRIVER" ]]; then
+    WORK_ORDER=$("$DRIVER" --state-file "$STATE_FILE" --task-dir "$TASK" --project-root "$PROJECT_ROOT" --format json 2>/dev/null || true)
+  fi
 fi
 
 python3 - "$OBJECTIVE" "$WORK_ORDER" << 'PY'

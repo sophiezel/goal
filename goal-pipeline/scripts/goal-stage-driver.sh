@@ -34,6 +34,11 @@ done
 
 [[ -n "$STATE_FILE" && -n "$TASK_DIR" && -n "$PROJECT_ROOT" ]] || usage
 
+# Compat window: prefer goal-pipeline-kernel next (Wave 5 deprecate warn)
+if [[ "${GOAL_KERNEL_COMPAT_WARN:-1}" != "0" && "${GOAL_KERNEL_INTERNAL:-0}" != "1" ]]; then
+  echo "DEPRECATED: call goal-pipeline-kernel next (driver is Kernel-internal). Set GOAL_KERNEL_COMPAT_WARN=0 to silence." >&2
+fi
+
 if [[ "$STATE_FILE" != /* ]]; then STATE_FILE="$(cd "$(dirname "$STATE_FILE")" && pwd)/$(basename "$STATE_FILE")"; fi
 if [[ "$TASK_DIR" != /* ]]; then TASK_DIR="$PROJECT_ROOT/$TASK_DIR"; fi
 TASK_DIR="$(cd "$TASK_DIR" 2>/dev/null && pwd)" || { echo '{"error":"task_dir not found"}' >&2; exit 2; }

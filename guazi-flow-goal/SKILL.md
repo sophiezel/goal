@@ -111,11 +111,12 @@ Step 1: 环境初始化
       └─ 无 → 继续
 
 Step 1.5: Pre-flight（MANDATORY，Phase 2 前亦须可用）
-  ├─ 检查 ~/.goal-state/scripts/gate-guazi-flow-stage.sh 存在
-  ├─ 检查 ~/.goal-state/scripts/goal-advance-stage.sh 存在
-  ├─ 检查 ~/.goal-state/scripts/goal-stage-driver.sh 存在
+  ├─ 检查 goal-pipeline-kernel.sh（安装后 ~/.goal-state/scripts/）存在
+  ├─ 检查 gate-guazi-flow-stage.sh / goal-advance-stage.sh / goal-stage-driver.sh 存在（Kernel 内部依赖）
+  ├─ 检查 failure-codes.json / four-planes-checklist.json 存在
   ├─ 检查 ~/.goal-state/references/guazi-flow-artifact-schema/ 存在
 │   任一缺失 → 立即输出 blocked(failure_code: infra_missing)，不得进入 Phase 2；然后运行 `bash <goal-repo>/install.sh --agent <detected>` 修复部署，或提示用户手动部署
+  ├─ 推荐：goal-pipeline-kernel init 创建 canonical state（project_id=sha256(root)）
   ├─ detect-review-channels --json（guazi_flow_available=true 时）
   │   若仅 deterministic → warning + 引导配置 API key/Ollama；CI 无配置时可设 GOAL_REVIEW_FORCE_DETERMINISTIC=1
   │   **已配置 api_keys/review_model 时禁止降级**：run-independent-review / goal-run-review-chain / gate --post review 均会 hard fail
@@ -168,25 +169,32 @@ Step 6: GATE Check（全部满足才进入 Phase 2）
 
 ### Turn Protocol（MANDATORY — 每个 Agent turn）
 
-**Resume（`/guazi-flow-goal` 无参）**：先 `goal-pipeline-recover.sh` → `goal-stage-driver.sh`，再执行 work_order。
+权威架构：`docs/architecture/goal-runtime.md`（四平面：控制/数据/质量/效率）。
+
+**唯一编排入口**：`goal-pipeline-kernel`（内部仍调用 driver/gate/advance；兼容期可直调旧脚本，doctor 会告警）。
+
+**Resume（`/guazi-flow-goal` 无参）**：先 `goal-pipeline-recover.sh`，再 Kernel。
 
 每个 Agent turn **第一步**（MANDATORY）:
 ```
-goal-stage-driver.sh --state-file <state> --task-dir <task> --project-root <repo>
+goal-pipeline-kernel next --state-file <state> --task-dir <task> --project-root <repo>
 ```
 - 若 `blocked` 或 `wrong_stage` → 按 `mandatory_commands` 执行，**不得**实现新功能
-- 唯一进度真相：`work_order.next_stage` + handoff 链，禁止自行推断
+- **禁止**并列 plan Todo 与写 `src` Todo；仅执行 FrozenWorkOrder
+- `code_writes_allowed=false`（plan）时禁止写业务代码
+- 唯一进度真相：`work_order.next_stage` + handoff 链
 
 每个阶段结束（MANDATORY）:
 ```
-gate --post <stage> → validate-pipeline-chain → goal-advance-stage → goal-stage-driver（立即进入下一阶段）
+goal-pipeline-kernel gate --stage <stage> --post --state-file <state> --task-dir <task> --project-root <repo>
+goal-pipeline-kernel next …   # 立即进入下一阶段
 ```
 
 Turn 结束条件（MANDATORY）:
 ```
-gate-guazi-flow-stage.sh --assert-complete --state-file <state> --task-dir <task> --project-root <repo>  # exit 0
+goal-pipeline-kernel complete --state-file <state> --task-dir <task> --project-root <repo>  # exit 0
 ```
-未通过 **禁止** 输出总结性结束语。
+未通过 **禁止** 输出总结性结束语。`host_guard=off` 时会话 Write 仍可能——Core 保证编排/合入路径，非 OS ACL。
 
 **review 阶段**：推荐 `Task` 子 agent `readonly=true`，prompt 仅含 `review-packet.json` + rubric；或 `GOAL_REVIEW_CURSOR_TASK=1` + `platform-review-adapter cursor-task`。
 
@@ -256,7 +264,7 @@ guazi-flow-implement 执行完毕（含测试通过、摘要撰写）**不等于
 **反例（禁止）**：「implement 已完成，需要我继续跑 review 吗？」「实现摘要如下，如需 review 请告知」
 
 
-Phase 2 每个阶段**开头**亦须运行 `goal-stage-driver.sh`（内含 advance 语义）：若 `wrong_stage=true` → blocked(wrong_stage)，按 work_order 纠正。
+Phase 2 每个阶段**开头**亦须运行 `goal-pipeline-kernel next`（内含 advance 语义）：若 `wrong_stage=true` → blocked(wrong_stage)，按 work_order 纠正。
 
 
 **各阶段调度细节**:

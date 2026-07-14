@@ -162,6 +162,16 @@ deploy_runtime() {
     cp -R "$SCHEMA_SRC/"* "$SCHEMA_DST/" 2>/dev/null || true
   fi
 
+  # Four-plane product refs (Kernel / doctor / failure codes)
+  REF_SRC="$source_root/goal-pipeline/references"
+  REF_DST="$GOAL_STATE_HOME/references"
+  mkdir -p "$REF_DST"
+  for ref in failure-codes.json failure-code-dictionary.md four-planes-checklist.json \
+             migration-compat.md measure-field-template.json plan-before-code.md; do
+    [[ -f "$REF_SRC/$ref" ]] || continue
+    cp "$REF_SRC/$ref" "$REF_DST/$ref"
+  done
+
   GATE_SRC="$source_root/goal-pipeline/scripts/gate-guazi-flow-stage.sh"
   GATE_HASH="$(shasum -a 256 "$GATE_SRC" 2>/dev/null | cut -c1-16 || sha256sum "$GATE_SRC" 2>/dev/null | cut -c1-16 || echo unknown)"
   GIT_REV="$(git -C "$source_root" rev-parse --short HEAD 2>/dev/null || echo unknown)"

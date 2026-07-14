@@ -164,12 +164,19 @@ else:
 status("resolve_artifact_paths", resolver.is_file(), str(resolver))
 
 # Required scripts
-for s in ("goal-stage-driver.sh", "goal-run-review-chain.sh", "goal-pipeline-recover.sh",
+for s in ("goal-pipeline-kernel.sh", "goal-stage-driver.sh", "goal-run-review-chain.sh",
+          "goal-pipeline-recover.sh",
           "gate-guazi-flow-stage.sh", "goal-pipeline-stop-hook.sh", "resolve-artifact-paths.py",
           "migrate-artifacts.py", "source-artifact-paths.sh",
-          "index_contract_hash.py", "refresh-handoffs-after-index.sh"):
+          "index_contract_hash.py", "refresh-handoffs-after-index.sh",
+          "four_planes_doctor.py", "quality_plane_check.py", "data_plane_check.py",
+          "efficiency_plane_check.py", "validate-state-path.sh", "assert-plan-before-code.sh"):
     p = goal_home / "scripts" / s
     status(f"script_{s}", p.is_file(), str(p))
+# Plane refs
+for s in ("failure-codes.json", "four-planes-checklist.json", "migration-compat.md"):
+    p = goal_home / "references" / s
+    status(f"ref_{s}", p.is_file(), str(p))
 
 # hooks.json stop hook + loop_limit
 if hooks_json.is_file():

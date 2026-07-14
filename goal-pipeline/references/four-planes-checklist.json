@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "planes": {
+    "control": {
+      "entrypoint": "goal-pipeline-kernel",
+      "invariants": [
+        "single_active_stage",
+        "no_implement_wo_without_plan_gate",
+        "work_order_capability_respected_in_protocol"
+      ],
+      "doctor_checks": ["kernel_cli", "protocol_docs", "plan_before_code_merged"]
+    },
+    "data": {
+      "invariants": [
+        "handoff_progress_ssot",
+        "canonical_project_id",
+        "branch_scoped_state_discover",
+        "execution_only_no_cascade_plan"
+      ],
+      "doctor_checks": ["validate_state_path", "hash_policy_script", "state_file_required_qg"]
+    },
+    "quality": {
+      "invariants": [
+        "uvo_once_at_implement_post",
+        "am_ratchet",
+        "packet_preflight",
+        "degraded_not_full_pass",
+        "fix_input_routing"
+      ],
+      "doctor_checks": ["failure_codes_dict", "review_channel_policy", "uvo_script", "am_ratchet_script"]
+    },
+    "efficiency": {
+      "invariants": [
+        "no_local_full_build_in_wo",
+        "timing_utc",
+        "fail_fast_noop_and_channels",
+        "single_state_context"
+      ],
+      "doctor_checks": ["pipeline_timing", "benchmark_ops", "driver_no_yarn_build_beta"]
+    }
+  }
+}

@@ -329,9 +329,18 @@ def run_fallback(
                 }
 
     # Layer 3 — readonly subagent (process-isolated; separation_confidence=medium)
+    # Enter when: detect has LLM channels, OR API cascade already attempted a non-det
+    # provider (e.g. --candidates-json override), OR fixture mock (GOAL_REVIEW_READONLY_MOCK=1).
+    # Skip when zero channels and no attempts — ChannelPolicy fail-fast to hard_stop.
     remaining_ro = budget_sec - int(time.time() - started)
-    if remaining_ro > 10 and detect_doc.get("has_candidates"):
+    readonly_mock = os.environ.get("GOAL_REVIEW_READONLY_MOCK", "0") == "1"
+    attempted_llm = any(
+        (a.get("provider") or "") not in ("", "deterministic") for a in attempts
+    )
+    if remaining_ro > 10 and (detect_doc.get("has_candidates") or attempted_llm or readonly_mock):
         ro_budget = min(readonly_budget, remaining_ro - 5)
+        if readonly_mock:
+            ro_budget = max(ro_budget, 30)
         ro_body, ro_attempts = run_readonly_subagent(
             script_dir, packet, verify_json, channel, ro_budget
         )

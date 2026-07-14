@@ -1,66 +1,55 @@
 # Pipeline Orchestration
 
-Goal-pipeline + guazi-flow-goal 编排架构（机器门禁 + 可续跑工单）。
+权威目标态见 [`goal-runtime.md`](./goal-runtime.md)（四平面 + Kernel 协议）。
 
-## 三层模型
+本文描述 **运行时接线**：Agent 如何调用 Kernel；旧脚本如何降级为内部实现。
 
-| 层 | 组件 | 职责 |
-|----|------|------|
-| 软约束 | `guazi-flow-goal/SKILL.md` NEVER 条款 | Agent 行为约定 |
-| 硬约束 | `gate-guazi-flow-stage.sh`, `validate-pipeline-chain.sh`, `goal-advance-stage.sh` | 产物校验、handoff 写入 |
-| Hook 补救 | `goal-pipeline-stop-hook.sh` | turn 结束前 `gate --assert-complete` |
+## 对外入口（收敛后）
 
-**原则**：SKILL 写 MUST 的，gate 或 driver 必须能 FAIL。
-
-## Turn Protocol
-
-每个 Agent turn：
-
-1. `goal-pipeline-recover.sh`（resume 时）
-2. `goal-stage-driver.sh` → 唯一 work_order
-3. 按 `mandatory_commands` 执行当前阶段
-4. `gate --post` → chain → advance → driver（下一阶段）
-5. Turn 结束：`gate --assert-complete` exit 0
-
-### Review 阶段 mandatory（含 refresh）
-
-```
-refresh-handoffs-after-index.sh   # 执行记录漂移时 cascade implement；契约变更 cascade plan；已 fresh 则 no-op
-gate --pre review                 # 缺 packet 时自动 assemble；仅 contract_hash 变化才 stale FAIL
-goal-run-review-chain.sh          # assemble → independent review → merge
-gate --post review
-goal-advance-stage.sh
-```
-
-`index_contract_hash` 排除 `## 执行记录`，避免「补执行记录 → plan handoff stale → 多轮重跑」。
-
-## handoff 状态机
-
-进度真相：`handoff/{plan,implement,smoke,review,complete}.json`
-
-- `index.md current_stage` 仅展示，由 gate `--post` 同步
-- 禁止 Agent 手写 handoff
-
-阶段顺序：plan → implement → runtime_smoke → review → complete
-
-## 脚本边界
-
-| 脚本 | 用途 |
+| 入口 | 用途 |
 |------|------|
-| `goal-stage-driver.sh` | 工单 JSON + mandatory_commands |
-| `goal-run-review-chain.sh` | assemble → review → merge 原子链 |
-| `goal-pipeline-recover.sh` | 断点诊断与修复命令 |
-| `goal-pipeline-doctor.sh` | VERSION/hooks/channels 诊断 |
+| `goal-pipeline-kernel` | **唯一**编排 CLI：`init` / `next` / `gate` / `status` / `doctor` / `complete` |
+| `goal-pipeline-doctor.sh` | 亦可经 `kernel doctor` 调用 |
 
-**不修改** `guazi-flow-plan/implement/review/complete` skill 本体；只改 goal 侧编排。
+## Turn Protocol（Kernel）
 
-## Review 统一通道
+```text
+goal-pipeline-kernel next --state-file S --task-dir T --project-root R
+  → FrozenWorkOrder (JSON)
+执行 WO.mandatory_commands（含 stage skill）
+goal-pipeline-kernel gate --stage <stage> --post --state-file S --task-dir T --project-root R
+goal-pipeline-kernel next …
+退出：goal-pipeline-kernel complete …
+```
 
-- 默认 `GOAL_REVIEW_MODE=unified`（Guazi Flow rubric 存在时）；纯 goal 任务为 `goal`
-- 仅 deterministic 时 → `review_undetermined` → gate post review FAIL
+Stop Hook 仍可在 turn 结束调用 `gate --assert-complete`（经 Kernel 或内部脚本）。
+
+## 内部实现（兼容期可直调，非对外产品叙事）
+
+| 脚本 | 归属平面 | 说明 |
+|------|----------|------|
+| `goal-stage-driver.sh` | 控制面 | `kernel next` 的内核 |
+| `gate-guazi-flow-stage.sh` | 控制+质量 | `kernel gate` 的内核 |
+| `goal-advance-stage.sh` | 控制面 | 阶段推进 |
+| `assert-plan-before-code.sh` | 控制面 | 并入 plan 不变量 |
+| `validate-pipeline-chain.sh` | 数据+质量 | chain |
+| `refresh-handoffs-after-index.sh` | 数据面 | HashPolicy |
+| `goal-run-review-chain.sh` | 质量面 | review 原子链 |
+| `runtime-smoke.sh` / `quality-gate.sh` | 质量+效率 | quality 阶段 |
+| `verification-oracle.sh` | 质量面 | UVO once |
+| `record-pipeline-timing.py` | 效率面 | UTC timing |
+
+## 阶段顺序
+
+`plan → implement → quality → review → complete`（smoke 别名归 quality）
+
+## Review
+
+- 默认 unified；ChannelPolicy：0 通道 → `separation=degraded`，不得伪装 full pass
 - CI：`GOAL_REVIEW_FORCE_DETERMINISTIC=1`
 
-## Stop Hook
+## 原则
 
-- `loop_limit` 默认 10（`GOAL_STOP_HOOK_LOOP_LIMIT` 可覆盖）
-- incomplete → `goal-stage-driver` 生成 followup_message
+- SKILL 写 MUST 的，Kernel/gate **必须能 FAIL**
+- 禁止第 N 旁路脚本产品化；新逻辑进四平面
+- **不修改** `guazi-flow-plan/implement/review/complete` 业务 skill 本体职责；只改 goal 侧编排表面

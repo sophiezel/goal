@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "task": "",
+  "branch": "",
+  "measured_at_utc": "",
+  "protocol": {
+    "used_kernel_only": null,
+    "parallel_code_todos": null,
+    "host_guard": "off"
+  },
+  "efficiency": {
+    "wall_clock_min": null,
+    "uvo_calls": null,
+    "local_build_beta_count": null,
+    "noop_retries": null,
+    "notes": ""
+  },
+  "leakage": {
+    "declared_defect_classes_silent_pass": [],
+    "degraded_marked_full_pass": null
+  },
+  "planes_doctor_ok": null
+}

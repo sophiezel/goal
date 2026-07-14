@@ -312,13 +312,22 @@ VEREOF
 echo "  ✅ VERSION manifest ($GATE_HASH)"
 
 # Sync guazi-flow artifact schema (read-only copy for gates)
-SCHEMA_SRC="$REPO_DIR/goal-pipeline/references/guazi-flow-artifact-schema"
-SCHEMA_DST="$GOAL_STATE_HOME/references/guazi-flow-artifact-schema"
-if [ -d "$SCHEMA_SRC" ]; then
-  mkdir -p "$SCHEMA_DST"
-  cp -R "$SCHEMA_SRC/"* "$SCHEMA_DST/" 2>/dev/null || true
-  echo "  ✅ guazi-flow-artifact-schema synced"
-fi
+  SCHEMA_SRC="$REPO_DIR/goal-pipeline/references/guazi-flow-artifact-schema"
+  SCHEMA_DST="$GOAL_STATE_HOME/references/guazi-flow-artifact-schema"
+  if [ -d "$SCHEMA_SRC" ]; then
+    mkdir -p "$SCHEMA_DST"
+    cp -R "$SCHEMA_SRC/"* "$SCHEMA_DST/" 2>/dev/null || true
+    echo "  ✅ guazi-flow-artifact-schema synced"
+  fi
+  REF_SRC="$REPO_DIR/goal-pipeline/references"
+  REF_DST="$GOAL_STATE_HOME/references"
+  mkdir -p "$REF_DST"
+  for ref in failure-codes.json failure-code-dictionary.md four-planes-checklist.json \
+             migration-compat.md measure-field-template.json; do
+    [ -f "$REF_SRC/$ref" ] || continue
+    cp "$REF_SRC/$ref" "$REF_DST/$ref"
+  done
+  echo "  ✅ four-plane references synced"
 fi
 
 

@@ -24,13 +24,17 @@ Goal 是一个持久化的工程目标。Agent 接到 goal 后持续执行，不
 - **NEVER 让审核模型看到执行模型的 reasoning chain**——LLM 看到实现推理后会产生确认偏误，倾向于认同实现而非独立判断
 - **NEVER 在 review not_pass 时修改验收标准来通过**——这是“降标准而非修代码”的反模式，必须修复实现而非弱化标准
 - **NEVER 在 implement 阶段忽略 plan 的结构化字段**——Allowed Files / Stop Conditions 在 Phase 1 确定后即生效，忽略会导致 scope 蔓延、review 无法准确定位
-- **NEVER 在 plan gate 通过前写业务代码**——`assert-plan-before-code` / stage-driver `code_writes_allowed=false`；违规 `plan_code_order`
+- **NEVER 在 plan gate 通过前写业务代码**——`goal-pipeline-kernel next` 的 `code_writes_allowed=false` / `plan_code_order`
 - **NEVER 并列 plan 与写代码 Todo**——阶段机强制 `[1/5] plan` → gate exit 0 → 才进入 `[2/5] implement`
 - **NEVER noop_fix 盲重试**——subject_hash 未变时禁止重跑同一 gate
 - **NEVER 跨分支 auto-discover 错 state**——`find_state_file` 必须匹配当前 git branch；`project_id===sha256(project_root)[:12]`
+- **NEVER 绕过 `goal-pipeline-kernel` 自创阶段入口**——旧脚本仅为内部实现；回合协议见 `docs/architecture/goal-runtime.md`
+- **NEVER 将 review degraded 标为独立审核 full pass**——`review_degraded_as_pass`
 
 
 ## PIPELINE_SCOPE
+
+- **对外入口**：`goal-pipeline-kernel`（控制面）；架构：`docs/architecture/goal-runtime.md`（四平面）
 
 - State boundary: `~/.goal-state/projects/<project_id>/<branch>/<task>/state.json`
 - Forbidden read: `~/.goal-state/projects/*/state.json`（非当前 task）、其他项目 `handoff/*.json`
