@@ -107,6 +107,24 @@ def run_readonly_subagent(
         )
         return body, attempts
 
+    try:
+        from review_channel_probe import ollama_reachable
+
+        if not ollama_reachable(timeout=1.0):
+            attempts.append(
+                {
+                    "layer": "readonly_subagent",
+                    "fallback_layer": "readonly_subagent",
+                    "provider": "ollama",
+                    "error": "ollama_skipped_not_listening",
+                    "error_kind": "connection_refused",
+                    "latency_ms": 0,
+                }
+            )
+            return None, attempts
+    except Exception:
+        pass
+
     shards = build_shards(packet, script_dir)
     if len(shards) <= 1:
         shards = [packet]

@@ -1,8 +1,25 @@
 #!/usr/bin/env python3
 """detect-review-channels — 并行探测审核通道，按独立性排序，输出最优。
-Usage: python3 detect-review-channels [--json] [--exec-provider X] [--exec-model Y]
+Usage: python3 detect-review-channels [--json] [--probe|--no-probe] [--exec-provider X] [--exec-model Y]
 """
 import json, os, subprocess, sys, shutil
+
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+if _SCRIPT_DIR not in sys.path:
+    sys.path.insert(0, _SCRIPT_DIR)
+try:
+    from review_channel_probe import annotate_candidates, ollama_reachable, probe_enabled
+except ImportError:  # pragma: no cover
+    def annotate_candidates(candidates, key_lookup):
+        for c in candidates:
+            c.setdefault("reachable", True)
+        return candidates
+
+    def ollama_reachable(timeout=1.0):
+        return True
+
+    def probe_enabled():
+        return os.environ.get("GOAL_REVIEW_PROBE", "1") != "0"
 
 # ============================================================
 # 1. 执行模型信息（优先从参数，其次从环境变量推断）
@@ -110,9 +127,20 @@ def probe_env_vars():
 
 
 def probe_ollama():
-    """探测本地 ollama。"""
-    if not shutil.which("ollama"):
+    """探测本地 ollama——先 TCP 11434，daemon 未起则跳过（避免 Connection refused 串进 cascade）。"""
+    if not ollama_reachable(timeout=1.0):
         return []
+    if not shutil.which("ollama"):
+        # Daemon up but CLI missing — still expose a default model slot for adapter.
+        return [{
+            "provider": "ollama",
+            "model": "llama3.2",
+            "source": "ollama_tcp",
+            "same_provider_as_exec": (EXEC_PROVIDER == "ollama"),
+            "cost_per_1m_input": 0.0,
+            "available": True,
+            "detail": "ollama: tcp_11434_ok",
+        }]
     try:
         r = subprocess.run(["ollama", "list"], capture_output=True, text=True, timeout=5)
         if r.returncode != 0:
@@ -136,7 +164,6 @@ def probe_ollama():
         return candidates
     except (subprocess.TimeoutExpired, FileNotFoundError):
         return []
-
 
 def probe_agent_introspection():
     """从执行 provider 构造同 provider 候选。
@@ -216,7 +243,29 @@ def get_ram_gb():
 # 5. 主逻辑
 # ============================================================
 
+def _api_key_for(provider: str) -> str:
+    pinfo = PROVIDERS.get(provider) or {}
+    env_var = pinfo.get("env_var") or ""
+    if env_var and os.environ.get(env_var):
+        return os.environ.get(env_var, "")
+    config_path = os.path.expanduser(os.environ.get("GOAL_STATE_HOME", "~/.goal-state") + "/config.json")
+    try:
+        with open(config_path) as f:
+            cfg = json.load(f)
+        return (cfg.get("api_keys") or {}).get(env_var, "") or ""
+    except (FileNotFoundError, json.JSONDecodeError, TypeError):
+        return ""
+
+
 def main():
+    do_probe = probe_enabled()
+    if "--no-probe" in sys.argv:
+        do_probe = False
+        os.environ["GOAL_REVIEW_PROBE"] = "0"
+    if "--probe" in sys.argv:
+        do_probe = True
+        os.environ["GOAL_REVIEW_PROBE"] = "1"
+
     if not EXEC_PROVIDER:
         print("WARNING: exec_provider unknown — only env vars / ollama probed", file=sys.stderr)
         # Continue with env var probing
@@ -240,10 +289,25 @@ def main():
             deduped.append(c)
     candidates = deduped
 
-    # 排序
-    ranked = rank_candidates(candidates)
+    configured_remote = [
+        c for c in candidates
+        if c.get("available") in (True,) and c.get("provider") not in ("", "ollama", "deterministic")
+    ]
+
+    if do_probe:
+        annotate_candidates(candidates, _api_key_for)
+    else:
+        for c in candidates:
+            c.setdefault("reachable", True)
+
+    # 排序仅用可达候选；不可达不进入 cascade（fail-fast）
+    reachable = [c for c in candidates if c.get("reachable", True)]
+    ranked = rank_candidates(reachable)
 
     selected = ranked[0] if ranked else None
+    configured_but_unreachable = bool(configured_remote) and not any(
+        c.get("reachable", True) for c in configured_remote
+    )
 
     result = {
         "exec_provider": EXEC_PROVIDER,
@@ -252,6 +316,9 @@ def main():
         "ranked": ranked,
         "selected": selected,
         "has_candidates": len(ranked) > 0,
+        "configured_keys": len(configured_remote) > 0,
+        "configured_but_unreachable": configured_but_unreachable,
+        "probe_enabled": do_probe,
         "ram_gb": get_ram_gb(),
     }
 

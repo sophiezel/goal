@@ -3,7 +3,7 @@
 
 Usage:
   record-pipeline-timing.py --task-dir PATH --stage plan|implement|quality|review|complete \
-      --event start|end [--duration-ms N] [--state-file PATH] [--project-root PATH]
+      --event start|end|mark [--substep NAME] [--duration-ms N] [--state-file PATH] [--project-root PATH]
 """
 from __future__ import annotations
 
@@ -39,6 +39,7 @@ def main() -> None:
     ap.add_argument("--task-dir", required=True)
     ap.add_argument("--stage", required=True)
     ap.add_argument("--event", choices=("start", "end", "mark"), default="mark")
+    ap.add_argument("--substep", default="", help="Optional substep name (cwiki, write_index, uvo, attempt, ...)")
     ap.add_argument("--duration-ms", type=int, default=0)
     ap.add_argument("--state-file", default="")
     ap.add_argument("--project-root", default="")
@@ -64,18 +65,40 @@ def main() -> None:
     entry = stages.setdefault(args.stage, {"events": []})
     ts = utc_now()
     ev = {"event": args.event, "timestamp_utc": ts}
+    if args.substep:
+        ev["substep"] = args.substep
     if args.duration_ms:
         ev["duration_ms"] = args.duration_ms
     if args.note:
         ev["note"] = args.note
     entry["events"].append(ev)
-    if args.event == "end" and args.duration_ms:
+    if args.event == "start" and not args.substep:
+        entry["started_at_utc"] = ts
+    if args.event == "end" and args.duration_ms and not args.substep:
         entry["duration_ms"] = args.duration_ms
+    if args.substep:
+        sub = entry.setdefault("substeps", {})
+        slot = sub.setdefault(args.substep, {"events": []})
+        slot["events"].append(ev)
+        if args.duration_ms and args.event in ("end", "mark"):
+            slot["duration_ms"] = args.duration_ms
+        slot["last_timestamp_utc"] = ts
     entry["last_timestamp_utc"] = ts
     doc["updated_at_utc"] = ts
 
     path.write_text(json.dumps(doc, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
-    print(json.dumps({"ok": True, "path": str(path), "stage": args.stage, "event": args.event, "timestamp_utc": ts}))
+    print(
+        json.dumps(
+            {
+                "ok": True,
+                "path": str(path),
+                "stage": args.stage,
+                "event": args.event,
+                "substep": args.substep or None,
+                "timestamp_utc": ts,
+            }
+        )
+    )
 
 
 if __name__ == "__main__":

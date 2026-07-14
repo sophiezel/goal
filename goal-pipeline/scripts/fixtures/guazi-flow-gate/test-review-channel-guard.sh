@@ -2,6 +2,8 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GUARD="$SCRIPT_DIR/../../review-channel-guard.py"
+# Fixtures assert key presence / anti-downgrade — skip live HTTPS probe.
+export GOAL_REVIEW_PROBE=0
 
 tmp_home=$(mktemp -d)
 trap 'rm -rf "$tmp_home"' EXIT
@@ -18,7 +20,10 @@ JSON
 }
 
 run_guard() {
-  GOAL_STATE_HOME="$tmp_home" python3 "$GUARD" "$@"
+  # Isolate from host env keys so "no config" cases are not polluted.
+  env -u DEEPSEEK_API_KEY -u OPENAI_API_KEY -u ANTHROPIC_API_KEY -u GEMINI_API_KEY -u GROQ_API_KEY \
+    GOAL_STATE_HOME="$tmp_home" GOAL_REVIEW_PROBE=0 GOAL_EXEC_PROVIDER= GOAL_EXEC_MODEL= \
+    python3 "$GUARD" "$@"
 }
 
 echo "=== review-channel-guard blocks deterministic when configured ==="

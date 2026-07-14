@@ -69,6 +69,9 @@ env["GOAL_EVIDENCE_DIR"] = evidence
 env["GOAL_SKIP_SCOPE"] = "1"
 env["GOAL_SKIP_SECRET"] = "1"
 env["GOAL_SKIP_LINT"] = "1"
+# Fresh UVO path: do not inherit GOAL_SKIP_TEST/BUILD from agent sessions
+env["GOAL_SKIP_TEST"] = "0"
+env["GOAL_SKIP_BUILD"] = "0"
 out = subprocess.check_output(
     [os.path.join(scripts, "verify-review.sh"), task_dir, "src/", "json"],
     env=env,

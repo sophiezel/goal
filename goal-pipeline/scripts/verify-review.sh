@@ -171,58 +171,54 @@ check_tests() {
     local has_test pkg_mgr test_cmd
     has_test=$(node -e "try{const p=require('./package.json');console.log(p.scripts&&p.scripts.test?'yes':'no')}catch(e){console.log('no')}" 2>/dev/null || echo "no")
     if [ "$has_test" = "yes" ]; then
+      # NEVER run bare `yarn/npm/pnpm test` — CRA Jest enters watch and hangs agents.
+      export CI=true
       if [ -f "yarn.lock" ] && command -v yarn >/dev/null 2>&1; then
         pkg_mgr="yarn"
-        test_cmd="yarn test"
+        if [ -n "${GOAL_TEST_PATTERN:-}" ]; then
+          test_cmd="CI=true yarn test --testPathPattern=${GOAL_TEST_PATTERN} --watchAll=false --forceExit"
+          if CI=true yarn test --testPathPattern="$GOAL_TEST_PATTERN" --watchAll=false --forceExit >/dev/null 2>&1; then
+            TEST_CMD="$test_cmd" python3 -c "import json,os; print(json.dumps({'pass':True,'command':os.environ['TEST_CMD'],'output':'all passing'}))"
+          else
+            TEST_CMD="$test_cmd" python3 -c "import json,os; print(json.dumps({'pass':False,'command':os.environ['TEST_CMD'],'output':'tests failed'}))"
+          fi
+        else
+          test_cmd="CI=true yarn test --watchAll=false --forceExit"
+          if CI=true yarn test --watchAll=false --forceExit >/dev/null 2>&1; then
+            TEST_CMD="$test_cmd" python3 -c "import json,os; print(json.dumps({'pass':True,'command':os.environ['TEST_CMD'],'output':'all passing'}))"
+          else
+            TEST_CMD="$test_cmd" python3 -c "import json,os; print(json.dumps({'pass':False,'command':os.environ['TEST_CMD'],'output':'tests failed'}))"
+          fi
+        fi
       elif [ -f "pnpm-lock.yaml" ] && command -v pnpm >/dev/null 2>&1; then
         pkg_mgr="pnpm"
-        test_cmd="pnpm test"
+        if [ -n "${GOAL_TEST_PATTERN:-}" ]; then
+          test_cmd="CI=true pnpm test -- --testPathPattern=${GOAL_TEST_PATTERN} --watchAll=false --forceExit"
+          if CI=true pnpm test -- --testPathPattern="$GOAL_TEST_PATTERN" --watchAll=false --forceExit >/dev/null 2>&1; then
+            TEST_CMD="$test_cmd" python3 -c "import json,os; print(json.dumps({'pass':True,'command':os.environ['TEST_CMD'],'output':'all passing'}))"
+          else
+            TEST_CMD="$test_cmd" python3 -c "import json,os; print(json.dumps({'pass':False,'command':os.environ['TEST_CMD'],'output':'tests failed'}))"
+          fi
+        else
+          test_cmd="CI=true pnpm test -- --watchAll=false --forceExit"
+          if CI=true pnpm test -- --watchAll=false --forceExit >/dev/null 2>&1; then
+            TEST_CMD="$test_cmd" python3 -c "import json,os; print(json.dumps({'pass':True,'command':os.environ['TEST_CMD'],'output':'all passing'}))"
+          else
+            TEST_CMD="$test_cmd" python3 -c "import json,os; print(json.dumps({'pass':False,'command':os.environ['TEST_CMD'],'output':'tests failed'}))"
+          fi
+        fi
       else
         pkg_mgr="npm"
-        test_cmd="npm test"
-      fi
-      if [ -n "${GOAL_TEST_PATTERN:-}" ]; then
-        export CI="${CI:-true}"
-        if [ "$pkg_mgr" = "yarn" ]; then
-          test_cmd="CI=true yarn test --testPathPattern=$GOAL_TEST_PATTERN --watchAll=false"
-          if CI=true yarn test --testPathPattern="$GOAL_TEST_PATTERN" --watchAll=false >/dev/null 2>&1; then
-            TEST_CMD="$test_cmd" python3 -c "import json,os; print(json.dumps({'pass':True,'command':os.environ['TEST_CMD'],'output':'all passing'}))"
-          else
-            TEST_CMD="$test_cmd" python3 -c "import json,os; print(json.dumps({'pass':False,'command':os.environ['TEST_CMD'],'output':'tests failed'}))"
-          fi
-        elif [ "$pkg_mgr" = "pnpm" ]; then
-          test_cmd="CI=true pnpm test --testPathPattern=$GOAL_TEST_PATTERN --watchAll=false"
-          if CI=true pnpm test --testPathPattern="$GOAL_TEST_PATTERN" --watchAll=false >/dev/null 2>&1; then
+        if [ -n "${GOAL_TEST_PATTERN:-}" ]; then
+          test_cmd="CI=true npm test -- --testPathPattern=${GOAL_TEST_PATTERN} --watchAll=false --forceExit"
+          if CI=true npm test -- --testPathPattern="$GOAL_TEST_PATTERN" --watchAll=false --forceExit >/dev/null 2>&1; then
             TEST_CMD="$test_cmd" python3 -c "import json,os; print(json.dumps({'pass':True,'command':os.environ['TEST_CMD'],'output':'all passing'}))"
           else
             TEST_CMD="$test_cmd" python3 -c "import json,os; print(json.dumps({'pass':False,'command':os.environ['TEST_CMD'],'output':'tests failed'}))"
           fi
         else
-          test_cmd="npm test -- --testPathPattern=$GOAL_TEST_PATTERN --watchAll=false"
-          if CI=true npm test -- --testPathPattern="$GOAL_TEST_PATTERN" --watchAll=false >/dev/null 2>&1; then
-            TEST_CMD="$test_cmd" python3 -c "import json,os; print(json.dumps({'pass':True,'command':os.environ['TEST_CMD'],'output':'all passing'}))"
-          else
-            TEST_CMD="$test_cmd" python3 -c "import json,os; print(json.dumps({'pass':False,'command':os.environ['TEST_CMD'],'output':'tests failed'}))"
-          fi
-        fi
-      else
-        if [ -n "${CI:-}" ]; then
-          export CI="${CI:-true}"
-        fi
-        if [ "$pkg_mgr" = "yarn" ]; then
-          if yarn test >/dev/null 2>&1; then
-            TEST_CMD="$test_cmd" python3 -c "import json,os; print(json.dumps({'pass':True,'command':os.environ['TEST_CMD'],'output':'all passing'}))"
-          else
-            TEST_CMD="$test_cmd" python3 -c "import json,os; print(json.dumps({'pass':False,'command':os.environ['TEST_CMD'],'output':'tests failed'}))"
-          fi
-        elif [ "$pkg_mgr" = "pnpm" ]; then
-          if pnpm test >/dev/null 2>&1; then
-            TEST_CMD="$test_cmd" python3 -c "import json,os; print(json.dumps({'pass':True,'command':os.environ['TEST_CMD'],'output':'all passing'}))"
-          else
-            TEST_CMD="$test_cmd" python3 -c "import json,os; print(json.dumps({'pass':False,'command':os.environ['TEST_CMD'],'output':'tests failed'}))"
-          fi
-        else
-          if npm test >/dev/null 2>&1; then
+          test_cmd="CI=true npm test -- --watchAll=false --forceExit"
+          if CI=true npm test -- --watchAll=false --forceExit >/dev/null 2>&1; then
             TEST_CMD="$test_cmd" python3 -c "import json,os; print(json.dumps({'pass':True,'command':os.environ['TEST_CMD'],'output':'all passing'}))"
           else
             TEST_CMD="$test_cmd" python3 -c "import json,os; print(json.dumps({'pass':False,'command':os.environ['TEST_CMD'],'output':'tests failed'}))"

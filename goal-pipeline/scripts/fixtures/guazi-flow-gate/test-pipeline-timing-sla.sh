@@ -9,8 +9,11 @@ trap 'rm -rf "$tmp"' EXIT
 TASK="$tmp/task"
 mkdir -p "$TASK/evidence"
 python3 "$REC" --task-dir "$TASK" --stage plan --event start >/dev/null
+python3 "$REC" --task-dir "$TASK" --stage plan --event mark --substep cwiki --duration-ms 30000 >/dev/null
 python3 "$REC" --task-dir "$TASK" --stage plan --event end --duration-ms 120000 >/dev/null
 python3 "$REC" --task-dir "$TASK" --stage implement --event end --duration-ms 600000 >/dev/null
+python3 "$REC" --task-dir "$TASK" --stage review --event start >/dev/null
+python3 "$REC" --task-dir "$TASK" --stage review --event end --substep attempt --duration-ms 900 >/dev/null
 
 DOC="$TASK/evidence/pipeline-timing.json"
 [[ -f "$DOC" ]] || { echo "FAIL timing missing"; exit 1; }
@@ -21,6 +24,9 @@ import json
 d=json.load(open('$DOC'))
 assert 'Z' in d['updated_at_utc']
 assert d['stages']['plan']['duration_ms']==120000
+assert d['stages']['plan'].get('started_at_utc')
+assert d['stages']['plan']['substeps']['cwiki']['duration_ms']==30000
+assert d['stages']['review']['substeps']['attempt']['duration_ms']==900
 print('timing_ok')
 "
 

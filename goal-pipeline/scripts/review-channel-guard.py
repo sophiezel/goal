@@ -24,8 +24,14 @@ def load_detect() -> dict:
     detect = os.path.join(script_dir(), "detect-review-channels")
     if not os.path.isfile(detect):
         return {"has_candidates": False, "selected": None, "error": "detect-review-channels missing"}
+    args = ["python3", detect, "--json"]
+    # Default probe ON for review orchestration; fixtures set GOAL_REVIEW_PROBE=0.
+    if os.environ.get("GOAL_REVIEW_PROBE", "1") == "0":
+        args.append("--no-probe")
+    else:
+        args.append("--probe")
     proc = subprocess.run(
-        ["python3", detect, "--json"],
+        args,
         capture_output=True,
         text=True,
         env=os.environ.copy(),
@@ -58,16 +64,22 @@ def resolve_provider(
     mode: str,
 ) -> tuple[str, str, bool, str | None]:
     has_candidates = bool(detect_doc.get("has_candidates"))
+    configured_keys = bool(detect_doc.get("configured_keys"))
+    unreachable = bool(detect_doc.get("configured_but_unreachable"))
+    # Keys present (even if currently unreachable) must not silently downgrade to deterministic.
+    anti_downgrade = has_candidates or configured_keys or unreachable
     selected = detect_doc.get("selected") or {}
     sel_provider = str(selected.get("provider") or "")
     sel_model = str(selected.get("model") or "")
+    emergency = os.environ.get("GOAL_REVIEW_EMERGENCY", "0") == "1"
 
-    if force_det and has_candidates:
+    if force_det and anti_downgrade and not emergency:
+        label = selected_label(selected) if has_candidates else "configured API keys (unreachable or pending)"
         return (
             provider or "deterministic",
             model,
             True,
-            f"GOAL_REVIEW_FORCE_DETERMINISTIC=1 is not allowed when review channel is configured ({selected_label(selected)})",
+            f"GOAL_REVIEW_FORCE_DETERMINISTIC=1 is not allowed when review channel is configured ({label})",
         )
 
     resolved_provider = provider.strip()
@@ -78,18 +90,22 @@ def resolve_provider(
             resolved_provider = sel_provider
             if not resolved_model and sel_model:
                 resolved_model = sel_model
+        elif unreachable and not emergency:
+            # Fail-fast path: caller should write review_channel_unreachable + cursor-task.
+            resolved_provider = "unreachable"
         else:
             resolved_provider = "deterministic"
 
-    if force_det and not has_candidates:
+    if force_det and not anti_downgrade:
         return "deterministic", resolved_model, False, None
 
-    if has_candidates and resolved_provider == "deterministic":
+    if anti_downgrade and resolved_provider == "deterministic" and not emergency:
+        label = selected_label(selected) if has_candidates else "configured API keys"
         return (
             resolved_provider,
             resolved_model,
             True,
-            f"provider=deterministic is not allowed when review channel is configured ({selected_label(selected)})",
+            f"provider=deterministic is not allowed when review channel is configured ({label})",
         )
 
     if (
@@ -108,14 +124,24 @@ def resolve_provider(
     return resolved_provider, resolved_model, False, None
 
 
-def emit_shell(provider: str, model: str, has_candidates: bool, deterministic_only: bool) -> None:
+def emit_shell(
+    provider: str,
+    model: str,
+    has_candidates: bool,
+    deterministic_only: bool,
+    unreachable: bool,
+) -> None:
     def q(value: str) -> str:
         return value.replace("'", "'\"'\"'")
 
     print(f"export REVIEW_HAS_CANDIDATES={'1' if has_candidates else '0'}")
+    print(f"export REVIEW_CHANNEL_UNREACHABLE={'1' if unreachable else '0'}")
     print(f"export RESOLVED_REVIEW_PROVIDER='{q(provider)}'")
     print(f"export RESOLVED_REVIEW_MODEL='{q(model)}'")
     print(f"export GOAL_REVIEW_DETERMINISTIC_ONLY={'1' if deterministic_only else '0'}")
+    if unreachable:
+        # Hint for Agent / adapter: prefer Cursor Task over burning cascade budget.
+        print("export GOAL_REVIEW_CURSOR_TASK_HINT=1")
 
 
 def main() -> int:
@@ -142,11 +168,14 @@ def main() -> int:
         args.mode,
     )
     has_candidates = bool(detect_doc.get("has_candidates"))
+    unreachable = bool(detect_doc.get("configured_but_unreachable"))
     deterministic_only = (
         not force_det
         and args.mode == "unified"
         and provider == "deterministic"
         and not has_candidates
+        and not unreachable
+        and not bool(detect_doc.get("configured_keys"))
     )
 
     if blocked:
@@ -158,6 +187,7 @@ def main() -> int:
                         "blocked": True,
                         "reason": reason,
                         "has_candidates": has_candidates,
+                        "configured_but_unreachable": unreachable,
                         "provider": provider,
                         "selected": detect_doc.get("selected"),
                     },
@@ -178,6 +208,7 @@ def main() -> int:
                         "ok": True,
                         "blocked": False,
                         "has_candidates": has_candidates,
+                        "configured_but_unreachable": unreachable,
                         "provider": provider,
                         "model": model,
                         "selected": detect_doc.get("selected"),
@@ -193,6 +224,7 @@ def main() -> int:
                 {
                     "ok": True,
                     "has_candidates": has_candidates,
+                    "configured_but_unreachable": unreachable,
                     "provider": provider,
                     "model": model,
                     "deterministic_only": deterministic_only,
@@ -202,7 +234,7 @@ def main() -> int:
             )
         )
     else:
-        emit_shell(provider, model, has_candidates, deterministic_only)
+        emit_shell(provider, model, has_candidates, deterministic_only, unreachable)
     return 0
 
 

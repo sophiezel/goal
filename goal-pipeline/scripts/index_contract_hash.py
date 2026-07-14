@@ -81,9 +81,44 @@ def index_execution_tail_hash(path: str) -> str:
     return sha16(tail) if tail else sha16("")
 
 
+_WRITE_SET_EXCLUSION_MARKERS = (
+    "排除",
+    "除外",
+    "不做",
+    "不包含",
+    "exclude",
+    "exclusion",
+    "out of scope",
+    "out-of-scope",
+    "not in write",
+    "非写集",
+)
+
+
+def is_write_set_contamination(entry: str) -> bool:
+    """True for prose / exclusion bullets that must not enter write_set paths."""
+    raw = (entry or "").strip()
+    if not raw:
+        return True
+    low = raw.lower()
+    if any(m in low or m in raw for m in _WRITE_SET_EXCLUSION_MARKERS):
+        return True
+    # Pure path-ish: allow alnum, slash, underscore, dash, dot, @
+    # Reject sentences / Chinese prose / spaces with explanation.
+    if " " in raw and not raw.startswith("src/") and "/" not in raw.split()[0]:
+        return True
+    if any(ch in raw for ch in ("：", "。", "，", "（", "）", "(", ")")) and not raw.startswith("`"):
+        # Allow path(with)parens rarely — but Chinese punctuation ⇒ prose
+        if any("\u4e00" <= c <= "\u9fff" for c in raw):
+            return True
+    return False
+
+
 def normalize_write_set_entry(path: str) -> str:
     p = (path or "").strip().strip("`").strip()
     if not p:
+        return ""
+    if is_write_set_contamination(p):
         return ""
     # src/foo/** → src/foo/
     if p.endswith("/**"):

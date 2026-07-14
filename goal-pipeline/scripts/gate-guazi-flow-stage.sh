@@ -418,28 +418,45 @@ if skill not in text:
     errors.append(f"execution record missing skill marker: {skill}")
 
 # extract write_set from markdown tables or bullet lists (section header at line start only)
+# Do NOT pull bullets from "不做项/排除/exclusions" subsections — they contaminate path_allowed.
 write_set = []
 ws_matches = list(re.finditer(
     r'^##\s*(?:范围与写集|write[_\s-]?set|写集)\s*\n(.*?)(?=\n## |\Z)',
     text, re.IGNORECASE | re.DOTALL | re.MULTILINE
 ))
 ws_sec = ws_matches[-1] if ws_matches else None
+_excl = re.compile(r'(排除|除外|不做|exclude|exclusion|out of scope|非写集)', re.I)
 if ws_sec:
     block = ws_sec.group(1)
+    # Truncate at first exclusions / 不做 subsection inside the write_set section
+    cut = re.search(r'^###?\s*(?:不做|排除|除外|exclusions?|out of scope).*$', block, re.I | re.M)
+    if cut:
+        block = block[: cut.start()]
     for line in block.splitlines():
+        if _excl.search(line) and not re.search(r'`[^`]+`', line):
+            continue
         for m in re.findall(r'`([^`]+)`', line):
             write_set.append(m.strip())
         m2 = re.match(r'[-*]\s+(.+)', line.strip())
         if m2:
             val = m2.group(1).strip().strip('`')
-            if val and not val.startswith('|'):
+            if val and not val.startswith('|') and not _excl.search(val):
                 write_set.append(val)
-write_set = list(dict.fromkeys(write_set))
+# Drop prose / exclusion contamination; keep path-like entries only
+def _looks_like_path(p: str) -> bool:
+    p = (p or "").strip().strip("`")
+    if not p or _excl.search(p):
+        return False
+    if any(x in p for x in ("排除", "除外", "不做", "：", "。")):
+        return False
+    return ("/" in p) or p.endswith((".ts", ".tsx", ".js", ".jsx", ".scss", ".css", ".json", ".md")) or p.startswith(("src", "docs", "e2e", "config"))
+
+write_set = list(dict.fromkeys([w for w in write_set if _looks_like_path(w)]))
 if not write_set:
     for pat in [r'write_set:\s*\[([^\]]+)\]']:
         wm = re.search(pat, text, re.IGNORECASE)
         if wm:
-            write_set = [x.strip().strip('"\'') for x in wm.group(1).split(',') if x.strip()]
+            write_set = [x.strip().strip('"\'') for x in wm.group(1).split(',') if x.strip() and _looks_like_path(x)]
 
 # acceptance matrix ids
 matrix_ids = re.findall(r'\b(?:C|V|AC|TC)\d+\b', text)
@@ -696,9 +713,13 @@ stage_to_index_current() {
 record_stage_timing() {
   local stage="$1"
   local event="${2:-end}"
+  local substep="${3:-}"
+  local duration_ms="${4:-}"
   local timing_py="$SCRIPT_DIR/record-pipeline-timing.py"
   [[ -f "$timing_py" && -n "$TASK_DIR" ]] || return 0
   local targs=(--task-dir "$TASK_DIR" --stage "$stage" --event "$event")
+  [[ -n "$substep" ]] && targs+=(--substep "$substep")
+  [[ -n "$duration_ms" ]] && targs+=(--duration-ms "$duration_ms")
   [[ -n "$STATE_FILE" ]] && targs+=(--state-file "$STATE_FILE")
   [[ -n "$PROJECT_ROOT" ]] && targs+=(--project-root "$PROJECT_ROOT")
   python3 "$timing_py" "${targs[@]}" >/dev/null 2>&1 || true
@@ -767,6 +788,9 @@ except Exception:
   fi
   return 0
 }
+
+# Pair with update_state_gate → end. Optional substips: record_stage_timing STAGE mark|end SUBSTEP MS
+record_stage_timing "$STAGE" "start"
 
 case "$STAGE" in
   plan)
@@ -1307,7 +1331,14 @@ required = ["schema_version", "round", "merged_result", "action", "issues", "nex
 for k in required:
     if k not in d:
         raise SystemExit(f"missing field: {k}")
-actions = {"proceed_complete", "fix_and_rerun_review", "mini_replan", "blocked_user_decision"}
+actions = {
+    "proceed_complete",
+    "fix_and_rerun_review",
+    "mini_replan",
+    "blocked_user_decision",
+    "switch_to_cursor_task",
+    "fix_channel",
+}
 if d["action"] not in actions:
     raise SystemExit(f"invalid action: {d['action']}")
 if d["merged_result"] not in ("pass", "not_pass"):
@@ -1316,6 +1347,9 @@ if d["merged_result"] == "pass" and d["action"] != "proceed_complete":
     raise SystemExit("pass requires proceed_complete")
 if d["merged_result"] == "not_pass" and d["action"] == "proceed_complete":
     raise SystemExit("not_pass cannot proceed_complete")
+# Infra actions must not be treated as business fix_and_rerun_review.
+if d.get("classification") == "infra_undetermined" and d["action"] == "fix_and_rerun_review":
+    raise SystemExit("infra_undetermined cannot use fix_and_rerun_review")
 PYSCHEMA
 
       FIX_ACTION=$(python3 -c "import json; print(json.load(open('$GOAL_EVIDENCE_DIR/review-fix-input.json')).get('action',''))" 2>/dev/null || echo "")

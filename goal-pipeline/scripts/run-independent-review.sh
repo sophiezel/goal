@@ -40,6 +40,11 @@ _RESOLVE_ARGS=(--task-dir "$TASK_DIR" --format shell --ensure-state)
 [[ -n "$STATE_FILE" ]] && _RESOLVE_ARGS+=(--state-file "$STATE_FILE")
 [[ -n "$PROJECT_ROOT" ]] && _RESOLVE_ARGS+=(--project-root "$PROJECT_ROOT")
 eval "$(python3 "$RESOLVER" "${_RESOLVE_ARGS[@]}")"
+# Ensure verify-review + child scripts see the resolved evidence dir (UVO skip path).
+export GOAL_EVIDENCE_DIR
+export HANDOFF_DIR
+[[ -n "${REPO_TASK_DIR:-}" ]] && export REPO_TASK_DIR
+[[ -n "${PROJECT_ROOT:-}" ]] && export PROJECT_ROOT
 
 EVIDENCE="$GOAL_EVIDENCE_DIR"
 HANDOFF="$HANDOFF_DIR"
@@ -71,7 +76,15 @@ eval "$(python3 "$GUARD" --resolve --provider "${PROVIDER}" --model "${MODEL}" -
 PROVIDER="$RESOLVED_REVIEW_PROVIDER"
 [[ -n "$MODEL" ]] || MODEL="$RESOLVED_REVIEW_MODEL"
 
-if [[ "${GOAL_REVIEW_DETERMINISTIC_ONLY:-0}" == "1" ]]; then
+if [[ "${REVIEW_CHANNEL_UNREACHABLE:-0}" == "1" ]]; then
+  echo "run-independent-review: WARN — configured review APIs unreachable (short probe)" >&2
+  echo "run-independent-review: skipping L2 cascade; set GOAL_REVIEW_CURSOR_TASK=1 or fix network" >&2
+  export GOAL_REVIEW_CURSOR_TASK_HINT=1
+  PROVIDER="unreachable"
+  # Do NOT force deterministic when keys exist but unreachable (infra blocker, not L2 pass).
+fi
+
+if [[ "${GOAL_REVIEW_DETERMINISTIC_ONLY:-0}" == "1" && "${REVIEW_CHANNEL_UNREACHABLE:-0}" != "1" ]]; then
   if [[ -f "$HANDOFF_DIR/plan.json" ]] || [[ -f "$REPO_TASK_DIR/index.md" ]]; then
     echo "run-independent-review: WARN — unified mode but only deterministic channel available" >&2
     echo "run-independent-review: skipping L2 API timeouts; separation=degraded (deterministic_scope_only)" >&2
@@ -83,13 +96,14 @@ if [[ "${GOAL_REVIEW_DETERMINISTIC_ONLY:-0}" == "1" ]]; then
   export GOAL_REVIEW_FORCE_DETERMINISTIC=1
 fi
 
-if [[ "${GOAL_REVIEW_FORCE_DETERMINISTIC:-}" == "1" && "${REVIEW_HAS_CANDIDATES:-0}" != "1" ]]; then
+if [[ "${GOAL_REVIEW_FORCE_DETERMINISTIC:-}" == "1" && "${REVIEW_HAS_CANDIDATES:-0}" != "1" && "${REVIEW_CHANNEL_UNREACHABLE:-0}" != "1" ]]; then
   PROVIDER="deterministic"
   MODE="goal"
 fi
 
 PACKET_HASH=$(shasum -a 256 "$PACKET" 2>/dev/null | cut -c1-16 || sha256sum "$PACKET" 2>/dev/null | cut -c1-16)
 WRITE_SET=$(python3 -c "import json; print(chr(44).join(json.load(open(\"$HANDOFF_DIR/plan.json\")).get(\"write_set\",[])))" 2>/dev/null || echo "")
+# GOAL_EVIDENCE_DIR already exported after path resolve; re-export for safety before L1 verify.
 export GOAL_EVIDENCE_DIR
 VERIFY_JSON=$("$VERIFY" "$REPO_TASK_DIR" "$WRITE_SET" json || echo "{\"overall\":\"not_pass\"}")
 
@@ -100,8 +114,63 @@ REVIEW_BODY=""
 REVIEW_ATTEMPTS_JSON="[]"
 FALLBACK_LAYER="none"
 ORCH_ELAPSED_MS=0
+export GOAL_REVIEW_ATTEMPTS_PATH="${GOAL_EVIDENCE_DIR}/review-attempts-partial.json"
 
-if [[ -x "$ORCHESTRATOR" && "$PROVIDER" != "deterministic" && "${REVIEW_HAS_CANDIDATES:-0}" == "1" ]]; then
+_REVIEW_ABORT=0
+_persist_partial_attempts() {
+  # Only on interrupt/abort — not on normal EXIT after successful persist.
+  [[ "${_REVIEW_ABORT:-0}" == "1" ]] || return 0
+  if [[ -f "${GOAL_REVIEW_ATTEMPTS_PATH:-}" && -d "${GOAL_EVIDENCE_DIR:-}" ]]; then
+    python3 - "$GOAL_REVIEW_ATTEMPTS_PATH" "$GOAL_EVIDENCE_DIR/review-run.json" <<'PY' 2>/dev/null || true
+import json, sys, os
+from datetime import datetime, timezone
+partial_path, run_path = sys.argv[1:3]
+try:
+    partial = json.load(open(partial_path, encoding="utf-8"))
+except Exception:
+    raise SystemExit(0)
+attempts = partial.get("attempts") or []
+doc = {}
+if os.path.isfile(run_path):
+    try:
+        doc = json.load(open(run_path, encoding="utf-8"))
+    except Exception:
+        doc = {}
+doc.setdefault("schema_version", 1)
+doc["attempts"] = attempts
+doc["aborted"] = True
+doc["finished_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+doc.setdefault("provider", "aborted")
+doc.setdefault("result_hint", "review_undetermined")
+open(run_path, "w", encoding="utf-8").write(json.dumps(doc, indent=2, ensure_ascii=False) + "\n")
+PY
+  fi
+}
+_on_review_signal() { _REVIEW_ABORT=1; _persist_partial_attempts; exit 130; }
+trap '_on_review_signal' INT TERM
+
+if [[ "$PROVIDER" == "unreachable" ]]; then
+  REVIEW_BODY=$(python3 - <<'PY'
+import json
+print(json.dumps({
+  "result": "review_undetermined",
+  "error_kind": "review_channel_unreachable",
+  "issues": [{
+    "id": "CH-UNREACHABLE",
+    "severity": "blocker",
+    "summary": "Review API channels unreachable (short probe) — cascade skipped; use Cursor Task",
+    "channel": "goal",
+    "root_cause": "infra_channel",
+    "suggestion": "switch_to_cursor_task",
+  }],
+  "checklist_goal": [],
+  "checklist_gf": [],
+}, ensure_ascii=False))
+PY
+)
+  REVIEW_ATTEMPTS_JSON='[{"layer":"preflight","error":"review_channel_unreachable","error_kind":"review_channel_unreachable"}]'
+  FALLBACK_LAYER="hard_stop_unreachable"
+elif [[ -x "$ORCHESTRATOR" && "$PROVIDER" != "deterministic" && "${REVIEW_HAS_CANDIDATES:-0}" == "1" ]]; then
   ORCH_ERR=$(mktemp)
   ORCH_JSON=$("$ORCHESTRATOR" \
     --script-dir "$SCRIPT_DIR" \
@@ -147,6 +216,7 @@ try: print(json.dumps(json.loads(raw)))
 except json.JSONDecodeError: print('{}')" "$ADAPTER_OUT")
 fi
 
+REVIEW_DEPTH="${REVIEW_DEPTH:-}"
 export TASK_DIR="$REPO_TASK_DIR" PACKET PACKET_HASH VERIFY_JSON PROVIDER MODEL MODE START_MS OUT_UNIFIED OUT_RUN REVIEW_BODY CHANNEL_ARG REVIEW_HAS_CANDIDATES REVIEW_ATTEMPTS_JSON FALLBACK_LAYER ORCH_ELAPSED_MS REVIEW_DEPTH
 python3 << 'PY'
 import json, sys, os, hashlib
@@ -295,17 +365,32 @@ unified["checklist_gf"] = [
 unified["issues"] = [i for i in (unified.get("issues") or []) if isinstance(i, dict)]
 
 blockers = [i for i in unified.get("issues", []) if i.get("severity") == "blocker"]
+
+def _infra_issue(i):
+    iid = str(i.get("id") or "").upper()
+    root = str(i.get("root_cause") or "").lower()
+    return iid.startswith("ADP-ERR") or iid in ("FB-EXHAUST", "CH-UNREACHABLE", "CH-PROBE") or root in (
+        "infra_channel", "infra", "review_channel", "network",
+    )
+
+infra_only_blockers = bool(blockers) and all(_infra_issue(i) for i in blockers)
 if verify.get("overall") != "pass":
     unified["result"] = "not_pass"
+elif blockers and infra_only_blockers:
+    # Keep undetermined so merge emits switch_to_cursor_task / fix_channel (not business fix).
+    unified["result"] = "review_undetermined"
+    unified["error_kind"] = unified.get("error_kind") or "review_channel_unreachable"
 elif blockers:
     unified["result"] = "not_pass"
 elif unified.get("result") not in ("pass", "not_pass", "review_undetermined"):
     unified["result"] = "pass"
 
-separation_confidence = "high" if provider not in ("deterministic",) else "low"
+separation_confidence = "high" if provider not in ("deterministic", "unreachable") else "low"
 if provider == "readonly-subagent":
     separation_confidence = "medium"
 if separation_confidence == "low" and unified["result"] == "pass" and provider == "deterministic":
+    unified["result"] = "review_undetermined"
+if provider == "unreachable":
     unified["result"] = "review_undetermined"
 
 issues_goal = [i for i in unified.get("issues", []) if i.get("channel", "goal") == "goal"]

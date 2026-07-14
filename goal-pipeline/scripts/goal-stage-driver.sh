@@ -122,6 +122,7 @@ def build_mandatory(stage):
             assert_pbc + "  # must stay OK — NEVER write src/ until gate --post plan",
             f"Load {plan_skill}/SKILL.md and execute full plan flow (docs/contracts only)",
             "HARD: do NOT create Todo items that write src/** until plan gate passes",
+            "HARD: write_set bullets = pure paths only; put exclusions/不做项 in a separate section (not mixed into write_set list)",
             gate_cmd("plan", "post"),
             f"{script_dir}/goal-advance-stage.sh --state-file {state_file!r} --task-dir {task_dir!r} --project-root {project_root!r}",
         ]
@@ -129,6 +130,7 @@ def build_mandatory(stage):
         return [
             gate_cmd("implement", "pre"),
             f"Load {impl_skill}/SKILL.md and implement within write_set",
+            "HARD: ship acceptance-matrix RTL/unit tests (Cxx/Vxx) with feature code in the same commit when possible — avoid review round-trip for missing C01–C10 coverage",
             "(optional Dev Loop) findRelatedTests / scoped unit tests only — DO NOT run yarn build:beta locally (UVO once at gate --post)",
             gate_cmd("implement", "post"),
             f"{script_dir}/goal-advance-stage.sh --state-file {state_file!r} --task-dir {task_dir!r} --project-root {project_root!r}",
@@ -194,6 +196,9 @@ work_order = {
         "将 plan Todo 与 implement/写代码 Todo 并列；仅 [1/5] plan ✅ 后才可新增写代码 Todo",
         "blocked(noop_fix) 后原命令盲重试——必须先实质性改产物",
         "implement 期连跑全量 yarn build:beta（留给 UVO 一次）",
+        "写集 bullet 混入排除/不做项/散文（exclusions 须单独 section）",
+        "验收矩阵 C01–C10 有行为却不补 RTL/单测，留到 review 第一轮才补",
+        "把 review_undetermined / ADP-ERR / 网络超时当业务缺陷去改 write_set（应 switch_to_cursor_task / fix_channel）",
     ],
     "plan_before_code": True,
     "code_writes_allowed": next_stage in ("implement", "quality", "runtime_smoke", "review", "complete", "done")

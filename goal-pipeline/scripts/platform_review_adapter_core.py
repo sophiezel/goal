@@ -53,7 +53,50 @@ def http_json(url, headers, body, timeout=120):
         raise RuntimeError(f"HTTP error: {reason}") from e
 
 
-def call_openai_compat(base_url, api_key, model, system, user, provider_label, timeout=120):
+def _strip_json_fences(text: str) -> str:
+    t = (text or "").strip()
+    if t.startswith("```"):
+        lines = t.splitlines()
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        t = "\n".join(lines).strip()
+    return t
+
+
+def _message_text_for_json(message: dict) -> str:
+    """Prefer final answer content; fall back to reasoning_content (DeepSeek thinking)."""
+    content = message.get("content")
+    if isinstance(content, str) and content.strip():
+        return content
+    reasoning = message.get("reasoning_content")
+    if isinstance(reasoning, str) and reasoning.strip():
+        return reasoning
+    return ""
+
+
+def _parse_model_json(text: str) -> dict:
+    cleaned = _strip_json_fences(text)
+    if not cleaned:
+        raise RuntimeError("empty_content: model returned empty content and reasoning_content")
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError as e:
+        raise RuntimeError(f"json_parse: {e}; head={cleaned[:160]!r}") from e
+
+
+def call_openai_compat(
+    base_url,
+    api_key,
+    model,
+    system,
+    user,
+    provider_label,
+    timeout=120,
+    *,
+    disable_thinking: bool = False,
+):
     url = base_url.rstrip("/") + "/chat/completions"
     headers = {"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}
     body = {
@@ -63,9 +106,13 @@ def call_openai_compat(base_url, api_key, model, system, user, provider_label, t
         "max_tokens": 4096,
         "response_format": {"type": "json_object"},
     }
+    # DeepSeek V4 thinking puts CoT in reasoning_content; review wants JSON in content.
+    if disable_thinking:
+        body["thinking"] = {"type": "disabled"}
     data = http_json(url, headers, body, timeout=timeout)
-    text = data["choices"][0]["message"]["content"]
-    out = json.loads(text)
+    message = (data.get("choices") or [{}])[0].get("message") or {}
+    text = _message_text_for_json(message)
+    out = _parse_model_json(text)
     out.setdefault("model", model)
     out.setdefault("tokens", data.get("usage", {}))
     out["provider"] = provider_label
@@ -248,7 +295,14 @@ def invoke(provider, model, packet, channel, timeout=120):
             raise RuntimeError(f"{provider} API key missing")
         default_models = {"openai": "gpt-4o-mini", "deepseek": "deepseek-v4-flash", "groq": "llama-3.3-70b-versatile"}
         out = call_openai_compat(
-            bases[provider], key, model or default_models.get(provider, "gpt-4o-mini"), system, user, provider, timeout=timeout
+            bases[provider],
+            key,
+            model or default_models.get(provider, "gpt-4o-mini"),
+            system,
+            user,
+            provider,
+            timeout=timeout,
+            disable_thinking=(provider == "deepseek"),
         )
     else:
         raise RuntimeError(f"unsupported provider: {provider}")
@@ -291,12 +345,18 @@ if __name__ == "__main__":
         )
         sys.exit(0)
     except Exception as e:
-        err_kind = "timeout" if "timeout" in str(e).lower() else "error"
+        err_s = str(e)
+        if "timed out" in err_s.lower() or "timeout" in err_s.lower():
+            err_kind = "timeout"
+        elif "empty_content" in err_s:
+            err_kind = "empty_content"
+        else:
+            err_kind = "error"
         print(
             json.dumps(
                 {
                     "result": "review_undetermined",
-                    "issues": [{"id": "ADP-ERR", "severity": "medium", "summary": str(e)[:200], "channel": "goal"}],
+                    "issues": [{"id": "ADP-ERR", "severity": "medium", "summary": err_s[:200], "channel": "goal"}],
                     "checklist_goal": [],
                     "checklist_gf": [],
                     "error": str(e),

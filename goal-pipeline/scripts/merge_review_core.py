@@ -75,6 +75,8 @@ def action_label_zh(action: str) -> str:
         "fix_and_rerun_review": "修复后重跑 review",
         "mini_replan": "迷你 replan",
         "blocked_user_decision": "需用户决策",
+        "switch_to_cursor_task": "切换 Cursor Task 审核",
+        "fix_channel": "修复审核通道/网络",
     }
     return mapping.get(action, action)
 
@@ -84,6 +86,8 @@ def result_label_zh(result: str) -> str:
         return "通过"
     if result == "review_undetermined":
         return "未决"
+    if result == "infra_undetermined":
+        return "基础设施未决"
     return "未通过"
 
 
@@ -91,9 +95,41 @@ def issue_key(issue):
     return "%s|%s|%s" % (issue.get("channel"), issue.get("file", ""), issue.get("summary", "")[:80])
 
 
-def compute_action(merged_result, flat_issues):
+def _issue_is_infra(issue: dict) -> bool:
+    try:
+        from review_channel_probe import issue_is_infra
+
+        return issue_is_infra(issue)
+    except Exception:
+        iid = str(issue.get("id") or "").upper()
+        if iid.startswith("ADP-ERR") or iid in ("FB-EXHAUST", "CH-UNREACHABLE", "CH-PROBE"):
+            return True
+        root = str(issue.get("root_cause") or "").lower()
+        return root in ("infra_channel", "infra", "review_channel", "network")
+
+
+def issues_are_infra_only(flat_issues, unified_result: str) -> bool:
+    """True when undetermined / not_pass is caused only by adapter/network (not business)."""
+    if not flat_issues:
+        return unified_result == "review_undetermined"
+    non_infra = [i for i in flat_issues if not _issue_is_infra(i)]
+    # Ignore pure verify CHK-* if present alongside infra? treat CHK as business.
+    return len(non_infra) == 0 and (
+        unified_result == "review_undetermined"
+        or any(_issue_is_infra(i) for i in flat_issues)
+    )
+
+
+def compute_action(merged_result, flat_issues, unified_result=""):
     if merged_result == "pass":
         return "proceed_complete"
+    if issues_are_infra_only(flat_issues, unified_result or merged_result):
+        # Prefer cursor-task when channel unreachable; otherwise fix_channel.
+        summaries = " ".join(str(i.get("summary") or "") for i in flat_issues).lower()
+        ids = " ".join(str(i.get("id") or "") for i in flat_issues).upper()
+        if "CH-UNREACHABLE" in ids or "unreachable" in summaries or "cursor task" in summaries:
+            return "switch_to_cursor_task"
+        return "fix_channel"
     blockers = [i for i in flat_issues if i.get("severity") == "blocker"]
     if not blockers:
         return "fix_and_rerun_review"
@@ -108,6 +144,21 @@ def compute_action(merged_result, flat_issues):
 def next_steps_for_action(action):
     if action == "proceed_complete":
         return ["gate --post review", "guazi-flow-complete", "gate --post complete"]
+    if action == "switch_to_cursor_task":
+        return [
+            "export GOAL_REVIEW_CURSOR_TASK=1",
+            "or invoke Cursor Task readonly review skill",
+            "merge-review-issues.sh",
+            "gate --post review",
+            "DO NOT treat as write_set business bug",
+        ]
+    if action == "fix_channel":
+        return [
+            "check API keys / network / ollama (do not edit write_set for ADP-ERR)",
+            "optional short probe: detect-review-channels --probe",
+            "GOAL_REVIEW_CURSOR_TASK=1 as alternate L2 path",
+            "re-run run-independent-review.sh after channel healthy",
+        ]
     if action == "mini_replan":
         return [
             "guazi-flow-plan mini-replan",
@@ -131,7 +182,6 @@ def next_steps_for_action(action):
         "merge-review-issues.sh",
         "gate --post review",
     ]
-
 
 def main():
     task_dir, unified_json = sys.argv[1], sys.argv[2]
@@ -160,10 +210,18 @@ def main():
             flat.append(normalize_issue(iss, "goal", goal_idx))
 
     blockers = [i for i in flat if i.get("severity") == "blocker"]
+    infra_only = issues_are_infra_only(flat, unified_result)
+    # Keep merged_result gate-compatible (pass|not_pass) but annotate infra_undetermined via action.
     merged_result = "pass" if unified_result == "pass" and not blockers else "not_pass"
     if unified_result == "review_undetermined":
         merged_result = "not_pass"
-    action = compute_action(merged_result, flat)
+    action = compute_action(merged_result, flat, unified_result=unified_result)
+    if infra_only and action in ("switch_to_cursor_task", "fix_channel"):
+        # Stamp issues so agents don't treat ADP-ERR as write_set work.
+        for iss in flat:
+            if _issue_is_infra(iss):
+                iss["root_cause"] = iss.get("root_cause") or "infra_channel"
+                iss.setdefault("suggestion", action)
 
     issues_goal_raw = [i for i in issues_raw if i.get("channel", "goal") != "guazi-flow-review"]
     issues_gf_raw = [i for i in issues_raw if i.get("channel") == "guazi-flow-review"]
@@ -193,6 +251,7 @@ def main():
         "resolved_since_last_round": resolved,
         "next_steps": next_steps_for_action(action),
         "provenance": provenance,
+        "classification": "infra_undetermined" if infra_only else "business",
     }
     with open(fix_input_path, "w", encoding="utf-8") as f:
         json.dump(fix_input, f, indent=2, ensure_ascii=False)

@@ -61,13 +61,36 @@ bash "$ASSEMBLE" "${COMMON_ARGS[@]}"
 echo "review-chain [2/4] run-independent-review --mode $MODE"
 [[ -f "$GUARD" ]] || { echo "review-chain: review-channel-guard.py missing" >&2; exit 1; }
 
-# Fail-fast: 0 usable review channels → skip L2 timeout storm; degraded deterministic / manual path.
+# Fail-fast: 0 usable review channels OR configured-but-unreachable → skip L2 timeout storm.
 CHANNEL_JSON=$(python3 "$GUARD" --resolve --provider "" --model "" --force-det 0 --mode "$MODE" --format json 2>/dev/null || echo '{"has_candidates":false}')
 HAS_CH=$(echo "$CHANNEL_JSON" | python3 -c "import json,sys; print('1' if json.load(sys.stdin).get('has_candidates') else '0')" 2>/dev/null || echo 0)
+UNREACH=$(echo "$CHANNEL_JSON" | python3 -c "import json,sys; print('1' if json.load(sys.stdin).get('configured_but_unreachable') else '0')" 2>/dev/null || echo 0)
 
 if [[ "${GOAL_REVIEW_FORCE_DETERMINISTIC:-}" == "1" ]]; then
   python3 "$GUARD" --check --force-det 1 --provider deterministic
   bash "$REVIEW" "${COMMON_ARGS[@]}" --mode goal --provider deterministic
+elif [[ "$UNREACH" == "1" ]]; then
+  echo "review-chain: WARN — review APIs configured but unreachable (short probe); skipping cascade" >&2
+  echo "review-chain: use GOAL_REVIEW_CURSOR_TASK=1 / Cursor Task — do NOT treat as business not_pass" >&2
+  mkdir -p "$GOAL_EVIDENCE_DIR"
+  python3 - "$GOAL_EVIDENCE_DIR/review-channel-degraded.json" <<'PY'
+import json, sys
+from datetime import datetime, timezone
+path = sys.argv[1]
+open(path, "w", encoding="utf-8").write(json.dumps({
+    "separation": "blocked",
+    "review_mode": "channel_unreachable",
+    "reason": "review_channel_unreachable",
+    "suggested_action": "switch_to_cursor_task",
+    "checked_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+}, ensure_ascii=False, indent=2) + "\n")
+PY
+  export REVIEW_CHANNEL_UNREACHABLE=1
+  export GOAL_REVIEW_CURSOR_TASK_HINT=1
+  # Resolve shell exports so run-independent-review sees UNREACHABLE (json resolve doesn't export).
+  eval "$(python3 "$GUARD" --resolve --provider "" --model "" --force-det 0 --mode "$MODE" 2>/dev/null || true)"
+  export REVIEW_CHANNEL_UNREACHABLE=1
+  bash "$REVIEW" "${COMMON_ARGS[@]}" --mode "$MODE"
 elif [[ "$HAS_CH" != "1" ]]; then
   echo "review-chain: WARN — 0 usable review channels; skipping L2 API cascade (separation=degraded)" >&2
   echo "review-chain: using deterministic_scope_only — confidence lowered; not a full independent review" >&2
