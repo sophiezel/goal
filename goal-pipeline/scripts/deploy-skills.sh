@@ -160,14 +160,16 @@ is_forbidden_skill_target() {
       ;;
   esac
 
+  # Separate DEV clone must not be the skill target; install-repo itself is allowed.
+  # When GOAL_DEV_REPO == install repo (pre-push --from-dev $ROOT), do not treat
+  # install-repo paths as forbidden.
   dev_real="$(resolve_dev_repo || true)"
   if [[ -n "$dev_real" ]]; then
     dev_real="$(canonical_path "$dev_real")"
-    case "$target" in
-      "$dev_real"/*) return 0 ;;
-    esac
-    if [[ "$dev_real" == "$repo_real" ]]; then
-      return 1
+    if [[ "$dev_real" != "$repo_real" ]]; then
+      case "$target" in
+        "$dev_real"/*) return 0 ;;
+      esac
     fi
   fi
 
