@@ -74,12 +74,36 @@ else
   python3 "$SCRIPT_DIR/validate-pipeline-chain.py" --task-dir "$TASK_DIR" || add_issue "BLOCK" "QG-L0-chain" "validate-pipeline-chain.py failed"
 fi
 
-# L0: secret scan (lightweight)
-if command -v rg >/dev/null 2>&1; then
-  if rg -l 'AKIA[0-9A-Z]{16}|api[_-]?key\s*=\s*["\x27][^"\x27]{8,}' "$REPO_ROOT" --glob '!node_modules' --glob '!.git' 2>/dev/null | head -1 | grep -q .; then
-    add_issue "BLOCK" "QG-L0-secret" "possible secret pattern in repo"
+# L0: secret scan on git diff (changed files only; fallback to grep when rg missing)
+SECRET_RE='AKIA[0-9A-Z]{16}|api[_-]?key[[:space:]]*=[[:space:]]*["\x27][^"\x27]{8,}|sk-[A-Za-z0-9]{20,}|ghp_[A-Za-z0-9]{20,}'
+SECRET_HIT=""
+if git -C "$REPO_ROOT" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  DIFF_FILES=$(git -C "$REPO_ROOT" diff --name-only HEAD 2>/dev/null || true)
+  DIFF_STAGED=$(git -C "$REPO_ROOT" diff --cached --name-only 2>/dev/null || true)
+  DIFF_UNTRACKED=$(git -C "$REPO_ROOT" ls-files --others --exclude-standard 2>/dev/null || true)
+  SCAN_LIST=$(printf '%s\n%s\n%s\n' "$DIFF_FILES" "$DIFF_STAGED" "$DIFF_UNTRACKED" | sed '/^$/d' | sort -u || true)
+  if [[ -n "$SCAN_LIST" ]]; then
+    while IFS= read -r f; do
+      [[ -z "$f" || ! -f "$REPO_ROOT/$f" ]] && continue
+      case "$f" in
+        node_modules/*|.git/*|*.lock|package-lock.json|yarn.lock) continue ;;
+      esac
+      if command -v rg >/dev/null 2>&1; then
+        if rg -l -e "$SECRET_RE" "$REPO_ROOT/$f" >/dev/null 2>&1; then
+          SECRET_HIT="$f"; break
+        fi
+      elif grep -EIq "$SECRET_RE" "$REPO_ROOT/$f" 2>/dev/null; then
+        SECRET_HIT="$f"; break
+      fi
+    done <<< "$SCAN_LIST"
+  else
+    # No working-tree diff: scan staged+HEAD patch text only (avoid full-repo false positives)
+    if git -C "$REPO_ROOT" diff HEAD 2>/dev/null | grep -EIq "^\+.*($SECRET_RE)" 2>/dev/null; then
+      SECRET_HIT="git-diff"
+    fi
   fi
 fi
+[[ -n "$SECRET_HIT" ]] && add_issue "BLOCK" "QG-L0-secret" "possible secret pattern in changed files: $SECRET_HIT"
 
 # L1: read smoke evidence (do NOT rerun runtime-smoke.sh)
 if [[ "$SKIP_SMOKE" -eq 0 ]]; then

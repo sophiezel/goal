@@ -111,10 +111,12 @@ PY
       echo "{\"ok\":true,\"action\":\"exists\",\"state_file\":\"$STATE_FILE\",\"project_id\":\"$PID\"}"
       exit 0
     fi
-    python3 - "$STATE_FILE" "$PID" "$PROJECT_ROOT" "$BRANCH" "$GOAL_ID" "$REL" <<'PY'
+    python3 - "$STATE_FILE" "$PID" "$PROJECT_ROOT" "$BRANCH" "$GOAL_ID" "$REL" "$SCRIPT_DIR" <<'PY'
 import json, sys
 from datetime import datetime, timezone
 path, pid, root, branch, goal_id, rel = sys.argv[1:7]
+sys.path.insert(0, sys.argv[7])
+from atomic_json import write_state_atomic
 doc = {
   "schema_version": 1,
   "goal_id": goal_id,
@@ -135,7 +137,7 @@ doc = {
   "created_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
   "kernel": {"entrypoint": "goal-pipeline-kernel", "protocol_version": 1},
 }
-open(path, "w", encoding="utf-8").write(json.dumps(doc, indent=2, ensure_ascii=False) + "\n")
+write_state_atomic(path, doc)
 print(json.dumps({"ok": True, "action": "created", "state_file": path, "project_id": pid}, ensure_ascii=False))
 PY
     ;;

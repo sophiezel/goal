@@ -21,31 +21,37 @@ def script_dir() -> str:
 
 
 def load_detect() -> dict:
-    detect = os.path.join(script_dir(), "detect-review-channels")
-    if not os.path.isfile(detect):
-        return {"has_candidates": False, "selected": None, "error": "detect-review-channels missing"}
-    args = ["python3", detect, "--json"]
-    # Default probe ON for review orchestration; fixtures set GOAL_REVIEW_PROBE=0.
-    if os.environ.get("GOAL_REVIEW_PROBE", "1") == "0":
-        args.append("--no-probe")
-    else:
-        args.append("--probe")
-    proc = subprocess.run(
-        args,
-        capture_output=True,
-        text=True,
-        env=os.environ.copy(),
-    )
-    if proc.returncode != 0:
-        return {
-            "has_candidates": False,
-            "selected": None,
-            "error": (proc.stderr or proc.stdout or "detect failed").strip(),
-        }
+    # Shared TTL cache — same review chain may call guard + orchestrator multiple times.
     try:
-        return json.loads(proc.stdout)
-    except json.JSONDecodeError as exc:
-        return {"has_candidates": False, "selected": None, "error": f"detect JSON parse error: {exc}"}
+        from review_channel_detect_cache import load_detect as cached_load
+
+        return cached_load(script_dir())
+    except Exception:
+        detect = os.path.join(script_dir(), "detect-review-channels")
+        if not os.path.isfile(detect):
+            return {"has_candidates": False, "selected": None, "error": "detect-review-channels missing"}
+        args = ["python3", detect, "--json"]
+        # Default probe ON for review orchestration; fixtures set GOAL_REVIEW_PROBE=0.
+        if os.environ.get("GOAL_REVIEW_PROBE", "1") == "0":
+            args.append("--no-probe")
+        else:
+            args.append("--probe")
+        proc = subprocess.run(
+            args,
+            capture_output=True,
+            text=True,
+            env=os.environ.copy(),
+        )
+        if proc.returncode != 0:
+            return {
+                "has_candidates": False,
+                "selected": None,
+                "error": (proc.stderr or proc.stdout or "detect failed").strip(),
+            }
+        try:
+            return json.loads(proc.stdout)
+        except json.JSONDecodeError as exc:
+            return {"has_candidates": False, "selected": None, "error": f"detect JSON parse error: {exc}"}
 
 
 def selected_label(selected: dict | None) -> str:

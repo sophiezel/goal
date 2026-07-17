@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "assembled_at": "2026-07-10T13:55:13Z",
+  "assembled_at": "2026-07-17T04:11:34Z",
   "task_dir": "/Users/xuwei/Profession/goal/goal-pipeline/scripts/fixtures/guazi-flow-gate/review-unified-good",
   "contract": {
     "goal": "unified mock fixture",
@@ -72,7 +72,7 @@
   "hashes": {
     "candidate_diff_hash": "e3b0c44298fc1c14",
     "code_subject_hash": "e3b0c44298fc1c14",
-    "artifact_hash": "085c13f179a54933",
+    "artifact_hash": "f52e508439972d80",
     "review_subject_hash": "6ca13d52ca70c883",
     "git_head": "abc123",
     "index_schema_hash": "979590212245d766"

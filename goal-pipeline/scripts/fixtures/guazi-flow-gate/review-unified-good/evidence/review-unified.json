@@ -2,7 +2,7 @@
   "schema_version": 1,
   "skill": "goal-pipeline-unified-review",
   "gf_skill_attested": true,
-  "result": "pass",
+  "result": "not_pass",
   "checklist_goal": [
     {
       "id": "goal_achieved",
@@ -36,7 +36,7 @@
     },
     {
       "id": "scope",
-      "passed": true,
+      "passed": false,
       "detail": ""
     },
     {
@@ -67,10 +67,20 @@
       "detail": "mock"
     }
   ],
-  "issues": [],
+  "issues": [
+    {
+      "id": "CHK-SCOPE",
+      "channel": "goal",
+      "severity": "blocker",
+      "summary": "verify-review scope failed",
+      "file": "",
+      "evidence": "",
+      "root_cause": "implement_error"
+    }
+  ],
   "provider": "mock-unified",
   "model": "mock-unified",
-  "packet_hash": "75da63acbcaec9e7",
+  "packet_hash": "2efd826e9075c503",
   "invocation_count": 1,
-  "generated_at": "2026-07-10T13:55:14Z"
+  "generated_at": "2026-07-17T04:11:39Z"
 }

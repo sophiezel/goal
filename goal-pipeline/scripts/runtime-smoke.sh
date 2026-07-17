@@ -120,11 +120,23 @@ smoke() {
   fi
   eval "$dev_cmd" > "$STDOUT_LOG" 2> "$STDERR_LOG" &
   local dev_pid=$!
-  local elapsed=0 interval=2
+  local elapsed=0
+  # Fast poll first 10s (0.5s), then back off to 2s — healthy apps usually ready in 3–5s.
+  local interval_ms=500
   local smoke_pass=false smoke_url="" proc_dead=false
   while [ "$elapsed" -lt "$TIMEOUT" ]; do
-    sleep "$interval"
-    elapsed=$((elapsed + interval))
+    # bash sleep accepts fractional seconds on macOS/Linux
+    if [ "$interval_ms" -lt 1000 ]; then
+      sleep 0.5
+      elapsed=$((elapsed + 1))
+      # count ~0.5s ticks; after ~10s (~20 ticks) switch to 2s
+      if [ "$elapsed" -ge 10 ]; then
+        interval_ms=2000
+      fi
+    else
+      sleep 2
+      elapsed=$((elapsed + 2))
+    fi
     if ! kill -0 "$dev_pid" 2>/dev/null; then proc_dead=true; break; fi
     local http_code
     http_code=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 2 "http://localhost:${detect_port}${HEALTH_PATH}" 2>/dev/null || echo "000")

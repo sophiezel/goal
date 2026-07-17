@@ -234,6 +234,20 @@ def main():
     resolved = [k for k in prev_keys if k not in cur_keys]
     round_n = int(prev.get("round", 0)) + 1 if prev else 1
 
+    # Hard cap on fix rounds (docs promise "10 轮警告" — enforce as blocked).
+    # Infra actions (channel repair) are not code-churn loops and stay exempt.
+    try:
+        max_rounds = int(os.environ.get("GOAL_REVIEW_MAX_ROUNDS", "10") or "10")
+    except ValueError:
+        max_rounds = 10
+    rounds_exhausted = (
+        merged_result != "pass"
+        and round_n > max_rounds
+        and action in ("fix_and_rerun_review", "mini_replan")
+    )
+    if rounds_exhausted:
+        action = "blocked_user_decision"
+
     run_doc = load_json(os.path.join(goal_evidence, "review-run.json"), {})
     provenance = {
         "review_run_id": run_doc.get("run_id", ""),
@@ -242,6 +256,14 @@ def main():
         "channels": run_doc.get("channels", ["goal", "guazi-flow-review"] if unified.get("gf_skill_attested") else ["goal"]),
     }
 
+    next_steps = next_steps_for_action(action)
+    if rounds_exhausted:
+        next_steps = [
+            "review fix rounds exhausted (GOAL_REVIEW_MAX_ROUNDS=%d, round=%d)" % (max_rounds, round_n),
+            "present user options A/B/C/D — do not continue blind fix loops",
+            "optional: raise GOAL_REVIEW_MAX_ROUNDS only with explicit user approval",
+        ]
+
     fix_input = {
         "schema_version": 1,
         "round": round_n,
@@ -249,9 +271,11 @@ def main():
         "action": action,
         "issues": flat,
         "resolved_since_last_round": resolved,
-        "next_steps": next_steps_for_action(action),
+        "next_steps": next_steps,
         "provenance": provenance,
         "classification": "infra_undetermined" if infra_only else "business",
+        "max_rounds": max_rounds,
+        "rounds_exhausted": rounds_exhausted,
     }
     with open(fix_input_path, "w", encoding="utf-8") as f:
         json.dump(fix_input, f, indent=2, ensure_ascii=False)

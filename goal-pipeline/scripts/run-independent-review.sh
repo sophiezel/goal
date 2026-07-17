@@ -105,7 +105,13 @@ PACKET_HASH=$(shasum -a 256 "$PACKET" 2>/dev/null | cut -c1-16 || sha256sum "$PA
 WRITE_SET=$(python3 -c "import json; print(chr(44).join(json.load(open(\"$HANDOFF_DIR/plan.json\")).get(\"write_set\",[])))" 2>/dev/null || echo "")
 # GOAL_EVIDENCE_DIR already exported after path resolve; re-export for safety before L1 verify.
 export GOAL_EVIDENCE_DIR
+# Dedup with review-pre: UVO already ran test/lint/build; default to scope+secret only.
+# Set GOAL_REVIEW_FULL_VERIFY=1 to re-run full verify-review (expensive).
+if [[ "${GOAL_REVIEW_FULL_VERIFY:-0}" != "1" ]]; then
+  export GOAL_SKIP_TEST=1 GOAL_SKIP_BUILD=1 GOAL_SKIP_LINT=1
+fi
 VERIFY_JSON=$("$VERIFY" "$REPO_TASK_DIR" "$WRITE_SET" json || echo "{\"overall\":\"not_pass\"}")
+unset GOAL_SKIP_TEST GOAL_SKIP_BUILD GOAL_SKIP_LINT 2>/dev/null || true
 
 CHANNEL_ARG="unified"
 [[ "$MODE" == "goal" ]] && CHANNEL_ARG="goal"

@@ -95,29 +95,29 @@ Phase 2: Pipeline Execution（Agent 持续执行）
 
 ```
 goal-pipeline/
-├── SKILL.md                          # 核心引擎定义（291 行）
+├── SKILL.md                          # 核心引擎定义（NEVER / 管线权威出处）
+├── stages/goal-*/SKILL.md            # 瘦阶段补丁（plan/implement/quality/review/complete）
+├── schemas/                          # 产物字段契约（含 review-fix-input / state）
 ├── references/                       # 按需加载的参考文档
-│   ├── auto-continue-policy.md       # 停止条件和空转检测
-│   ├── consistency-check.md          # resume 时一致性校验
-│   ├── crash-recovery.md             # 崩溃恢复策略
-│   ├── goal-state-schema.md          # 状态持久化 schema
-│   ├── interview-protocol.md         # 三步收敛访谈协议
-│   ├── platform-detection.md         # 平台检测和能力矩阵
-│   └── separation-strategies.md      # 审核模型多通道策略
-└── scripts/                          # 确定性检查脚本
-    ├── verify.sh                     # 管线状态检查
-    ├── verify-review.sh              # review 确定性检查
-    ├── detect-review-channels        # 审核通道探测
-    ├── detect-platform               # 平台检测
-    ├── check-consistency             # 一致性校验
-    └── runtime-smoke.sh              # 运行时冒烟测试
+│   ├── auto-continue-policy.md
+│   ├── goal-state-schema.md          # 含 .lock + write_state_atomic
+│   ├── interview-protocol.md         # Phase 1 按需
+│   ├── separation-strategies.md      # review 按需
+│   └── failure-code-dictionary.md
+└── scripts/
+    ├── goal-pipeline-kernel.sh       # 控制面 CLI
+    ├── gate-guazi-flow-stage.sh      # 门禁入口（source gate-lib/*）
+    ├── gate-lib/{plan,implement,quality,smoke,review,complete}.sh
+    ├── atomic_json.py                # state 原子写 + flock
+    ├── quality-gate.sh / runtime-smoke.sh / verify-review.sh
+    └── review_channel_detect_cache.py
 
 guazi-flow-goal/
-├── SKILL.md                          # 增强层入口（190 行）
+├── SKILL.md                          # 增强层入口（启动必读瘦身；通用 NEVER 引用 goal-pipeline）
 └── references/
-    ├── bridge-contract.md            # 桥接契约
-    ├── guazi-flow-integration.md     # guazi-flow 调度规则
-    └── guazi-flow-state-schema.md    # guazi-flow 扩展字段
+    ├── bridge-contract.md            # 启动必读
+    ├── guazi-flow-integration.md     # plan 阶段按需
+    └── guazi-flow-state-schema.md    # 点查，无需全文预读
 ```
 
 ---
@@ -205,16 +205,16 @@ Agent 在确定的范围内修改代码，产出候选 diff。
 Agent 只见 `[3/5] quality`。内部编排（`goal-quality` SKILL）：
 
 ```
-runtime-smoke.sh → validate? → e2e? → quality-gate.sh → handoff/quality.json
+runtime-smoke.sh → quality-gate.sh → handoff/quality.json
 ```
 
-| tier | validate | e2e |
-|------|----------|-----|
-| standard | optional | optional |
-| strict | required | required |
+| tier | Agent 侧 validate/e2e | quality-gate |
+|------|----------------------|--------------|
+| standard | optional | 不执行；只读证据 |
+| strict | 推荐执行并留痕 | index 提及 validate/e2e → **WARN**（非 BLOCK） |
 
-- L0：`verification-oracle.json`（UVO）、handoff 链、secret scan
-- L1：smoke / validate / e2e / test+lint，由 `quality-gate.sh` 汇总
+- L0：`verification-oracle.json`（UVO）、handoff 链、secret scan（git diff 变更文件）
+- L1：smoke evidence + IQ 结构检查
 - `quality-gate.sh` 失败 → **BLOCK**（修复子循环或 blocked）
 - 无法推导 dev 命令 → smoke skipped；由 quality-gate 按 tier 裁决
 

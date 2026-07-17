@@ -6,8 +6,14 @@
     "proceed_complete",
     "fix_and_rerun_review",
     "mini_replan",
-    "blocked_user_decision"
+    "blocked_user_decision",
+    "switch_to_cursor_task",
+    "fix_channel"
   ],
+  "optional_fields": {
+    "max_rounds": "integer — GOAL_REVIEW_MAX_ROUNDS cap applied at merge",
+    "rounds_exhausted": "boolean — true when business fix loop exceeded max_rounds"
+  },
   "issue_fields": {
     "id": "string",
     "channel": "goal | guazi-flow-review",

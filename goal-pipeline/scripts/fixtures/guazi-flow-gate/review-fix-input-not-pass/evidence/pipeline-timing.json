@@ -1,0 +1,21 @@
+{
+  "schema_version": 1,
+  "timezone": "UTC",
+  "stages": {
+    "review": {
+      "events": [
+        {
+          "event": "start",
+          "timestamp_utc": "2026-07-17T04:06:16Z"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-07-17T04:12:05Z"
+        }
+      ],
+      "started_at_utc": "2026-07-17T04:12:05Z",
+      "last_timestamp_utc": "2026-07-17T04:12:05Z"
+    }
+  },
+  "updated_at_utc": "2026-07-17T04:12:05Z"
+}

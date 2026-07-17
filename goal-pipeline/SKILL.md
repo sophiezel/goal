@@ -16,7 +16,8 @@ Goal 是一个持久化的工程目标。Agent 接到 goal 后持续执行，不
 ## NEVER
 
 - **NEVER 跳过 Step 1 确定性检查直接调审核模型**——确定性检查零成本（无模型调用），且能发现 secret 泄漏、scope 越界等审核模型容易漏掉的问题
-- **NEVER 在同一 blocker 上无限重试**——同一 issue 已尝试 3 种策略仍未解决必须 blocked，避免 token 浪费
+- **NEVER 在同一 blocker 上无限重试**——同一 issue 已尝试 3 种策略仍未解决必须 blocked；业务修复轮次硬上限 `GOAL_REVIEW_MAX_ROUNDS`（默认 10），超限 → `blocked_user_decision` / `review_rounds_exhausted`
+- **NEVER 跳过 quality_plane_check 完成路径**——`gate --post complete` / `--assert-complete` / `kernel complete` 均须通过 forged/degraded/illegal-UVO 检测
 - **NEVER 让审核模型与执行模型使用同一 provider**——分离置信度降为 medium，审核独立性受损
 - **NEVER 在 review 通过前将 goal.status 设为 complete**——complete 需要所有门禁（review + quality + evidence + verify.sh）全部通过
 - **NEVER 在 state.json 中存储明文 API key**——key 存入 `~/.goal-state/config.json`，state.json 仅存审核结论
@@ -153,11 +154,11 @@ quality 为 Lean 单阶段；`runtime_smoke` 仅为脚本/gate 别名，不单�
 内部编排（`goal-quality` SKILL）：
 
 ```text
-runtime-smoke.sh → validate? → e2e? → quality-gate.sh → handoff/quality.json
+runtime-smoke.sh → quality-gate.sh → handoff/quality.json
 ```
 
 - 推导 dev 命令 → 安装依赖（如需要）→ 启动 → HTTP 探测 → `evidence/runtime-smoke.md`
-- `quality-gate.sh` 汇总 L0（UVO、handoff 链、secret）+ L1（smoke/validate/e2e/test+lint）
+- `quality-gate.sh` 汇总 L0（UVO、handoff 链、diff secret）+ L1（smoke evidence、IQ 结构）；strict 下 validate/e2e 仅为 index 引用 **WARN**
 - gate 失败 → **BLOCK**（修复子循环）；无法推导 dev 命令 → smoke skipped，由 quality-gate 按 tier 裁决
 - 输出：`"[3/5] quality: …"`（由 `goal-stage-driver.sh` 统一标签）
 

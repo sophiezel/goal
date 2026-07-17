@@ -6,7 +6,7 @@
   "required": ["status", "current_stage"],
   "properties": {
     "status": { "enum": ["active", "complete", "blocked", "paused"] },
-    "current_stage": { "enum": ["plan", "implement", "smoke", "review", "complete"] },
+    "current_stage": { "enum": ["plan", "implement", "quality", "smoke", "review", "complete"] },
     "project_id": { "type": "string" },
     "branch": { "type": "string" },
     "task": { "type": "string" },

@@ -61,6 +61,10 @@ bash "$ASSEMBLE" "${COMMON_ARGS[@]}"
 echo "review-chain [2/4] run-independent-review --mode $MODE"
 [[ -f "$GUARD" ]] || { echo "review-chain: review-channel-guard.py missing" >&2; exit 1; }
 
+# Share detect probe cache across guard → run-independent-review → orchestrator (TTL 10min).
+export GOAL_REVIEW_DETECT_CACHE="${GOAL_REVIEW_DETECT_CACHE:-$(mktemp -t goal-review-detect.XXXXXX.json)}"
+trap 'rm -f "${GOAL_REVIEW_DETECT_CACHE:-}"' EXIT
+
 # Fail-fast: 0 usable review channels OR configured-but-unreachable → skip L2 timeout storm.
 CHANNEL_JSON=$(python3 "$GUARD" --resolve --provider "" --model "" --force-det 0 --mode "$MODE" --format json 2>/dev/null || echo '{"has_candidates":false}')
 HAS_CH=$(echo "$CHANNEL_JSON" | python3 -c "import json,sys; print('1' if json.load(sys.stdin).get('has_candidates') else '0')" 2>/dev/null || echo 0)

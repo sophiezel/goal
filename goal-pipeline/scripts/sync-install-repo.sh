@@ -150,6 +150,18 @@ deploy_runtime() {
   done
   shopt -u nullglob
 
+  # Stage gate bodies (sourced by gate-guazi-flow-stage.sh)
+  if [[ -d "$scripts_dir/gate-lib" ]]; then
+    mkdir -p "$GOAL_STATE_HOME/scripts/gate-lib"
+    rm -f "$GOAL_STATE_HOME/scripts/gate-lib/"*.sh 2>/dev/null || true
+    for src in "$scripts_dir"/gate-lib/*.sh; do
+      [[ -f "$src" ]] || continue
+      cp "$src" "$GOAL_STATE_HOME/scripts/gate-lib/$(basename "$src")"
+      chmod +x "$GOAL_STATE_HOME/scripts/gate-lib/$(basename "$src")"
+      deployed=$((deployed + 1))
+    done
+  fi
+
   if [[ "$deployed" -eq 0 ]]; then
     warn "no runtime scripts deployed from $scripts_dir"
     return 1

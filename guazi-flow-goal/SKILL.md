@@ -12,34 +12,21 @@ description: guazi-flow-goal 统一入口。加载 goal-pipeline 管线引擎，
 
 ## NEVER
 
+**管线通用 NEVER 以 `goal-pipeline/SKILL.md` 为唯一权威出处**（plan-before-code / noop_fix / review 分流 / complete 门禁等）。本层仅列 guazi 桥接特有红线：
+
 - **NEVER 在 GATE 检查失败后继续执行 guazi-flow 调度**——GATE 不可读必须设 `guazi_flow_available = false` 并降级为纯 goal-pipeline
 - **NEVER 跳过 Lazy Loading 直接执行阶段**——不加载阶段 SKILL.md → 产物不符合 guazi-flow schema → review 必定 not_pass
 - **NEVER 在 `~/.goal-state/` 中写入 guazi-flow 项目配置**——`.guazi-flow/config.local.json` 只存 JIRA_TOKEN/repos 等 guazi-flow 自身字段，goal 产物不混入
 - **NEVER 在 guazi-flow 不可用时强制加载 guazi-flow-* skills**——降级为纯 goal-pipeline 运行，不阻断管线
 - **NEVER 修改 goal-pipeline 的 state.json 基础字段**——guazi-flow 扩展字段（guazi_flow_*）只能追加，不覆盖管线字段
-- **NEVER 在 guazi-flow-plan 产出前修改项目代码**——plan 未完成时改代码会导致 write_set 不匹配，implement 阶段无法正确驱动
-- **NEVER 在 `gate --post plan`（handoff/plan.json.gate.passed_at）之前写 `src/**` 或 write_set 业务代码**——硬门禁 `assert-plan-before-code` / `gate --pre plan|implement`；违规 → `blocked(failure_code: plan_code_order)`，先 stash/reset 再补 plan，禁止「脏树上追文档」
-- **NEVER 将 plan Todo 与「写列表/写服务/写页面」Todo 并列**——仅输出 `[1/5] plan`；`gate --post plan` exit 0 后才可创建 implement 写代码 Todo
-- **NEVER 在 guazi-flow-plan 产出 index.md 前进入 implement**——MUST 先执行 guazi-flow-plan 完整流程（见关键执行协议），验证 index.md 存在且包含必需章节（核心事实/完整伪代码/验收矩阵/执行记录），否则 blocked（failure_code: plan_artifact_missing / plan_schema_incomplete）
+- **NEVER 在 guazi-flow-plan 产出 index.md 前进入 implement**——MUST 先执行 guazi-flow-plan 完整流程，验证必需章节；否则 blocked（plan_artifact_missing / plan_schema_incomplete）
 - **NEVER 跳过 [1/5] plan 进度输出**——缺少 [1/5] 输出说明 plan 被跳过，必须立即暂停并报告
-- **NEVER 在 blocked(noop_fix) 后原命令盲重试**——只读 fix-input 的 recommended/next_steps，实质改产物后再 gate
-- **NEVER 在 0 可用 review channel 时强跑完整 L2 API cascade**——走 `separation=degraded` / deterministic_scope_only（goal-run-review-chain 已 fail-fast）
 - **NEVER 在 implement Dev Loop 连跑全量 `yarn build:beta`**——本地仅 related-tests；全量验证留给 implement gate 内 UVO 一次
-- **NEVER 在 implement 代码完成后跳过 Stage Exit**——MUST 先 gate --post implement（内含 **verification-oracle 一次** + **acceptance-matrix-ratchet**）→ goal-advance-stage → validate-pipeline-chain（exit 0）再输出 [2/5] ✅
-- **NEVER 在无 src diff 的 review-packet 上调用 LLM**——assemble 末尾 MUST 通过 `review_packet_preflight.py`（PKT-01/02/03）
-- **推荐 commit feature 后再跑 implement/quality/review gates**——保证 `plan.reference_branch`（默认 `main...HEAD`）diff 稳定
-- **NEVER 在 [5/5] complete 前以「如需继续」「需要我跑 review 吗」交还控制权**——implement 完成 ≠ goal 完成，必须自动进入 review → complete
-- **NEVER 跳过 [3/5] quality 或未跑 gate --post quality**——条件 smoke + quality-gate（读 evidence，不重跑 UVO/smoke）后 MUST gate --stage quality --post
-- **NEVER 跳过 [4/5] review 或未跑 run-independent-review.sh**——review-run.json provenance 缺失则 gate --post review 失败
-- **NEVER 自填 review-unified.json 绕过独立审核**——MUST assemble-review-packet → run-independent-review → merge-review-issues
-- **NEVER 手改 review 产物**——修复前 MUST Read `evidence/review-fix-input.json`；禁止直接解析 review-unified.json / review.md 做修复分流
-- **NEVER 在 gate 失败时跳过 fix-input**——plan/implement MUST Read `evidence/<stage>-gate-fix-input.json` 的 `issues` / `next_steps`；首屏输出 Issue 清单（gate 脚本已打印）
-- **NEVER 在 gate 失败会话中直接改产物**——Judge（gate/审核）与 Executor（plan/implement skill）分离；修复轮由 Executor 按 fix-input 执行
-- **NEVER 在 subject_hash 未变时重复 gate**——`blocked(noop_fix)` 表示修复无效，须实质性修改产物后再跑
-- **NEVER 因仅追加 `## 执行记录` 触发 mini-replan**——执行记录变更用 `refresh-handoffs-after-index.sh --cascade implement`；仅当 `index_contract_hash`（契约段）变化时才 `gate --post plan`
-- **NEVER 输出 [N/5] ✅ 而未运行 gate --post（exit 0）**——进度行必须对应机器门禁通过
+- **NEVER 在 implement 代码完成后跳过 Stage Exit**——MUST gate --post implement → advance → validate-pipeline-chain（exit 0）再输出 [2/5] ✅
+- **NEVER 因仅追加 `## 执行记录` 触发 mini-replan**——执行记录用 `refresh-handoffs-after-index.sh --cascade implement`；仅 `index_contract_hash` 变化才 `gate --post plan`
 - **NEVER 在 ~/.goal-state/scripts/ 缺失时进入 Phase 2**——先 Pre-flight 部署或 blocked(infra_missing)
-- **NEVER 因「需求已清晰」跳过 Phase 1  entirely**——Fast-path 仍须创建 state.json 并输出 Goal 摘要
+- **NEVER 因「需求已清晰」跳过 Phase 1 entirely**——Fast-path 仍须创建 state.json 并输出 Goal 摘要
+- **推荐 commit feature 后再跑 implement/quality/review gates**——保证 `plan.reference_branch` diff 稳定
 
 ## 关键执行协议（Phase 2 必读）
 
@@ -52,18 +39,23 @@ guazi_flow_available = true 时，plan 阶段执行方式：
 
 ## 必读 references
 
-### 启动时加载（MANDATORY）
+### 启动时加载（MANDATORY — 控制在 ~18k tokens）
 
 | 文件 | 用途 |
 |------|------|
-| `goal-pipeline/SKILL.md` | 通用管线引擎定义（管线流程、修复循环、审核、进度可见化） |
+| `goal-pipeline/SKILL.md` | 通用管线引擎定义（管线流程、修复循环、审核、进度可见化、NEVER 权威出处） |
 | `references/bridge-contract.md` | 桥接契约（goal-pipeline ↔ guazi-flow 映射规则、扩展字段、降级策略） |
-| `references/guazi-flow-integration.md` | guazi-flow 调度规则（MUST + 条件触发） |
-| `references/guazi-flow-state-schema.md` | guazi-flow 扩展字段定义和写入边界 |
-| `references/artifact-tier-policy.md` | Tier-G / Tier-R 产物分层与 MR 提交策略 |
-| `goal-pipeline/references/interview-protocol.md` | 三步收敛访谈协议 |
-| `goal-pipeline/references/platform-detection.md` | 平台检测和能力矩阵 |
-| `goal-pipeline/references/separation-strategies.md` | 审核模型多通道探测策略 |
+
+### 阶段内按需加载（进入对应阶段 / Phase 前 MUST）
+
+| 时机 | 文件 | 用途 |
+|------|------|------|
+| Phase 1 开始前 | `goal-pipeline/references/interview-protocol.md` | 三步收敛访谈协议 |
+| Phase 1 开始前 | `goal-pipeline/references/platform-detection.md` | 平台检测和能力矩阵 |
+| plan 开始前（guazi 可用） | `references/guazi-flow-integration.md` | guazi-flow 调度规则与产物质量 GATE |
+| review 开始前 | `goal-pipeline/references/separation-strategies.md` | 审核模型多通道探测策略 |
+
+脚本已处理、Agent **无需全文预读**（需要时按路径点查即可）：`references/guazi-flow-state-schema.md`、`references/artifact-tier-policy.md`。
 
 ### guazi-flow 可用性检测
 

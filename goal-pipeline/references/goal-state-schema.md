@@ -195,14 +195,14 @@
 
 锁文件: `~/.goal-state/projects/<project_id>/<branch>/<task>/.lock`
 
-- 记录: `pid + created_at + heartbeat_at`
-- 同三元组只允许一个 active goal
-- 不同分支/不同 task/不同 project_id 可并行
-- Stale lock: heartbeat 超 5min + pid 不存活 → 接管
+- 实现：`scripts/atomic_json.py` 的 `state_lock()`（Unix `fcntl.flock`，超时默认 30s）
+- `write_state_atomic()`：持锁 + temp 文件 + `os.replace` + `fsync`
+- 同三元组串行写 state；不同分支/不同 task/不同 project_id 可并行
+- 无 flock 平台（极少见）：降级为仅原子 rename，不阻塞
 
 ## 持久化保证
 
-- 每次状态变更后 `fsync` state.json
+- 每次状态变更经 `write_state_atomic`（temp + rename + fsync）
 - 崩溃恢复从 state.json + git + evidence 重建
 - `state.json` 优先于 agent 内存状态
 

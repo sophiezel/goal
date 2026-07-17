@@ -38,22 +38,32 @@ def tier_limits(state: dict[str, Any]) -> tuple[int, int, int]:
 
 
 def load_detect(script_dir: str) -> dict[str, Any]:
-    detect = os.path.join(script_dir, "detect-review-channels")
-    if not os.path.isfile(detect):
-        return {"has_candidates": False, "ranked": [], "selected": None}
-    # Probe timeout is short (default 8s) but N providers × serial can approach 15–30s.
-    args = ["python3", detect, "--json"]
-    if os.environ.get("GOAL_REVIEW_PROBE", "1") == "0":
-        args.append("--no-probe")
-    else:
-        args.append("--probe")
-    proc = subprocess.run(args, capture_output=True, text=True, timeout=45)
-    if proc.returncode != 0:
-        return {"has_candidates": False, "ranked": [], "selected": None, "error": (proc.stderr or proc.stdout)[:200]}
+    # Shared TTL cache with review-channel-guard (same review chain).
     try:
-        return json.loads(proc.stdout)
-    except json.JSONDecodeError:
-        return {"has_candidates": False, "ranked": [], "selected": None}
+        from review_channel_detect_cache import load_detect as cached_load
+
+        return cached_load(script_dir)
+    except Exception:
+        detect = os.path.join(script_dir, "detect-review-channels")
+        if not os.path.isfile(detect):
+            return {"has_candidates": False, "ranked": [], "selected": None}
+        args = ["python3", detect, "--json"]
+        if os.environ.get("GOAL_REVIEW_PROBE", "1") == "0":
+            args.append("--no-probe")
+        else:
+            args.append("--probe")
+        proc = subprocess.run(args, capture_output=True, text=True, timeout=45)
+        if proc.returncode != 0:
+            return {
+                "has_candidates": False,
+                "ranked": [],
+                "selected": None,
+                "error": (proc.stderr or proc.stdout)[:200],
+            }
+        try:
+            return json.loads(proc.stdout)
+        except json.JSONDecodeError:
+            return {"has_candidates": False, "ranked": [], "selected": None}
 
 
 def _flush_attempts(attempts: list[dict[str, Any]]) -> None:

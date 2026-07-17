@@ -11,18 +11,19 @@ test
 none
 ## Goal Pipeline Review
 
-_merged at 2026-07-10T13:55:14Z_
+_合并时间 2026-07-17T04:11:41Z_
 
-**goal_result**: pass
-**merged_result**: pass
-**action**: proceed_complete
+**goal 通道结果**: 未通过
+**合并结果**: 未通过
+**建议动作**: 需用户决策
 
-### issues_goal
+### goal 通道问题
 
-| ID | Severity | Summary | Root cause |
-|----|----------|---------|------------|
+| ID | 严重程度 | 摘要 | 根因 |
+|----|----------|------|------|
+| CHK-SCOPE | 阻断 | verify-review scope failed | implement_error |
 
-### issues_gf
+### guazi-flow 通道问题
 
-| ID | Severity | Summary | Root cause |
-|----|----------|---------|------------|
+| ID | 严重程度 | 摘要 | 根因 |
+|----|----------|------|------|

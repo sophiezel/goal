@@ -17,6 +17,7 @@
 | secret / 保护分支 | `suspected_secret`, `protected_branch` | L0 / delivery |
 | 无证据合入 | `delivery_evidence_missing`, `review_stale`, `postmerge_required` | Delivery Gate |
 | 修复无效 | `noop_fix` | subject_hash ratchet |
+| 修复轮次耗尽 | `review_rounds_exhausted` | merge + review gate post (`GOAL_REVIEW_MAX_ROUNDS`) |
 | 状态分裂 | `project_id_mismatch`, `state_ambiguous` | 数据面 SSOT |
 | 基础设施 | `infra_missing` | preflight / doctor |
 
@@ -40,4 +41,4 @@
 | Kernel WO | `blocked` 时 `mandatory_commands` 指向读 fix-input；禁止未读乱修 |
 | quality_plane_check / complete | 禁止 silent pass；假 review / 跳 UVO 硬失败 |
 
-完成侧：`goal-pipeline-kernel complete` → `quality_plane_check --mode complete` → `gate --assert-complete`。
+完成侧：`gate --post complete` / `gate --assert-complete` / `goal-pipeline-kernel complete` 均强制 `quality_plane_check --mode complete`（禁止绕过 forged/degraded 检测）。

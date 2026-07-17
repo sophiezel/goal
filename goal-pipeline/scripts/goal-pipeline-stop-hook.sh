@@ -59,10 +59,12 @@ PY
 mark_state_complete() {
   local sf="$1"
   [[ -f "$sf" ]] || return 0
-  python3 - "$sf" << 'PY'
+  python3 - "$sf" "$SCRIPT_DIR" << 'PY'
 import json, sys
 from datetime import datetime, timezone
 path = sys.argv[1]
+sys.path.insert(0, sys.argv[2])
+from atomic_json import write_state_atomic
 with open(path, encoding="utf-8") as f:
     state = json.load(f)
 if state.get("status") == "complete":
@@ -71,13 +73,11 @@ state["status"] = "complete"
 state["current_stage"] = "complete"
 state["updated_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 pipe = state.setdefault("pipeline", {})
-for stage in ("plan", "implement", "runtime_smoke", "review", "complete"):
+for stage in ("plan", "implement", "quality", "review", "complete"):
     entry = pipe.setdefault(stage, {})
     entry["status"] = "passed"
     entry["evidence_fresh"] = True
-with open(path, "w", encoding="utf-8") as f:
-    json.dump(state, f, indent=2, ensure_ascii=False)
-    f.write("\n")
+write_state_atomic(path, state)
 PY
 }
 

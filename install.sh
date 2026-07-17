@@ -296,6 +296,15 @@ else
     chmod +x "$GOAL_STATE_HOME/scripts/$base"
     deployed=$((deployed + 1))
   done
+  if [ -d "$SCRIPTS_SRC/gate-lib" ]; then
+    mkdir -p "$GOAL_STATE_HOME/scripts/gate-lib"
+    for src in "$SCRIPTS_SRC"/gate-lib/*.sh; do
+      [ -f "$src" ] || continue
+      cp "$src" "$GOAL_STATE_HOME/scripts/gate-lib/$(basename "$src")"
+      chmod +x "$GOAL_STATE_HOME/scripts/gate-lib/$(basename "$src")"
+      deployed=$((deployed + 1))
+    done
+  fi
   echo "  ✅ Scripts deployed to $GOAL_STATE_HOME/scripts/ ($deployed files)"
 # Write VERSION manifest with gate script hash for drift detection
 GATE_SRC="$REPO_DIR/goal-pipeline/scripts/gate-guazi-flow-stage.sh"

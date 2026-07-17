@@ -4,7 +4,7 @@
     "stop": [
       {
         "command": ".cursor/hooks/guazi-flow-goal-stop.sh",
-        "loop_limit": 3
+        "loop_limit": 10
       }
     ]
   }

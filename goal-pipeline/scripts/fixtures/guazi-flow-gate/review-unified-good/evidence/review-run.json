@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "run_id": "3e8b3f6e19ffbe0b",
+  "run_id": "e81b7764b2cca22c",
   "provider": "mock-unified",
   "model": "mock-unified",
   "mode": "unified",
@@ -11,13 +11,29 @@
   "invocation_count": 1,
   "gf_skill_attested": true,
   "gf_rubric_source": "952cc5200d905df7",
-  "packet_hash": "75da63acbcaec9e7",
+  "packet_hash": "2efd826e9075c503",
   "packet_path": "handoff/review-packet.json",
-  "latency_ms": 298,
+  "latency_ms": 4965,
   "tokens": {},
-  "output_hash": "b95f1db12af70fcc",
-  "started_at": "2026-07-10T13:55:13Z",
-  "finished_at": "2026-07-10T13:55:14Z",
+  "output_hash": "6875228c9608811b",
+  "started_at": "2026-07-17T04:11:34Z",
+  "finished_at": "2026-07-17T04:11:39Z",
+  "fallback_layer": "packet_vertical",
+  "review_depth": "light",
+  "attempts": [
+    {
+      "layer": "vertical",
+      "fallback_layer": "packet_vertical",
+      "provider": "mock-unified",
+      "model": "",
+      "packet_variant": "scoped",
+      "shard_id": "",
+      "latency_ms": 126,
+      "result": "pass",
+      "error": null,
+      "error_kind": ""
+    }
+  ],
   "channel_guard": {
     "has_candidates": true,
     "selected_provider": "mock-unified",

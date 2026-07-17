@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "timezone": "UTC",
+  "stages": {
+    "plan": {
+      "events": [
+        {
+          "event": "start",
+          "timestamp_utc": "2026-07-17T04:05:30Z"
+        },
+        {
+          "event": "end",
+          "timestamp_utc": "2026-07-17T04:05:34Z"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-07-17T04:11:24Z"
+        },
+        {
+          "event": "end",
+          "timestamp_utc": "2026-07-17T04:11:24Z"
+        }
+      ],
+      "started_at_utc": "2026-07-17T04:11:24Z",
+      "last_timestamp_utc": "2026-07-17T04:11:24Z"
+    }
+  },
+  "updated_at_utc": "2026-07-17T04:11:24Z"
+}

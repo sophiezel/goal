@@ -1,7 +1,7 @@
 # Review transcript
 
-| Channel | Result | Issues |
-|---------|--------|--------|
-| guazi-flow-review | pass | 0 |
-| goal | pass | 0 |
-| merged | pass | action=proceed_complete |
+| 通道 | 结果 | 问题数 |
+|------|------|--------|
+| guazi-flow-review | 通过 | 0 |
+| goal | 未通过 | 1 |
+| 合并 | 未通过 | action=需用户决策 |
