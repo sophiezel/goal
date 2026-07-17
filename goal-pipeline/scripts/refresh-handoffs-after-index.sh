@@ -60,8 +60,10 @@ FRESH=$(python3 "$HASH_PY" --json "$INDEX" "$PLAN_JSON")
 CONTRACT_CHANGED=$(echo "$FRESH" | python3 -c "import json,sys; print(json.load(sys.stdin).get('contract_changed', False))")
 EXEC_CHANGED=$(echo "$FRESH" | python3 -c "import json,sys; print(json.load(sys.stdin).get('execution_changed', False))")
 FRESH_OK=$(echo "$FRESH" | python3 -c "import json,sys; print(json.load(sys.stdin).get('fresh', True))")
+SHRINK_ONLY=$(echo "$FRESH" | python3 -c "import json,sys; print(json.load(sys.stdin).get('write_set_shrink_only', False))")
 
 CASCADE="none"
+SKIP_ASSEMBLE_IF_HASH_SAME=0
 if [[ -n "$FORCE_CASCADE" && "$FORCE_CASCADE" != "auto" ]]; then
   CASCADE="$FORCE_CASCADE"
   # Guard: execution-only drift must never force mini-replan (B1 complete regression).
@@ -69,8 +71,18 @@ if [[ -n "$FORCE_CASCADE" && "$FORCE_CASCADE" != "auto" ]]; then
     echo "refresh-handoffs: REJECT cascade=plan when only execution record changed — demote to implement" >&2
     CASCADE="implement"
   fi
+  # Pack B: write_set shrink must not mini-replan / invalidate review LLM
+  if [[ "$CASCADE" == "plan" && "$SHRINK_ONLY" == "True" ]]; then
+    echo "refresh-handoffs: REJECT cascade=plan for write_set shrink-only — demote to implement" >&2
+    CASCADE="implement"
+    SKIP_ASSEMBLE_IF_HASH_SAME=1
+  fi
 elif [[ "$CONTRACT_CHANGED" == "True" ]]; then
   CASCADE="plan"
+elif [[ "$SHRINK_ONLY" == "True" ]]; then
+  echo "refresh-handoffs: write_set shrink-only → implement (keep review if code hash unchanged)" >&2
+  CASCADE="implement"
+  SKIP_ASSEMBLE_IF_HASH_SAME=1
 elif [[ "$EXEC_CHANGED" == "True" || "$FRESH_OK" != "True" ]]; then
   CASCADE="implement"
 else
@@ -106,10 +118,55 @@ case "$CASCADE" in
       "$GATE" "${COMMON_GATE[@]}" --stage plan --post
       ACTIONS+=("gate_post_plan_migrate")
     fi
+    # Sync pruned write_set from index into plan.json without plan cascade
+    if [[ "$SHRINK_ONLY" == "True" ]]; then
+      python3 - "$INDEX" "$PLAN_JSON" "$HASH_PY" << 'PYSYNC'
+import json, sys, importlib.util
+index_path, plan_path, helper = sys.argv[1], sys.argv[2], sys.argv[3]
+spec = importlib.util.spec_from_file_location("ich", helper)
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+text = open(index_path, encoding="utf-8").read()
+new_ws = mod._extract_write_set_paths_from_index(text)
+plan = json.load(open(plan_path, encoding="utf-8"))
+if new_ws:
+    plan["write_set"] = new_ws
+    plan["write_set_shrink_synced"] = True
+    plan["index_contract_hash"] = mod.index_contract_hash(index_path)
+    plan["index_execution_tail_hash"] = mod.index_execution_tail_hash(index_path)
+    with open(plan_path, "w", encoding="utf-8") as f:
+        json.dump(plan, f, indent=2, ensure_ascii=False)
+        f.write("\n")
+PYSYNC
+      ACTIONS+=("sync_write_set_shrink")
+    fi
     "$GATE" "${COMMON_GATE[@]}" --stage implement --post
     ACTIONS+=("gate_post_implement")
-    "$ASSEMBLE" "${COMMON_ASM[@]}" >/dev/null
-    ACTIONS+=("assemble_review_packet")
+    DO_ASSEMBLE=1
+    if [[ "$SKIP_ASSEMBLE_IF_HASH_SAME" == "1" && -f "$HANDOFF_DIR/review-packet.json" && -f "$GOAL_EVIDENCE_DIR/review-run.json" ]]; then
+      SAME=$(python3 - "$HANDOFF_DIR/review-packet.json" "$GOAL_EVIDENCE_DIR/verification-oracle.json" << 'PYH' 2>/dev/null || echo 0
+import json, sys
+pkt = json.load(open(sys.argv[1], encoding="utf-8"))
+uvo = {}
+try:
+    uvo = json.load(open(sys.argv[2], encoding="utf-8"))
+except Exception:
+    pass
+old = pkt.get("code_subject_hash") or pkt.get("candidate_diff_hash") or ""
+new = uvo.get("code_subject_hash") or uvo.get("candidate_diff_hash") or ""
+print("1" if old and new and old == new else "0")
+PYH
+)
+      if [[ "$SAME" == "1" ]]; then
+        echo "refresh-handoffs: skip assemble — code_subject_hash unchanged (preserve review)" >&2
+        DO_ASSEMBLE=0
+        ACTIONS+=("skip_assemble_preserve_review")
+      fi
+    fi
+    if [[ "$DO_ASSEMBLE" == "1" ]]; then
+      "$ASSEMBLE" "${COMMON_ASM[@]}" >/dev/null
+      ACTIONS+=("assemble_review_packet")
+    fi
     ;;
   packet)
     echo "refresh-handoffs: assemble review packet only" >&2

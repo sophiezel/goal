@@ -9,9 +9,21 @@ import subprocess
 from typing import Any
 
 
+def _normalize_write_set_glob(entry: str) -> str:
+    """Normalize write_set entry: src/foo/** → src/foo (directory prefix)."""
+    w = (entry or "").strip().strip("`").strip()
+    if not w:
+        return ""
+    if w.endswith("/**/"):
+        w = w[:-4]
+    elif w.endswith("/**"):
+        w = w[:-3]
+    return w.rstrip("/")
+
+
 def path_allowed(path: str, allowed: list[str]) -> bool:
-    for w in allowed:
-        w = (w or "").strip().rstrip("/")
+    for raw in allowed:
+        w = _normalize_write_set_glob(raw)
         if not w:
             continue
         if path == w or path.startswith(w + "/"):
@@ -222,6 +234,19 @@ def code_subject_hash(repo_root: str, write_set: list[str] | None = None, ref_br
                 names.extend(line.strip() for line in r.stdout.splitlines() if line.strip())
         if ws:
             names = [n for n in names if path_allowed(n, ws)]
+        # Include file contents so untracked/new write_set files change the hash
+        # (name-only hash caused noop_fix after creating new pages).
+        chunks: list[str] = []
+        for n in sorted(set(names)):
+            fp = os.path.join(repo_root, n)
+            try:
+                with open(fp, "rb") as fh:
+                    digest = hashlib.sha256(fh.read()).hexdigest()[:16]
+                chunks.append(f"{n}:{digest}")
+            except OSError:
+                chunks.append(f"{n}:missing")
+        if chunks:
+            return _hash_text("\n".join(chunks))
         return _hash_text("\n".join(sorted(set(names))))
     except (OSError, subprocess.TimeoutExpired):
         return "unknown"

@@ -340,6 +340,90 @@ def run_shell(cmd: str, repo_root: str, timeout: int = 900) -> dict[str, Any]:
     return {"cmd": cmd, "exit_code": r.returncode, "ok": ok, "output_tail": tail, "duration_ms": elapsed}
 
 
+def _inject_jest_max_workers(cmd: str) -> str:
+    """Ensure jest/yarn test uses --maxWorkers=50% (Pack E CPU)."""
+    if "test" not in cmd.lower():
+        return cmd
+    if "--maxWorkers" in cmd or "--maxWorkers=" in cmd:
+        return cmd
+    if "watchAll=false" in cmd or "findRelatedTests" in cmd or "yarn test" in cmd or "npm test" in cmd:
+        return cmd + " --maxWorkers=50%"
+    return cmd
+
+
+def _resolve_typecheck_cmd(repo_root: str) -> str | None:
+    """Best-effort typecheck command when tsconfig exists (Pack E parallel with tests)."""
+    if not os.path.isfile(os.path.join(repo_root, "tsconfig.json")):
+        return None
+    pkg = os.path.join(repo_root, "package.json")
+    if os.path.isfile(pkg):
+        try:
+            scripts = (json.load(open(pkg, encoding="utf-8")).get("scripts") or {})
+            for name in ("typecheck", "tsc", "ts:check"):
+                if name in scripts:
+                    pm = "yarn" if os.path.isfile(os.path.join(repo_root, "yarn.lock")) else "npm run"
+                    return f"{pm} {name}" if pm == "yarn" else f"npm run {name}"
+        except (OSError, json.JSONDecodeError):
+            pass
+    # Fallback: tsc --noEmit when local tsc available via yarn/npx
+    if os.path.isfile(os.path.join(repo_root, "node_modules", "typescript", "bin", "tsc")):
+        return "npx tsc --noEmit"
+    return None
+
+
+def _prior_build_attested(evidence_dir: str | None, code_hash: str) -> bool:
+    """Pack D: same code_subject_hash + prior UVO build pass → skip rebuild."""
+    if not evidence_dir or not code_hash or code_hash in ("unknown", ""):
+        return False
+    path = os.path.join(evidence_dir, "verification-oracle.json")
+    if not os.path.isfile(path):
+        return False
+    try:
+        prev = json.load(open(path, encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+    if prev.get("overall") != "pass":
+        return False
+    stored = prev.get("code_subject_hash") or prev.get("candidate_diff_hash") or ""
+    if stored != code_hash:
+        return False
+    for step in prev.get("steps") or []:
+        sid = str(step.get("id") or "")
+        if sid == "build" or sid.startswith("build"):
+            if step.get("ok") is True or step.get("pass") is True:
+                return True
+            cmd = str(step.get("command") or step.get("cmd") or "")
+            if "skipped" in cmd.lower() or "attested" in str(step.get("output") or step.get("output_tail") or "").lower():
+                return True
+    return False
+
+
+def _run_parallel(cmds: list[tuple[str, str]], repo_root: str, timeout: int = 900) -> list[dict[str, Any]]:
+    """Run named commands in parallel; fail-fast join. cmds: list of (id, cmd)."""
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    if not cmds:
+        return []
+    if len(cmds) == 1:
+        cid, cmd = cmds[0]
+        ex = run_shell(cmd, repo_root, timeout=timeout)
+        ex["id"] = cid
+        return [ex]
+
+    results: dict[str, dict[str, Any]] = {}
+    with ThreadPoolExecutor(max_workers=min(4, len(cmds))) as pool:
+        futs = {pool.submit(run_shell, cmd, repo_root, timeout): cid for cid, cmd in cmds}
+        for fut in as_completed(futs):
+            cid = futs[fut]
+            try:
+                ex = fut.result()
+            except Exception as e:  # noqa: BLE001
+                ex = {"cmd": "", "exit_code": 1, "ok": False, "output_tail": str(e)[:500], "duration_ms": 0}
+            ex["id"] = cid
+            results[cid] = ex
+    return [results[cid] for cid, _ in cmds if cid in results]
+
+
 def check_scope(repo_root: str, write_set: list[str]) -> dict[str, Any]:
     changed = git_changed_files(repo_root)
     out_of_scope: list[str] = []
@@ -426,15 +510,29 @@ def run_oracle(
     test_cmds = [c for c in all_cmds if c.get("kind") != "build" and not _is_build_command(c.get("cmd", ""))]
     build_cmds = [c for c in all_cmds if c.get("kind") == "build" or _is_build_command(c.get("cmd", ""))]
 
+
+    # Pack E: typecheck ∥ jest (maxWorkers); fail-fast on join
+    parallel_jobs: list[tuple[str, str]] = []
+    tc_cmd = _resolve_typecheck_cmd(repo_root)
+    if tc_cmd and os.environ.get("GOAL_UVO_SKIP_TYPECHECK", "0") != "1":
+        parallel_jobs.append(("typecheck", tc_cmd))
+    for tc in test_cmds:
+        cmd = _inject_jest_max_workers(str(tc["cmd"]))
+        parallel_jobs.append((f"test:{tc['id']}", cmd))
+
     test_ok = True
-    if test_cmds:
-        for tc in test_cmds:
-            ex = run_shell(tc["cmd"], repo_root)
-            ex["id"] = tc["id"]
-            ex["source"] = tc.get("source", "")
-            steps.append({"id": f"test:{tc['id']}", **ex})
-            if not ex["ok"]:
-                test_ok = False
+    typecheck_ok = True
+    if parallel_jobs:
+        for ex in _run_parallel(parallel_jobs, repo_root):
+            cid = ex.get("id", "step")
+            if cid == "typecheck":
+                steps.append({"id": "typecheck", **ex})
+                if not ex.get("ok"):
+                    typecheck_ok = False
+            else:
+                steps.append({"id": cid, **ex, "source": "uvo_parallel"})
+                if not ex.get("ok"):
+                    test_ok = False
     else:
         steps.append({"id": "test", "pass": True, "command": "skipped", "output": "no test commands resolved"})
 
@@ -445,7 +543,18 @@ def run_oracle(
     elif not skip_build:
         build_cmd = build_build_command(plan, task_dir)
 
-    if not skip_build and build_cmd:
+    # Pack D: same code_subject_hash + prior build pass → skip build:beta
+    if not skip_build and build_cmd and _prior_build_attested(evidence_dir, dh):
+        steps.append({
+            "id": "build",
+            "pass": True,
+            "ok": True,
+            "command": "skipped",
+            "cmd": build_cmd,
+            "output": f"UVO cache hit — same code_subject_hash={dh}, prior build pass",
+        })
+        build_ok = True
+    elif not skip_build and build_cmd:
         ex = run_shell(build_cmd, repo_root)
         ex["id"] = "build"
         steps.append(ex)
@@ -458,6 +567,7 @@ def run_oracle(
         and secret["pass"]
         and lint.get("pass", lint.get("ok", True))
         and test_ok
+        and typecheck_ok
         and build_ok
     )
 

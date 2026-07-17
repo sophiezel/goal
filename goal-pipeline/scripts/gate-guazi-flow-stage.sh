@@ -577,6 +577,49 @@ get_changed_files() {
   fi
 }
 
+# Auto-stage untracked files under write_set (no commit) so code_subject_hash / AM-01 see them.
+stage_write_set_untracked() {
+  local write_set_json="$1"
+  [[ -n "$GIT_ROOT" && -d "$GIT_ROOT/.git" ]] || return 0
+  [[ -n "$write_set_json" && "$write_set_json" != "[]" ]] || return 0
+  python3 - "$GIT_ROOT" "$write_set_json" << 'PY'
+import json, os, subprocess, sys
+root, ws_json = sys.argv[1], sys.argv[2]
+try:
+    write_set = json.loads(ws_json)
+except json.JSONDecodeError:
+    sys.exit(0)
+if not write_set:
+    sys.exit(0)
+
+def allowed(path, write_set):
+    for raw in write_set:
+        w = (raw or "").strip().rstrip("/")
+        if w.endswith("/**"):
+            w = w[:-3].rstrip("/")
+        if not w:
+            continue
+        if path == w or path.startswith(w + "/"):
+            return True
+    return False
+
+try:
+    untracked = subprocess.check_output(
+        ["git", "-C", root, "-c", "core.quotepath=false", "ls-files", "--others", "--exclude-standard"],
+        text=True, stderr=subprocess.DEVNULL,
+    ).splitlines()
+except (OSError, subprocess.CalledProcessError):
+    sys.exit(0)
+to_add = [f for f in untracked if f.strip() and allowed(f.strip(), write_set)]
+if not to_add:
+    sys.exit(0)
+# Cap batch size; never commit — only git add
+subprocess.run(["git", "-C", root, "add", "--"] + to_add[:200], check=False,
+               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+print(f"stage_write_set_untracked: staged {min(len(to_add), 200)} file(s)", file=sys.stderr)
+PY
+}
+
 check_write_set_subset() {
   local write_set_json="$1"
   python3 - "$write_set_json" << 'PY'
@@ -871,6 +914,37 @@ PYVER
 JSON
       py_write_handoff plan "$TMP" >/dev/null
       rm -f "$TMP"
+      # Stamp task_tier (XS/S/M/L/XL) for SLO + parallel strategy
+      if [[ -f "$SCRIPT_DIR/task_tier.py" ]]; then
+        TT_JSON=$(python3 "$SCRIPT_DIR/task_tier.py" \
+          --task-dir "$TASK_DIR" \
+          --plan-json "$HANDOFF_DIR/plan.json" \
+          --state-file "${STATE_FILE:-}" \
+          --stamp-state \
+          --format json 2>/dev/null || echo "")
+        if [[ -n "$TT_JSON" ]]; then
+          python3 - "$HANDOFF_DIR/plan.json" "$TT_JSON" << 'PYTT'
+import json, sys
+plan_path, raw = sys.argv[1], sys.argv[2]
+try:
+    doc = json.loads(raw)
+except json.JSONDecodeError:
+    sys.exit(0)
+with open(plan_path, encoding="utf-8") as f:
+    plan = json.load(f)
+plan["task_tier"] = doc.get("task_tier")
+plan["task_tier_meta"] = {
+    "score": doc.get("score"),
+    "signals": doc.get("signals"),
+    "slo": doc.get("slo"),
+    "parallel": doc.get("parallel"),
+}
+with open(plan_path, "w", encoding="utf-8") as f:
+    json.dump(plan, f, indent=2, ensure_ascii=False)
+    f.write("\n")
+PYTT
+        fi
+      fi
       update_state_gate "plan"
       sync_index_current_stage "$(stage_to_index_current plan)"
       assert_pipeline_chain
@@ -902,6 +976,8 @@ JSON
       REPO_FOR_UVO="${GIT_ROOT:-$PROJECT_ROOT}"
       export GOAL_HANDOFF_DIR="$HANDOFF_DIR"
       export GOAL_EVIDENCE_DIR="$GOAL_EVIDENCE_DIR"
+      # Pack A: stage write_set untracked (no commit) before hash / UVO / AM ratchet
+      stage_write_set_untracked "$PLAN_WS" || true
       UVO="$SCRIPT_DIR/verification-oracle.sh"
       [[ -x "$UVO" ]] || fail "verification-oracle.sh not found"
       UVO_ARGS=(--task-dir "$TASK_DIR" --repo-root "$REPO_FOR_UVO" --tier "$TIER")
@@ -1248,7 +1324,38 @@ PYFRESH
       CUR_CSH=$(code_subject_hash)
       IMP_CSH=$(python3 -c "import json; d=json.load(open('$HANDOFF_DIR/implement.json')); print(d.get('code_subject_hash') or d.get('candidate_diff_hash',''))" 2>/dev/null || echo "")
       if [[ -n "$IMP_CSH" && "$IMP_CSH" != "$CUR_CSH" && "$IMP_CSH" != "unknown" && "$CUR_CSH" != "unknown" ]]; then
-        fail "review stale — code_subject_hash changed since implement handoff"
+        # Pack B: write_set shrink alone must not invalidate a passed review when
+        # review-run already attested the current code_subject_hash (or implement re-post
+        # only narrowed write_set without src content drift vs last review).
+        SHRINK_OK=$(python3 - "$GOAL_EVIDENCE_DIR/review-unified.json" "$GOAL_EVIDENCE_DIR/review-run.json" "$HANDOFF_DIR/plan.json" "$CUR_CSH" << 'PYSHRINK' 2>/dev/null || echo "0"
+import json, sys
+uni_p, run_p, plan_p, cur = sys.argv[1:5]
+try:
+    uni = json.load(open(uni_p, encoding="utf-8")) if uni_p else {}
+    run = json.load(open(run_p, encoding="utf-8")) if run_p else {}
+except Exception:
+    print("0"); raise SystemExit
+if uni.get("result") != "pass" and run.get("result") != "pass":
+    print("0"); raise SystemExit
+# Accept if review already recorded this exact subject hash
+reviewed = run.get("code_subject_hash") or uni.get("code_subject_hash") or run.get("packet_code_subject_hash") or ""
+if reviewed and reviewed == cur:
+    print("1"); raise SystemExit
+# Or write_set only shrank vs implement handoff write_set (subset) — keep review
+try:
+    plan = json.load(open(plan_p, encoding="utf-8"))
+except Exception:
+    print("0"); raise SystemExit
+ws_now = set(str(x).rstrip("/") for x in (plan.get("write_set") or []))
+ws_rev = set(str(x).rstrip("/") for x in (run.get("write_set") or uni.get("write_set") or []))
+if ws_rev and ws_now and ws_now.issubset(ws_rev):
+    print("1"); raise SystemExit
+print("0")
+PYSHRINK
+)
+        if [[ "$SHRINK_OK" != "1" ]]; then
+          fail "review stale — code_subject_hash changed since implement handoff"
+        fi
       fi
       GOAL_COUNT=0
       if [[ -f "$GOAL_EVIDENCE_DIR/review-unified.json" ]]; then

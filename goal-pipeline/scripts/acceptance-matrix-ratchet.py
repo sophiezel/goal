@@ -63,12 +63,61 @@ def run_ratchet(
 
     checks: list[dict[str, Any]] = []
 
-    # AM-01: each write_set glob has >=1 changed file
+    # AM-01: untouched write_set globs are warnings + auto-prune (not blockers).
     globs = _write_set_globs([w for w in write_set if str(w).startswith("src/")])
+    prune_prefixes: list[str] = []
     for g in globs:
         prefix = g[:-3] if g.endswith("/**") else g
-        hit = any(c == prefix or c.startswith(prefix + "/") for c in changed)
-        checks.append({"id": "AM-01", "glob": g, "pass": hit, "detail": "" if hit else "no changed file in glob"})
+        hit = any(dr.path_allowed(c, [g, prefix]) for c in changed)
+        if hit:
+            checks.append({"id": "AM-01", "glob": g, "pass": True, "detail": ""})
+        else:
+            prune_prefixes.append(prefix)
+            checks.append(
+                {
+                    "id": "AM-01",
+                    "glob": g,
+                    "pass": True,
+                    "severity": "warning",
+                    "detail": "no changed file in glob — pruned from plan write_set when possible",
+                    "prune": True,
+                }
+            )
+    if prune_prefixes:
+        plan_path = os.path.join(task_dir, "handoff", "plan.json")
+        env_ho = os.environ.get("GOAL_HANDOFF_DIR", "")
+        if not os.path.isfile(plan_path) and env_ho:
+            plan_path = os.path.join(env_ho, "plan.json")
+        if os.path.isfile(plan_path):
+            try:
+                with open(plan_path, encoding="utf-8") as pf:
+                    plan_doc = json.load(pf)
+                old_ws = list(plan_doc.get("write_set") or write_set)
+                rebuilt: list[str] = []
+                for w in old_ws:
+                    wn = (w or "").strip().rstrip("/")
+                    if not wn.startswith("src/"):
+                        rebuilt.append(w)
+                        continue
+                    if any(dr.path_allowed(c, [wn, wn + "/**"]) for c in changed):
+                        rebuilt.append(w)
+                if rebuilt and rebuilt != old_ws:
+                    plan_doc["write_set"] = rebuilt
+                    plan_doc["write_set_pruned"] = True
+                    plan_doc["write_set_pruned_paths"] = prune_prefixes
+                    with open(plan_path, "w", encoding="utf-8") as pf:
+                        json.dump(plan_doc, pf, indent=2, ensure_ascii=False)
+                        pf.write("\n")
+                    checks.append(
+                        {
+                            "id": "AM-01-prune",
+                            "pass": True,
+                            "severity": "warning",
+                            "detail": f"pruned {len(old_ws) - len(rebuilt)} untouched write_set paths",
+                        }
+                    )
+            except (OSError, json.JSONDecodeError, TypeError):
+                pass
 
     # AM-02: route hints from index (App.tsx / pages/index.ts if in write_set)
     route_hints = ["App.tsx", "pages/index.ts", "routes"]

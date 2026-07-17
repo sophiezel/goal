@@ -74,20 +74,25 @@ resolve() {
   elif [ -f package.json ]; then pm=npm; install_cmd="npm install"
   fi
   if [ -f package.json ]; then
+    # Prefer package.json script NAME (dev|start|serve), never the script body.
+    # Body like "BROWSER=none cross-env ..." breaks `yarn run <body>`.
     script=$(node -e "
       try {
         const p=require('./package.json');
         const s=p.scripts||{};
-        console.log(s.dev || s.start || s.serve || '');
+        const name=['dev','start','serve'].find(k=>s[k]);
+        console.log(name||'');
       } catch(e) { console.log(''); }
     " 2>/dev/null || echo "")
     if [ -n "$script" ]; then
-      if echo "$script" | grep -qE '^(npm|pnpm|yarn|npx)\s'; then
-        dev_cmd="$script"
-      elif [ -n "$pm" ]; then
-        dev_cmd="$pm run $script"
+      if [ -n "$pm" ]; then
+        if [ "$pm" = "yarn" ]; then
+          dev_cmd="yarn $script"
+        else
+          dev_cmd="$pm run $script"
+        fi
       else
-        dev_cmd="$script"
+        dev_cmd="npm run $script"
       fi
     fi
   fi
@@ -118,10 +123,23 @@ smoke() {
     [ -f .umirc.ts ] && detect_port=8000
     [ -f vite.config.ts ] && detect_port=5173
   fi
-  eval "$dev_cmd" > "$STDOUT_LOG" 2> "$STDERR_LOG" &
-  local dev_pid=$!
-  local elapsed=0 interval=2
   local smoke_pass=false smoke_url="" proc_dead=false
+  local reused=false
+  # Pack D: reuse warm dev server — probe only, do not restart
+  if [ "${GOAL_SMOKE_FORCE_RESTART:-0}" != "1" ]; then
+    local warm_code
+    warm_code=$(curl -s -o /dev/null -w "%{http_code}" --connect-timeout 2 "http://localhost:${detect_port}${HEALTH_PATH}" 2>/dev/null || echo "000")
+    if [ "$warm_code" != "000" ] && [ "$warm_code" != "404" ]; then
+      smoke_pass=true
+      smoke_url="http://localhost:${detect_port}${HEALTH_PATH}"
+      reused=true
+    fi
+  fi
+  local dev_pid=""
+  if [ "$reused" != "true" ]; then
+  eval "$dev_cmd" > "$STDOUT_LOG" 2> "$STDERR_LOG" &
+  dev_pid=$!
+  local elapsed=0 interval=2
   while [ "$elapsed" -lt "$TIMEOUT" ]; do
     sleep "$interval"
     elapsed=$((elapsed + interval))
@@ -145,11 +163,17 @@ smoke() {
       fi
     fi
   done
+  fi
   local end_time duration_ms
   end_time=$(now_ms)
   duration_ms=$((end_time - start_time))
-  kill "$dev_pid" 2>/dev/null
-  wait "$dev_pid" 2>/dev/null || true
+  if [ -n "$dev_pid" ]; then
+    kill "$dev_pid" 2>/dev/null
+    wait "$dev_pid" 2>/dev/null || true
+  fi
+  # Ensure log files exist for warm-reuse path
+  : > "$STDOUT_LOG" 2>/dev/null || true
+  : > "$STDERR_LOG" 2>/dev/null || true
 
   python3 - "$dev_cmd" "$detect_port" "$HEALTH_PATH" "$duration_ms" "$smoke_pass" "$smoke_url" "$proc_dead" "$STDERR_LOG" << 'PY'
 import json, re, sys

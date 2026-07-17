@@ -39,8 +39,15 @@
   "guazi_flow_available": true,
   "guazi_flow_task": "docs/guazi-flow/<task>",
   "guazi_flow_profile": "h5",
+  "task_tier": "M",
+  "task_tier_meta": {
+    "signals": ["new_page_dirs:1", "cross_domain:pages+services+App"],
+    "p50_wall_min": 45,
+    "p90_wall_min": 70,
+    "parallel_strategy": "subagent_dag_3_4"
+  },
   "guazi_flow_stages": {
-    "plan": {"used": true, "skill": "guazi-flow-plan", "gate": {"script": "gate-guazi-flow-stage.sh", "version": 1, "passed_at": "2026-01-01T00:00:00Z", "handoff_hash": "abc123"}}
+    "plan": {"used": true, "skill": "guazi-flow-plan", "gate": {"script": "gate-guazi-flow-stage.sh", "version": 1, "passed_at": "2026-01-01T00:00:00Z", "handoff_hash": "abc123"}},
     "implement": {"used": true},
     "review": {"used": true},
     "complete": {"used": true}
@@ -52,6 +59,10 @@
   }
 }
 ```
+
+### task_tier（plan 结束时写入）
+
+见 `goal-pipeline/references/task-tier-matrix.md`。档位由信号自动判定；Agent **不得**把 M/L 压成 XS 硬卡 20m。并行策略（Pack F）按档启用。
 
 ### artifact_layout
 

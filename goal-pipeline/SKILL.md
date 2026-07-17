@@ -28,6 +28,8 @@ Goal 是一个持久化的工程目标。Agent 接到 goal 后持续执行，不
 - **NEVER 并列 plan 与写代码 Todo**——阶段机强制 `[1/5] plan` → gate exit 0 → 才进入 `[2/5] implement`
 - **NEVER noop_fix 盲重试**——subject_hash 未变时禁止重跑同一 gate
 - **NEVER 跨分支 auto-discover 错 state**——`find_state_file` 必须匹配当前 git branch；`project_id===sha256(project_root)[:12]`
+- **NEVER 跨分支 stop-hook 误催**——`goal-pipeline-stop-hook` 只绑定当前 `git branch` 的 active/blocked goal；kernel 无 `next_stage` 时静默
+- **NEVER 谎报全任务 ≤20m**——按 `task_tier`（XS/S/M/L/XL）分层墙钟，见 `references/task-tier-matrix.md`
 - **NEVER 绕过 `goal-pipeline-kernel` 自创阶段入口**——旧脚本仅为内部实现；回合协议见 `docs/architecture/goal-runtime.md`
 - **NEVER 将 review degraded 标为独立审核 full pass**——`review_degraded_as_pass`
 

@@ -8,7 +8,9 @@ description: guazi-flow-goal 统一入口。加载 goal-pipeline 管线引擎，
 
 **本 skill 合并了原 guazi-flow-goal（入口）、guazi-flow-goal-auto（执行引擎）、guazi-flow-goal-manage（生命周期）的全部职责。**
 
-> **Production（v3 / UVO + preflight + hash-split）**：L1 权威裁决为 `verification-oracle.sh` **一次**；review 前 `review_packet_preflight.py` 确定性拦截空 diff；stale 判定用 `code_subject_hash`（src only），evidence 写入不触发 drift。推荐 **commit feature 后再跑 gates**。
+> **Production（v3 / UVO + preflight + hash-split + task_tier）**：L1 权威裁决为 `verification-oracle.sh` **一次**；review 前 `review_packet_preflight.py` 确定性拦截空 diff；stale 判定用 `code_subject_hash`（src only），evidence 写入不触发 drift。推荐 **commit feature 后再跑 gates**。
+>
+> **复杂度分层**：plan post 写入 `task_tier`（XS/S/M/L/XL）与墙钟/并行策略，见 `references/task-tier-matrix.md`。**禁止**把 M/L 硬卡成 20m；按档启用 subagent DAG / multi-unit。UVO 内 typecheck∥jest（`--maxWorkers`）、同 hash 跳过 build；smoke 用 script **名**；stop hook **按当前 branch** 过滤。
 
 ## NEVER
 
@@ -24,7 +26,8 @@ description: guazi-flow-goal 统一入口。加载 goal-pipeline 管线引擎，
 - **NEVER 跳过 [1/5] plan 进度输出**——缺少 [1/5] 输出说明 plan 被跳过，必须立即暂停并报告
 - **NEVER 在 blocked(noop_fix) 后原命令盲重试**——只读 fix-input 的 recommended/next_steps，实质改产物后再 gate
 - **NEVER 在 0 可用 review channel 时强跑完整 L2 API cascade**——走 `separation=degraded` / deterministic_scope_only（goal-run-review-chain 已 fail-fast）
-- **NEVER 在 implement Dev Loop 连跑全量 `yarn build:beta`**——本地仅 related-tests；全量验证留给 implement gate 内 UVO 一次
+- **NEVER 在 implement Dev Loop 连跑全量 `yarn build:beta`**——本地仅 related-tests；全量验证留给 implement gate 内 UVO 一次（同 `code_subject_hash` 已 pass 则 UVO 跳过 build）
+- **NEVER 把 M/L 任务硬卡成 XS「20 分钟」**——`task_tier` 见 `goal-pipeline/references/task-tier-matrix.md`；档内吃满 CPU/缓存/并行，不偷减阶段
 - **NEVER 在 implement 代码完成后跳过 Stage Exit**——MUST 先 gate --post implement（内含 **verification-oracle 一次** + **acceptance-matrix-ratchet**）→ goal-advance-stage → validate-pipeline-chain（exit 0）再输出 [2/5] ✅
 - **NEVER 在无 src diff 的 review-packet 上调用 LLM**——assemble 末尾 MUST 通过 `review_packet_preflight.py`（PKT-01/02/03）
 - **推荐 commit feature 后再跑 implement/quality/review gates**——保证 `plan.reference_branch`（默认 `main...HEAD`）diff 稳定
@@ -64,6 +67,7 @@ guazi_flow_available = true 时，plan 阶段执行方式：
 | `goal-pipeline/references/interview-protocol.md` | 三步收敛访谈协议 |
 | `goal-pipeline/references/platform-detection.md` | 平台检测和能力矩阵 |
 | `goal-pipeline/references/separation-strategies.md` | 审核模型多通道探测策略 |
+| `goal-pipeline/references/task-tier-matrix.md` | task_tier（XS/S/M/L）分层墙钟与并行策略 |
 
 ### guazi-flow 可用性检测
 

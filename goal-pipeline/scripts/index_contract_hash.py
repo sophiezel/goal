@@ -162,6 +162,51 @@ def stored_contract_hash(plan: dict) -> str:
     )
 
 
+def _extract_write_set_paths_from_index(index_text: str) -> List[str]:
+    """Best-effort write_set paths from index.md bullets/tables."""
+    m = re.search(
+        r"(?:##\s*(?:write_set|写集|范围与写集)|write_set\s*[:：])\s*\n([\s\S]*?)(?:\n##|\Z)",
+        index_text,
+        re.I,
+    )
+    if not m:
+        return []
+    paths: List[str] = []
+    for line in m.group(1).splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        if re.match(r"^(排除|除外|不做|不包含|exclude)", line, re.I):
+            break
+        bm = re.match(r"^[-*]\s+`?([^`]+)`?", line)
+        if bm:
+            n = normalize_write_set_entry(bm.group(1))
+            if n:
+                paths.append(n)
+            continue
+        tm = re.match(r"^\|\s*`?([^`|]+)`?\s*\|", line)
+        if tm:
+            n = normalize_write_set_entry(tm.group(1))
+            if n and "路径" not in n and "path" not in n.lower():
+                paths.append(n)
+    return normalize_write_set(paths)
+
+
+def write_set_shrink_only(index_path: str, plan: dict) -> bool:
+    """True when index write_set is a proper subset of plan write_set (removals only)."""
+    try:
+        index_text = open(index_path, encoding="utf-8").read()
+    except OSError:
+        return False
+    new_ws = set(_extract_write_set_paths_from_index(index_text))
+    old_ws = set(normalize_write_set(plan.get("write_set") or []))
+    if not old_ws or not new_ws:
+        return False
+    if new_ws == old_ws:
+        return False
+    return new_ws.issubset(old_ws)
+
+
 def compare_plan_freshness(index_path: str, plan: dict) -> dict:
     """Compare current index contract vs plan handoff."""
     current = index_contract_hash(index_path)
@@ -188,6 +233,12 @@ def compare_plan_freshness(index_path: str, plan: dict) -> dict:
                 # ambiguous: prefer contract_changed only if contract differs
                 # Recompute: if contract matches somehow via coincidence skip
                 contract_changed = True
+    shrink_only = False
+    if contract_changed and write_set_shrink_only(index_path, plan):
+        # Pack B: write_set shrink must not force mini-replan / invalidate review
+        shrink_only = True
+        contract_changed = False
+        exec_changed = True
     return {
         "current_contract_hash": current,
         "stored_contract_hash": stored,
@@ -195,6 +246,7 @@ def compare_plan_freshness(index_path: str, plan: dict) -> dict:
         "stored_execution_tail_hash": exec_stored,
         "contract_changed": contract_changed,
         "execution_changed": exec_changed and not contract_changed,
+        "write_set_shrink_only": shrink_only,
         "fresh": not contract_changed,
     }
 

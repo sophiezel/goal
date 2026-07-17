@@ -92,6 +92,13 @@
       "upgraded_from": "standard"
     }
   },
+  "task_tier": "XS | S | M | L | XL",
+  "task_tier_meta": {
+    "signals": ["new_page_dirs:1"],
+    "p50_wall_min": 45,
+    "p90_wall_min": 70,
+    "parallel_strategy": "subagent_dag_3_4 | single | multi_unit"
+  },
   "pipeline": {
     "plan": {"status": "done | pending | failed", "evidence_fresh": true},
     "implement": {"status": "done | in_progress | pending | failed", "evidence_fresh": true},
