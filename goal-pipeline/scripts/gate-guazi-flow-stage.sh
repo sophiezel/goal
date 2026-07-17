@@ -589,6 +589,49 @@ get_changed_files() {
   fi
 }
 
+# Auto-stage untracked files under write_set (no commit) so code_subject_hash / AM-01 see them.
+stage_write_set_untracked() {
+  local write_set_json="$1"
+  [[ -n "$GIT_ROOT" && -d "$GIT_ROOT/.git" ]] || return 0
+  [[ -n "$write_set_json" && "$write_set_json" != "[]" ]] || return 0
+  python3 - "$GIT_ROOT" "$write_set_json" << 'PY'
+import json, os, subprocess, sys
+root, ws_json = sys.argv[1], sys.argv[2]
+try:
+    write_set = json.loads(ws_json)
+except json.JSONDecodeError:
+    sys.exit(0)
+if not write_set:
+    sys.exit(0)
+
+def allowed(path, write_set):
+    for raw in write_set:
+        w = (raw or "").strip().rstrip("/")
+        if w.endswith("/**"):
+            w = w[:-3].rstrip("/")
+        if not w:
+            continue
+        if path == w or path.startswith(w + "/"):
+            return True
+    return False
+
+try:
+    untracked = subprocess.check_output(
+        ["git", "-C", root, "-c", "core.quotepath=false", "ls-files", "--others", "--exclude-standard"],
+        text=True, stderr=subprocess.DEVNULL,
+    ).splitlines()
+except (OSError, subprocess.CalledProcessError):
+    sys.exit(0)
+to_add = [f for f in untracked if f.strip() and allowed(f.strip(), write_set)]
+if not to_add:
+    sys.exit(0)
+# Cap batch size; never commit — only git add
+subprocess.run(["git", "-C", root, "add", "--"] + to_add[:200], check=False,
+               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+print(f"stage_write_set_untracked: staged {min(len(to_add), 200)} file(s)", file=sys.stderr)
+PY
+}
+
 check_write_set_subset() {
   local write_set_json="$1"
   python3 - "$write_set_json" << 'PY'

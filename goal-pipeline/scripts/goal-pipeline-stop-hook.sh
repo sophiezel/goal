@@ -27,14 +27,22 @@ for k in ('workspace_roots','workspaceRoot','cwd','root'):
 print('')
 " 2>/dev/null || echo "")
 
+current_git_branch() {
+  local ws="$1"
+  [[ -n "$ws" && -d "$ws" ]] || { echo ""; return 0; }
+  git -C "$ws" rev-parse --abbrev-ref HEAD 2>/dev/null || echo ""
+}
+
 find_workspace_goal_states() {
   local ws="$1"
   local states_dir="$GOAL_STATE_HOME/projects"
+  local cur_branch
+  cur_branch=$(current_git_branch "$ws")
   [[ -d "$states_dir" ]] || return 0
   find "$states_dir" -name state.json 2>/dev/null | while read -r sf; do
-    python3 - "$sf" "$ws" << 'PY'
+    python3 - "$sf" "$ws" "$cur_branch" << 'PY'
 import json, sys, os
-sf, ws = sys.argv[1], sys.argv[2]
+sf, ws, cur_branch = sys.argv[1], sys.argv[2], sys.argv[3]
 try:
     st = json.load(open(sf))
 except Exception:
@@ -45,12 +53,25 @@ root = st.get("project_root") or st.get("repo_root") or ""
 if ws:
     if not root or os.path.normpath(root) != os.path.normpath(ws):
         sys.exit(0)
+# MUST filter by current git branch — never nudge a different branch's goal
+state_branch = (st.get("branch") or st.get("git_branch") or "").strip()
+parts = os.path.normpath(sf).split(os.sep)
+try:
+    idx = parts.index("projects")
+    # .../projects/<pid>/<branch>/<task>/state.json
+    path_branch = parts[idx + 2] if len(parts) > idx + 2 else ""
+except ValueError:
+    path_branch = ""
+effective_branch = state_branch or (path_branch if path_branch not in ("", "default") else "")
+if cur_branch and effective_branch and effective_branch != cur_branch:
+    sys.exit(0)
 task = st.get("guazi_flow_task") or st.get("task_dir") or ""
 print(json.dumps({
     "state_file": sf,
     "task": task,
     "objective": (st.get("objective") or "")[:80],
     "current_stage": st.get("current_stage") or "",
+    "branch": effective_branch or cur_branch,
 }))
 PY
   done
@@ -189,6 +210,11 @@ if [[ -n "$STATE_FILE" && -f "$STATE_FILE" && -n "$PROJECT_ROOT" && -n "$TASK" ]
   fi
 fi
 
+# Kernel/driver returned nothing usable → do not emit unknown nudge (silent exit)
+if [[ -z "$WORK_ORDER" ]]; then
+  exit 0
+fi
+
 python3 - "$OBJECTIVE" "$WORK_ORDER" << 'PY'
 import json, sys
 
@@ -201,7 +227,11 @@ if wo_s.strip():
     except json.JSONDecodeError:
         wo = {}
 
-next_stage = wo.get("next_stage", "unknown")
+# No actionable next_stage → silent (avoid next_stage=unknown false alarm)
+next_stage = (wo.get("next_stage") or "").strip()
+if not next_stage or next_stage == "unknown":
+    sys.exit(0)
+
 blocked_reason = wo.get("blocked_reason") or ""
 cmds = wo.get("mandatory_commands") or []
 skill = wo.get("skill_to_load") or ""

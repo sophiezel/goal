@@ -131,7 +131,7 @@ def build_mandatory(stage):
             gate_cmd("implement", "pre"),
             f"Load {impl_skill}/SKILL.md and implement within write_set",
             "HARD: ship acceptance-matrix RTL/unit tests (Cxx/Vxx) with feature code in the same commit when possible — avoid review round-trip for missing C01–C10 coverage",
-            "(optional Dev Loop) findRelatedTests / scoped unit tests only — DO NOT run yarn build:beta locally (UVO once at gate --post)",
+            "(optional Dev Loop) findRelatedTests / scoped unit tests only — DO NOT run yarn build:beta locally (UVO once at gate --post; efficiency: never duplicate full build in Dev Loop)",
             gate_cmd("implement", "post"),
             f"{script_dir}/goal-advance-stage.sh --state-file {state_file!r} --task-dir {task_dir!r} --project-root {project_root!r}",
         ]

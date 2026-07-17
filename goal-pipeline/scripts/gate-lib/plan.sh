@@ -77,6 +77,37 @@ PYVER
 JSON
       py_write_handoff plan "$TMP" >/dev/null
       rm -f "$TMP"
+      # Stamp task_tier (XS/S/M/L/XL) for SLO + parallel strategy
+      if [[ -f "$SCRIPT_DIR/task_tier.py" ]]; then
+        TT_JSON=$(python3 "$SCRIPT_DIR/task_tier.py" \
+          --task-dir "$TASK_DIR" \
+          --plan-json "$HANDOFF_DIR/plan.json" \
+          --state-file "${STATE_FILE:-}" \
+          --stamp-state \
+          --format json 2>/dev/null || echo "")
+        if [[ -n "$TT_JSON" ]]; then
+          python3 - "$HANDOFF_DIR/plan.json" "$TT_JSON" << 'PYTT'
+import json, sys
+plan_path, raw = sys.argv[1], sys.argv[2]
+try:
+    doc = json.loads(raw)
+except json.JSONDecodeError:
+    sys.exit(0)
+with open(plan_path, encoding="utf-8") as f:
+    plan = json.load(f)
+plan["task_tier"] = doc.get("task_tier")
+plan["task_tier_meta"] = {
+    "score": doc.get("score"),
+    "signals": doc.get("signals"),
+    "slo": doc.get("slo"),
+    "parallel": doc.get("parallel"),
+}
+with open(plan_path, "w", encoding="utf-8") as f:
+    json.dump(plan, f, indent=2, ensure_ascii=False)
+    f.write("\n")
+PYTT
+        fi
+      fi
       update_state_gate "plan"
       sync_index_current_stage "$(stage_to_index_current plan)"
       assert_pipeline_chain

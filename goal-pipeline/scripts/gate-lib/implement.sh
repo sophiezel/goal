@@ -23,6 +23,8 @@
       REPO_FOR_UVO="${GIT_ROOT:-$PROJECT_ROOT}"
       export GOAL_HANDOFF_DIR="$HANDOFF_DIR"
       export GOAL_EVIDENCE_DIR="$GOAL_EVIDENCE_DIR"
+      # Pack A: stage write_set untracked (no commit) before hash / UVO / AM ratchet
+      stage_write_set_untracked "$PLAN_WS" || true
       UVO="$SCRIPT_DIR/verification-oracle.sh"
       [[ -x "$UVO" ]] || fail "verification-oracle.sh not found"
       UVO_ARGS=(--task-dir "$TASK_DIR" --repo-root "$REPO_FOR_UVO" --tier "$TIER")

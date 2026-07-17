@@ -29,6 +29,11 @@ def main() -> int:
     flags["review_zero_channel"] = "zero_usable_review_channels" in review_chain or "separation=degraded" in review_chain
     driver = (SCRIPT_DIR / "goal-stage-driver.sh").read_text(encoding="utf-8")
     flags["wo_bans_build_beta"] = "DO NOT run yarn build:beta" in driver or "禁止连跑全量 yarn build:beta" in driver
+    uvo = (SCRIPT_DIR / "verification_oracle_core.py").read_text(encoding="utf-8")
+    flags["uvo_parallel_typecheck_tests"] = "_run_parallel" in uvo and "maxWorkers" in uvo
+    flags["uvo_build_cache_skip"] = "_prior_build_attested" in uvo
+    stop = (SCRIPT_DIR / "goal-pipeline-stop-hook.sh").read_text(encoding="utf-8")
+    flags["stop_hook_branch_filter"] = "effective_branch" in stop or "current_git_branch" in stop
 
     if args.task_dir:
         timing = Path(args.task_dir) / "evidence" / "pipeline-timing.json"
@@ -55,6 +60,12 @@ def main() -> int:
         errors.append({"failure_code": "review_channel_timeout_storm", "summary": "review chain missing zero-channel failfast"})
     if not flags["wo_bans_build_beta"]:
         errors.append({"failure_code": "duplicate_verify", "summary": "work_order should ban local build:beta"})
+    if not flags.get("uvo_parallel_typecheck_tests"):
+        errors.append({"failure_code": "duplicate_verify", "summary": "UVO missing typecheck∥tests / maxWorkers parallel"})
+    if not flags.get("uvo_build_cache_skip"):
+        errors.append({"failure_code": "duplicate_verify", "summary": "UVO missing same-hash build cache skip"})
+    if not flags.get("stop_hook_branch_filter"):
+        errors.append({"failure_code": "duplicate_verify", "summary": "stop hook missing current-branch filter"})
 
     ok = not errors
     out = {"ok": ok, "plane": "efficiency", "flags": flags, "errors": errors}

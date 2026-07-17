@@ -8,7 +8,9 @@ description: guazi-flow-goal 统一入口。加载 goal-pipeline 管线引擎，
 
 **本 skill 合并了原 guazi-flow-goal（入口）、guazi-flow-goal-auto（执行引擎）、guazi-flow-goal-manage（生命周期）的全部职责。**
 
-> **Production（v3 / UVO + preflight + hash-split）**：L1 权威裁决为 `verification-oracle.sh` **一次**；review 前 `review_packet_preflight.py` 确定性拦截空 diff；stale 判定用 `code_subject_hash`（src only），evidence 写入不触发 drift。推荐 **commit feature 后再跑 gates**。
+> **Production（v3 / UVO + preflight + hash-split + task_tier）**：L1 权威裁决为 `verification-oracle.sh` **一次**；review 前 `review_packet_preflight.py` 确定性拦截空 diff；stale 判定用 `code_subject_hash`（src only），evidence 写入不触发 drift。推荐 **commit feature 后再跑 gates**。
+>
+> **复杂度分层**：plan post 写入 `task_tier`（XS/S/M/L/XL）与墙钟/并行策略，见 `references/task-tier-matrix.md`。**禁止**把 M/L 硬卡成 20m；按档启用 subagent DAG / multi-unit。UVO 内 typecheck∥jest（`--maxWorkers`）、同 hash 跳过 build；smoke 用 script **名**；stop hook **按当前 branch** 过滤。
 
 ## NEVER
 
@@ -21,12 +23,25 @@ description: guazi-flow-goal 统一入口。加载 goal-pipeline 管线引擎，
 - **NEVER 修改 goal-pipeline 的 state.json 基础字段**——guazi-flow 扩展字段（guazi_flow_*）只能追加，不覆盖管线字段
 - **NEVER 在 guazi-flow-plan 产出 index.md 前进入 implement**——MUST 先执行 guazi-flow-plan 完整流程，验证必需章节；否则 blocked（plan_artifact_missing / plan_schema_incomplete）
 - **NEVER 跳过 [1/5] plan 进度输出**——缺少 [1/5] 输出说明 plan 被跳过，必须立即暂停并报告
-- **NEVER 在 implement Dev Loop 连跑全量 `yarn build:beta`**——本地仅 related-tests；全量验证留给 implement gate 内 UVO 一次
-- **NEVER 在 implement 代码完成后跳过 Stage Exit**——MUST gate --post implement → advance → validate-pipeline-chain（exit 0）再输出 [2/5] ✅
-- **NEVER 因仅追加 `## 执行记录` 触发 mini-replan**——执行记录用 `refresh-handoffs-after-index.sh --cascade implement`；仅 `index_contract_hash` 变化才 `gate --post plan`
+- **NEVER 在 blocked(noop_fix) 后原命令盲重试**——只读 fix-input 的 recommended/next_steps，实质改产物后再 gate
+- **NEVER 在 0 可用 review channel 时强跑完整 L2 API cascade**——走 `separation=degraded` / deterministic_scope_only（goal-run-review-chain 已 fail-fast）
+- **NEVER 在 implement Dev Loop 连跑全量 `yarn build:beta`**——本地仅 related-tests；全量验证留给 implement gate 内 UVO 一次（同 `code_subject_hash` 已 pass 则 UVO 跳过 build）
+- **NEVER 把 M/L 任务硬卡成 XS「20 分钟」**——`task_tier` 见 `goal-pipeline/references/task-tier-matrix.md`；档内吃满 CPU/缓存/并行，不偷减阶段
+- **NEVER 在 implement 代码完成后跳过 Stage Exit**——MUST 先 gate --post implement（内含 **verification-oracle 一次** + **acceptance-matrix-ratchet**）→ goal-advance-stage → validate-pipeline-chain（exit 0）再输出 [2/5] ✅
+- **NEVER 在无 src diff 的 review-packet 上调用 LLM**——assemble 末尾 MUST 通过 `review_packet_preflight.py`（PKT-01/02/03）
+- **推荐 commit feature 后再跑 implement/quality/review gates**——保证 `plan.reference_branch`（默认 `main...HEAD`）diff 稳定
+- **NEVER 在 [5/5] complete 前以「如需继续」「需要我跑 review 吗」交还控制权**——implement 完成 ≠ goal 完成，必须自动进入 review → complete
+- **NEVER 跳过 [3/5] quality 或未跑 gate --post quality**——条件 smoke + quality-gate（读 evidence，不重跑 UVO/smoke）后 MUST gate --stage quality --post
+- **NEVER 跳过 [4/5] review 或未跑 run-independent-review.sh**——review-run.json provenance 缺失则 gate --post review 失败
+- **NEVER 自填 review-unified.json 绕过独立审核**——MUST assemble-review-packet → run-independent-review → merge-review-issues
+- **NEVER 手改 review 产物**——修复前 MUST Read `evidence/review-fix-input.json`；禁止直接解析 review-unified.json / review.md 做修复分流
+- **NEVER 在 gate 失败时跳过 fix-input**——plan/implement MUST Read `evidence/<stage>-gate-fix-input.json` 的 `issues` / `next_steps`；首屏输出 Issue 清单（gate 脚本已打印）
+- **NEVER 在 gate 失败会话中直接改产物**——Judge（gate/审核）与 Executor（plan/implement skill）分离；修复轮由 Executor 按 fix-input 执行
+- **NEVER 在 subject_hash 未变时重复 gate**——`blocked(noop_fix)` 表示修复无效，须实质性修改产物后再跑
+- **NEVER 因仅追加 `## 执行记录` 触发 mini-replan**——执行记录变更用 `refresh-handoffs-after-index.sh --cascade implement`；仅当 `index_contract_hash`（契约段）变化时才 `gate --post plan`
+- **NEVER 输出 [N/5] ✅ 而未运行 gate --post（exit 0）**——进度行必须对应机器门禁通过
 - **NEVER 在 ~/.goal-state/scripts/ 缺失时进入 Phase 2**——先 Pre-flight 部署或 blocked(infra_missing)
 - **NEVER 因「需求已清晰」跳过 Phase 1 entirely**——Fast-path 仍须创建 state.json 并输出 Goal 摘要
-- **推荐 commit feature 后再跑 implement/quality/review gates**——保证 `plan.reference_branch` diff 稳定
 
 ## 关键执行协议（Phase 2 必读）
 
@@ -53,6 +68,7 @@ guazi_flow_available = true 时，plan 阶段执行方式：
 | Phase 1 开始前 | `goal-pipeline/references/interview-protocol.md` | 三步收敛访谈协议 |
 | Phase 1 开始前 | `goal-pipeline/references/platform-detection.md` | 平台检测和能力矩阵 |
 | plan 开始前（guazi 可用） | `references/guazi-flow-integration.md` | guazi-flow 调度规则与产物质量 GATE |
+| plan 开始前 | `goal-pipeline/references/task-tier-matrix.md` | task_tier（XS/S/M/L/XL）分层墙钟与并行策略 |
 | review 开始前 | `goal-pipeline/references/separation-strategies.md` | 审核模型多通道探测策略 |
 
 脚本已处理、Agent **无需全文预读**（需要时按路径点查即可）：`references/guazi-flow-state-schema.md`、`references/artifact-tier-policy.md`。

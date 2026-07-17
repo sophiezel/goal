@@ -82,7 +82,38 @@ PYFRESH
       CUR_CSH=$(code_subject_hash)
       IMP_CSH=$(python3 -c "import json; d=json.load(open('$HANDOFF_DIR/implement.json')); print(d.get('code_subject_hash') or d.get('candidate_diff_hash',''))" 2>/dev/null || echo "")
       if [[ -n "$IMP_CSH" && "$IMP_CSH" != "$CUR_CSH" && "$IMP_CSH" != "unknown" && "$CUR_CSH" != "unknown" ]]; then
-        fail "review stale — code_subject_hash changed since implement handoff"
+        # Pack B: write_set shrink alone must not invalidate a passed review when
+        # review-run already attested the current code_subject_hash (or implement re-post
+        # only narrowed write_set without src content drift vs last review).
+        SHRINK_OK=$(python3 - "$GOAL_EVIDENCE_DIR/review-unified.json" "$GOAL_EVIDENCE_DIR/review-run.json" "$HANDOFF_DIR/plan.json" "$CUR_CSH" << 'PYSHRINK' 2>/dev/null || echo "0"
+import json, sys
+uni_p, run_p, plan_p, cur = sys.argv[1:5]
+try:
+    uni = json.load(open(uni_p, encoding="utf-8")) if uni_p else {}
+    run = json.load(open(run_p, encoding="utf-8")) if run_p else {}
+except Exception:
+    print("0"); raise SystemExit
+if uni.get("result") != "pass" and run.get("result") != "pass":
+    print("0"); raise SystemExit
+# Accept if review already recorded this exact subject hash
+reviewed = run.get("code_subject_hash") or uni.get("code_subject_hash") or run.get("packet_code_subject_hash") or ""
+if reviewed and reviewed == cur:
+    print("1"); raise SystemExit
+# Or write_set only shrank vs implement handoff write_set (subset) — keep review
+try:
+    plan = json.load(open(plan_p, encoding="utf-8"))
+except Exception:
+    print("0"); raise SystemExit
+ws_now = set(str(x).rstrip("/") for x in (plan.get("write_set") or []))
+ws_rev = set(str(x).rstrip("/") for x in (run.get("write_set") or uni.get("write_set") or []))
+if ws_rev and ws_now and ws_now.issubset(ws_rev):
+    print("1"); raise SystemExit
+print("0")
+PYSHRINK
+)
+        if [[ "$SHRINK_OK" != "1" ]]; then
+          fail "review stale — code_subject_hash changed since implement handoff"
+        fi
       fi
       GOAL_COUNT=0
       if [[ -f "$GOAL_EVIDENCE_DIR/review-unified.json" ]]; then

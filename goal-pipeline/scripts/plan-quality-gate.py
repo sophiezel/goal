@@ -153,12 +153,25 @@ def check_pq07(index_text: str, tier: str, rules: dict) -> list[dict]:
     paths = _write_set_paths(index_text)
     if not _write_set_touches_pages(paths):
         return issues
-    if not re.search(r"build:beta|yarn\s+build:beta", index_text, re.I):
+    # Accept explicit build:beta, V0x build rows, or h5-profile verification template markers
+    has_build = bool(
+        re.search(
+            r"build:beta|yarn\s+build:beta|CI=\s*yarn\s+build|h5-build|V0\d+.*build|验证命令.*build",
+            index_text,
+            re.I,
+        )
+    )
+    if not has_build:
         issues.append(
             {
                 "id": "PQ-07",
                 "severity": sev,
-                "message": "write_set touches src/pages but index.md missing build:beta in acceptance matrix or verification commands",
+                "message": (
+                    "write_set touches src/pages but index.md missing build:beta — "
+                    "add acceptance row e.g. `| V02 | yarn build:beta | automated |` "
+                    "or verification_commands with `CI= yarn build:beta`"
+                ),
+                "template_hint": "| V02 | 构建通过 | CI= yarn build:beta | automated |",
             }
         )
     return issues
