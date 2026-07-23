@@ -1,0 +1,10 @@
+# Agent iron rules (guazi-flow-goal / goal-pipeline overlay)
+
+Gates and skills own the pipeline; this file only constrains **in-session** behavior.
+
+1. **Done = gate exit 0** — Never claim `[N/5] ✅` or stage complete without `gate --post` exit 0 for that stage.
+2. **Read-before-write** — Read the target file first; verify paths and APIs against the repo (not memory) before edit.
+3. **Patch cap** — Same failure ≤2 local patches → stop; read `evidence/*-fix-input.json` / change approach (do not noop-retry).
+4. **High-Risk HITL** — Ask before: force-push/hard-reset/mass-delete, secrets/authz, prod DB/migrations, public API/schema breaks, deploy/CI/infra, new unaudited deps or major bumps, widening Agent prod credentials.
+5. **Scope** — Unclear requirements or out-of-`write_set` need → return to Phase 1 / plan; do not guess in implement.
+6. **Authority** — Follow existing guazi-flow-goal / goal-pipeline skills and gates; do not invent a parallel pipeline.
