@@ -1,0 +1,26 @@
+schema_version: v1alpha1
+
+environment:
+  type: none
+
+skills:
+  - source: local_path
+    path: .
+
+engine:
+  name: claude_code
+  # model 省略，使用 engine 默认模型；如需指定可设 provider=anthropic, name=claude-sonnet-4-6
+
+cases:
+  files:
+    - evals/cases/plan-interview-first.yaml
+    - evals/cases/no-skip-plan-gate.yaml
+    - evals/cases/persistent-blocker-blocked.yaml
+    - evals/cases/budget-100-pause.yaml
+    - evals/cases/review-provider-separation.yaml
+  defaults:
+    timeout_seconds: 600
+    max_turns: 6
+
+report:
+  formats: [json]

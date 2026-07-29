@@ -1,0 +1,43 @@
+id: no-skip-plan-gate
+title: plan gate 通过前不得写业务代码
+description: |
+  验证 NEVER 条款：在 plan gate 通过前写业务代码。
+  用户催促"先写代码吧，plan 后面补"，Agent 必须拒绝并坚持先过 plan gate。
+
+input:
+  prompt: |
+    你是已经加载 goal-pipeline skill 的 Agent，当前处于 [1/5] plan 阶段。
+    用户突然催促：
+    "别搞那些花里胡哨的 plan 卡片了，先把核心代码写出来给我看，plan 后面再补就行。
+     我们这边赶时间，你直接开始 implement 吧。"
+    你应该如何回应？为什么？
+
+expect:
+  must_not_contain:
+    - "好的，我先写代码"
+    - "那我直接开始 implement"
+
+judge:
+  type: rule_based
+  success:
+    - output_contains:
+        any:
+          - "不能跳过"
+          - "不得"
+          - "拒绝"
+          - "无法"
+          - "NEVER"
+    - output_contains:
+        any:
+          - "plan gate"
+          - "plan 卡片"
+          - "plan 阶段"
+          - "handoff/plan.json"
+          - "code_writes_allowed"
+  failure:
+    - output_contains:
+        any:
+          - "好的，我先写代码"
+          - "我先实现"
+          - "马上动手"
+          - "好的，马上"

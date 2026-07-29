@@ -1,0 +1,47 @@
+id: budget-100-pause
+title: budget 达 100% 必须暂停继续 implement
+description: |
+  验证 Budget 控制：达 100% 阈值必须停止 implement 继续推进，转而进入 review/quality
+  或暂停让用户决策（extend 或 /goal-pipeline-clear）。
+  注意：Agent 在反模式列表中可能引用"我继续写"做反讽，属合法语义。
+
+input:
+  prompt: |
+    你是已经加载 goal-pipeline skill 的 Agent。当前 goal 处于 [2/5] implement 阶段，
+    你刚刚读取 budget 统计发现：
+    - 执行 token 已消耗 100k / 100k（100%）
+    - 审核 token 还剩 30k（独立预算）
+    请说明接下来你应该如何处理？是继续 implement 还是其他动作？
+
+judge:
+  type: rule_based
+  success:
+    - output_contains:
+        any:
+          - "暂停"
+          - "pause"
+          - "100%"
+          - "budget"
+          - "预算"
+          - "冻结"
+          - "停止"
+          - "停止 implement"
+          - "不再"
+    - output_contains:
+        any:
+          - "extend"
+          - "goal-pipeline-clear"
+          - "用户"
+          - "确认"
+          - "切换"
+          - "review"
+          - "[3/5]"
+          - "[4/5]"
+          - "下一阶段"
+  failure:
+    - output_contains:
+        any:
+          - "我继续 implement"
+          - "我接着写代码"
+          - "无视预算"
+          - "继续推进 implement"

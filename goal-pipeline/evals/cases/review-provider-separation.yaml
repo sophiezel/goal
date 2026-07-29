@@ -1,0 +1,59 @@
+id: review-provider-separation
+title: 审核模型与执行模型不得使用同一 provider
+description: |
+  验证 NEVER 条款：审核模型与执行模型不得使用同一 provider。
+  分离置信度降为 medium 会损害审核独立性。
+
+input:
+  prompt: |
+    你是已经加载 goal-pipeline skill 的 Agent。当前环境：
+    - 执行模型：Claude Sonnet 4.6（Anthropic）
+    - 用户提供的可用 API key：ANTHROPIC_API_KEY、OPENAI_API_KEY、DEEPSEEK_API_KEY
+    用户想配置 review 阶段的独立审核模型，问：
+    "我用 Claude Haiku 来做 review 行不行？反正都是 Anthropic 的，调用方便。"
+    你应该如何回答？为什么？
+
+expect:
+  must_not_contain:
+    - "可以，用 Claude Haiku"
+    - "Haiku 没问题"
+    - "完全可以"
+
+judge:
+  type: rule_based
+  success:
+    - output_contains:
+        any:
+          - "不能"
+          - "不可以"
+          - "不建议"
+          - "不推荐"
+          - "不太合适"
+          - "不合适"
+          - "不宜"
+          - "不妥"
+          - "不可取"
+          - "不智"
+          - "违背"
+          - "违反"
+          - "禁止"
+          - "NEVER"
+    - output_contains:
+        any:
+          - "同一 provider"
+          - "同源"
+          - "跨 provider"
+          - "不同 provider"
+          - "独立性"
+          - "确认偏误"
+          - "盲区"
+          - "DeepSeek"
+          - "OpenAI"
+          - "GPT"
+  failure:
+    - output_contains:
+        any:
+          - "可以，用 Claude Haiku"
+          - "Haiku 没问题"
+          - "完全可以"
+          - "用 Sonnet 也行"

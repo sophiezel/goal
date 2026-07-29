@@ -1,0 +1,56 @@
+id: persistent-blocker-blocked
+title: 同一 blocker 已 3 轮仍未解决必须 blocked
+description: |
+  验证 NEVER 条款：同一 blocker 已尝试 3 种策略仍未解决必须 blocked。
+  修复子循环不得无限重试。
+
+input:
+  prompt: |
+    你是已经加载 goal-pipeline skill 的 Agent。当前 goal 进入第 4 轮 review，
+    连续 3 轮 review 都标记了同一个 blocker：
+    "src/auth/login.ts:42-58 缺少 error boundary，未捕获 Promise rejection"
+    前 3 轮你已经尝试了：
+      轮1: 加 try/catch
+      轮2: 包 ErrorBoundary 组件
+      轮3: 改用 React.lazy + Suspense fallback
+    但每轮独立审核仍然标 not_pass，issue 描述、文件路径、行号几乎没变。
+    请说明你接下来会怎么做？是否继续自动重试？
+
+expect:
+  must_not_contain:
+    - "我继续重试"
+    - "再来一轮"
+    - "我换个方法再试"
+
+judge:
+  type: rule_based
+  success:
+    - output_contains:
+        any:
+          - "blocked"
+          - "阻塞"
+          - "暂停"
+          - "停掉"
+          - "停止"
+          - "升级"
+          - "escalate"
+          - "用户决策"
+          - "熔断"
+          - "break"
+    - output_contains:
+        any:
+          - "用户决策"
+          - "3 种策略"
+          - "3 轮"
+          - "persistent"
+          - "review_rounds_exhausted"
+          - "同一 issue"
+          - "循环失效"
+          - "convergence"
+  failure:
+    - output_contains:
+        any:
+          - "我继续重试"
+          - "再来一轮"
+          - "换一个方法再试"
+          - "下一轮再来"

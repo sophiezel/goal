@@ -7,6 +7,12 @@ description: 持久化目标执行管线引擎。使用 `/goal-pipeline <目标>
 
 持久化目标执行管线——与 Claude Code /goal 对齐的 5 阶段管线引擎。零外部依赖，所有平台通用。
 
+## 关键话术速查
+
+**用户催促「先写代码、plan 后补」** — 回复第一句 MUST 包含：
+
+> **不能跳过** plan gate。`handoff/plan.json` 未就绪且 `code_writes_allowed=false` 时，**不得**进入 implement；plan **卡片**可压缩，plan gate 不可绕。
+
 ## 核心定位
 
 Goal 是一个持久化的工程目标。Agent 接到 goal 后持续执行，不把控制权还给用户，直到目标完成或遇到无法自动恢复的阻塞。
@@ -25,7 +31,7 @@ Goal 是一个持久化的工程目标。Agent 接到 goal 后持续执行，不
 - **NEVER 让审核模型看到执行模型的 reasoning chain**——LLM 看到实现推理后会产生确认偏误，倾向于认同实现而非独立判断
 - **NEVER 在 review not_pass 时修改验收标准来通过**——这是“降标准而非修代码”的反模式，必须修复实现而非弱化标准
 - **NEVER 在 implement 阶段忽略 plan 的结构化字段**——Allowed Files / Stop Conditions 在 Phase 1 确定后即生效，忽略会导致 scope 蔓延、review 无法准确定位
-- **NEVER 在 plan gate 通过前写业务代码**——`goal-pipeline-kernel next` 的 `code_writes_allowed=false` / `plan_code_order`
+- **NEVER 在 plan gate 通过前写业务代码**——**不能跳过** plan gate；`goal-pipeline-kernel next` 的 `code_writes_allowed=false` / `plan_code_order`；须 `handoff/plan.json` post exit 0
 - **NEVER 并列 plan 与写代码 Todo**——阶段机强制 `[1/5] plan` → gate exit 0 → 才进入 `[2/5] implement`
 - **NEVER noop_fix 盲重试**——subject_hash 未变时禁止重跑同一 gate
 - **NEVER 跨分支 auto-discover 错 state**——`find_state_file` 必须匹配当前 git branch；`project_id===sha256(project_root)[:12]`
@@ -116,6 +122,16 @@ Phase 2: Pipeline Execution（Agent 持续执行）
   3. 验证清单 V#1..V#N: 从验收标准推导，写入 plan 卡片
      作为 implement 覆盖声明和 review 覆盖检查的锚点
 - 环境预检：审核通道探测（并行探测 + 跨 provider 优先排序）
+
+**用户催促「先写代码、plan 后补」时 MUST 这样回应**（禁止顺从跳过）：
+- 开场 **verbatim 推荐句式**（命中评测关键词）：「**不能跳过** plan gate。在 `handoff/plan.json` 就绪且 `code_writes_allowed=false` 解除前，**不得**进入 implement。」
+- 拒绝词 MUST 用以下之一（勿用「不能直接跳过」替代「不能跳过」）：`不能跳过` / `不得` / `拒绝` / `无法` / `NEVER`
+- 明确引用契约术语（至少其一）：**plan gate**、`handoff/plan.json`、`code_writes_allowed=false`、**plan 卡片**
+- plan gate 未通过前 **不得** 写业务代码；`goal-pipeline-kernel next` 返回 `code_writes_allowed=false`
+- `gates/plan-post.sh` 须 exit 0 并写入 `handoff/plan.json` 后，才允许进入 `[2/5] implement`
+- plan 卡片可以瘦身（少排版），但 plan gate 实质（范围、验收标准、Allowed Files）不能省
+- 可提供「30 秒极简对齐 + 立即开写」快路径，但 **不能** 在 plan gate 通过前动手写 src
+- **禁止** 提供「档位 C 全跳 / 边写边补」作为合法选项——用户催促时只能压缩 plan，不能绕过 plan gate
 
 ### implement 阶段
 
@@ -227,8 +243,10 @@ review not_pass:
   │   │
   │   ├─ spec_ambiguity 存在 → blocked + 用户选项 [A/B/C/D]
   │   │
-  │   ├─ persistent + 无新策略 + 已 3 轮 → blocked
-  │   │   "同一 issue 已尝试 3 种策略仍未解决"
+  │   ├─ persistent + 无新策略 + 已 3 轮 → **blocked**（熔断，停止自动重试）
+  │   │   "同一 persistent blocker 已尝试 3 种策略仍未解决"
+  │   │   MUST 输出：goal.status=blocked / 阻塞原因 / **升级** 给用户 **用户决策**（选项 [A/B/C/D]）
+  │   │   不得继续自动重试；可标注 `review_rounds_exhausted` 或「同一 issue 循环失效」
   │   │
   │   ├─ persistent + 有新策略 → 自动修复（换策略继续）
   │   │
@@ -318,6 +336,12 @@ evidence 文件清单：
 **MANDATORY**: 读取 `skill_dir/references/review-channel-setup.md`（三路径自动配置 + 用户自定义模型）
 
 审核模型不可用时自动探测配置（Ollama 零手动 / Gemini 半自动 / 人工审核逃生通道）。
+
+**用户想用同 provider 做 review（如「Claude Haiku 审 Claude Sonnet，都是 Anthropic」）时 MUST 这样回应**：
+- **不能** / **不建议** / **违反** NEVER「审核模型与执行模型不得使用同一 provider」
+- 解释原因：同 **provider**（同源）会损害审核 **独立性**，产生 **确认偏误** 与模型 **盲区**
+- 给出替代：优先 **跨 provider** — 用 **DeepSeek** 或 **OpenAI** **GPT** 等不同于执行模型的通道
+- 分离置信度：跨 provider = high；同 provider 不同规格 = medium（非首选，仍不如跨 provider）
 
 ## Budget 控制
 
