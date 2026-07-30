@@ -112,7 +112,7 @@ curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | ba
 |------|------|
 | **stable**（推荐） | `curl .../main/install.sh \| bash -s -- --channel stable` |
 | **latest**（main 顶端） | `... \| bash -s -- --channel latest` |
-| **pinned**（指定版本） | `... \| bash -s -- --ref v3.0.0` |
+| **pinned**（指定版本） | `... \| bash -s -- --ref v1.0.0` |
 
 ```bash
 # HTTPS（默认，推荐 stable）
@@ -122,8 +122,8 @@ curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | ba
 curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | bash -s -- --channel latest
 
 # 固定 tag（可与 tag 上的 install.sh 组合以保证可复现）
-curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | bash -s -- --ref v3.0.0
-curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/refs/tags/v3.0.0/install.sh | bash -s -- --ref v3.0.0
+curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | bash -s -- --ref v1.0.0
+curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/refs/tags/v1.0.0/install.sh | bash -s -- --ref v1.0.0
 
 # SSH（需已配置 SSH key）
 curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | bash -s -- --ssh --channel stable
@@ -190,7 +190,7 @@ bash ~/.goal-pipeline/state/scripts/goal-install.sh --update
 # 切换通道或版本后更新
 GOAL_CHANNEL=stable bash ~/.goal-pipeline/state/scripts/goal-install.sh --update
 bash ~/.goal-pipeline/state/scripts/goal-install.sh --update --channel latest
-bash ~/.goal-pipeline/state/scripts/goal-install.sh --update --ref v3.0.0
+bash ~/.goal-pipeline/state/scripts/goal-install.sh --update --ref v1.0.0
 
 # 查看当前通道与 VERSION
 bash ~/.goal-pipeline/state/scripts/goal-install.sh --status

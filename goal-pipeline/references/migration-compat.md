@@ -13,7 +13,7 @@
 
 从 2.2 升级：执行一次 `sync-install-repo.sh --deploy-only` 或重跑 `install.sh`；若仅有旧 `scripts/` 而无 `kernel/`，complete / review merge 会失败。
 
-## 目录布局（2.4+ / 3.0 安装通道）
+## 目录布局（2.4+ / 1.0 安装通道）
 
 | 变量 | 默认路径 |
 |------|----------|
@@ -23,7 +23,7 @@
 
 无旧版 `$HOME` 路径迁移；新装仅使用上表。`install.sh --uninstall --purge` 删除 `repository/` 与 `state/`（及空的 `GOAL_HOME`）。
 
-自 **3.0** 起，安装/更新通过 **通道** 解析 Git 引用（见 [`release-channel.md`](./release-channel.md)）：
+自 **1.0** 起，安装/更新通过 **通道** 解析 Git 引用（见 [`release-channel.md`](./release-channel.md)）：
 
 | 通道 | 含义 |
 |------|------|

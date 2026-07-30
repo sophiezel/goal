@@ -63,7 +63,7 @@ Environment: GOAL_CHANNEL, GOAL_REF
 Examples:
   curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | bash -s -- --channel stable
   curl -fsSL .../main/install.sh | bash -s -- --channel latest
-  curl -fsSL .../main/install.sh | bash -s -- --ref v3.0.0
+  curl -fsSL .../main/install.sh | bash -s -- --ref v1.0.0
   bash install.sh --update
   bash install.sh --status
   bash install.sh --ssh --agent cursor

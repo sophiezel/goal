@@ -1,6 +1,6 @@
-# goal v3.0.0
+# goal v1.0.0
 
-First release with unified `GOAL_HOME` (`~/.goal-pipeline/{repository,state}`) and **install channels** (stable / latest / pinned).
+First SemVer release: unified `GOAL_HOME` (`~/.goal-pipeline/{repository,state}`), dual-pipeline kernel, and **install channels** (stable / latest / pinned).
 
 ## Install
 
@@ -8,18 +8,18 @@ First release with unified `GOAL_HOME` (`~/.goal-pipeline/{repository,state}`) a
 curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | bash -s -- --channel stable
 ```
 
-After this tag exists on GitHub:
+Pinned to this release:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/refs/tags/v3.0.0/install.sh | bash -s -- --ref v3.0.0
+curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/refs/tags/v1.0.0/install.sh | bash -s -- --ref v1.0.0
 ```
 
-## Breaking changes
+## Breaking changes (vs informal pre-release installs)
 
 - Install layout is only `~/.goal-pipeline/repository` and `~/.goal-pipeline/state`. No automatic migration from `~/.goal-pipeline-repo`, `~/.goal-state`, or `~/.guazi-flow-goal`.
-- Default install track is **stable** (latest non-prerelease SemVer tag), not `main`.
+- Default install track is **stable** (latest non-prerelease SemVer tag), not rolling `main`.
 
-## Upgrade from pre-3.0
+## Upgrade from legacy paths
 
 1. Move or clone git install tree to `~/.goal-pipeline/repository`.
 2. Move runtime state to `~/.goal-pipeline/state`.

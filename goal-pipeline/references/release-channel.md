@@ -18,7 +18,7 @@ No long-lived `release` branch: shipping is **annotated tag + GitHub Release** o
 # Install (bootstrap installer from main; content follows channel)
 curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | bash -s -- --channel stable
 curl -fsSL .../main/install.sh | bash -s -- --channel latest
-curl -fsSL .../main/install.sh | bash -s -- --ref v3.0.0
+curl -fsSL .../main/install.sh | bash -s -- --ref v1.0.0
 
 # Update / status (after install)
 bash ~/.goal-pipeline/state/scripts/goal-install.sh --update
@@ -32,15 +32,15 @@ bash install.sh --uninstall --purge
 Reproducible bootstrap (installer and tree at same tag):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/refs/tags/v3.0.0/install.sh | bash -s -- --ref v3.0.0
+curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/refs/tags/v1.0.0/install.sh | bash -s -- --ref v1.0.0
 ```
 
 ## Maintainer release
 
-1. Merge to `main`; ensure [`goal-pipeline/VERSION`](../VERSION) matches the release (e.g. `3.0.0`).
+1. Merge to `main`; ensure [`goal-pipeline/VERSION`](../VERSION) matches the release (e.g. `1.0.0`).
 2. Run gate tests (`goal-pipeline/scripts/fixtures/guazi-flow-gate/run-gate-tests.sh`).
 3. Create annotated tag `vX.Y.Z` on `main` and publish GitHub Release notes (breaking changes, layout under `~/.goal-pipeline/`).
-4. Pre-releases (`v3.1.0-rc.1`) are installable via `--ref` only; they do not become **stable**.
+4. Pre-releases (`v1.1.0-rc.1`) are installable via `--ref` only; they do not become **stable**.
 
 ## config.json
 
@@ -48,7 +48,7 @@ curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/refs/tags/v3.0.0/ins
 "install": {
   "channel": "stable",
   "ref": "",
-  "resolved_ref": "v3.0.0",
+  "resolved_ref": "v1.0.0",
   "resolved_commit": "abc1234",
   "default_branch": "main",
   "installed_at": "2026-07-30T00:00:00Z"

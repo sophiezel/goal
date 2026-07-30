@@ -37,7 +37,7 @@ Environment: GOAL_CHANNEL, GOAL_REF, GOAL_HOME, GOAL_PIPELINE_REPO, GOAL_STATE_H
 Examples:
   bash goal-install.sh --update
   GOAL_CHANNEL=stable bash goal-install.sh --update
-  bash goal-install.sh --update --ref v3.0.0
+  bash goal-install.sh --update --ref v1.0.0
   bash goal-install.sh --status
 USAGE
       exit 0
