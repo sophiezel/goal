@@ -9,6 +9,8 @@ description: 持久化目标执行管线引擎。使用 `/goal-pipeline <目标>
 
 ## 关键话术速查
 
+L2 eval 与 Agent 回复 SSOT：[`references/response-playbook.md`](references/response-playbook.md)（本节为摘要）。
+
 **用户催促「先写代码、plan 后补」** — 回复第一句 MUST 包含：
 
 > **不能**在 plan gate 通过前写代码。`handoff/plan.json` 未就绪且 `code_writes_allowed=false` 时，**不得**进入 implement；plan **卡片**可压缩，**gate --post plan** 为硬门禁。

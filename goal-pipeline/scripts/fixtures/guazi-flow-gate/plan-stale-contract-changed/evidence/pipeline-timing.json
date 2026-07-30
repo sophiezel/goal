@@ -6,26 +6,26 @@
       "events": [
         {
           "event": "start",
-          "timestamp_utc": "2026-07-29T11:41:30Z"
+          "timestamp_utc": "2026-07-30T04:17:14Z"
         },
         {
           "event": "end",
-          "timestamp_utc": "2026-07-29T11:41:31Z"
+          "timestamp_utc": "2026-07-30T04:17:15Z"
         }
       ],
-      "started_at_utc": "2026-07-29T11:41:30Z",
-      "last_timestamp_utc": "2026-07-29T11:41:31Z"
+      "started_at_utc": "2026-07-30T04:17:14Z",
+      "last_timestamp_utc": "2026-07-30T04:17:15Z"
     },
     "review": {
       "events": [
         {
           "event": "start",
-          "timestamp_utc": "2026-07-29T11:41:31Z"
+          "timestamp_utc": "2026-07-30T04:17:15Z"
         }
       ],
-      "started_at_utc": "2026-07-29T11:41:31Z",
-      "last_timestamp_utc": "2026-07-29T11:41:31Z"
+      "started_at_utc": "2026-07-30T04:17:15Z",
+      "last_timestamp_utc": "2026-07-30T04:17:15Z"
     }
   },
-  "updated_at_utc": "2026-07-29T11:41:31Z"
+  "updated_at_utc": "2026-07-30T04:17:15Z"
 }

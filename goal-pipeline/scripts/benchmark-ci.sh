@@ -45,4 +45,7 @@ for pair in "xs-v3-pre.json:xs-v3-ci-post.json" "xs-v3-pre-review.json:xs-v3-ci-
   fi
 done
 
+echo "=== delivery-quality v2 smoke (plan-good fixture) ==="
+bash "$SCRIPT_DIR/fixtures/guazi-flow-gate/test-write-delivery-quality.sh"
+
 echo "benchmark-ci passed"

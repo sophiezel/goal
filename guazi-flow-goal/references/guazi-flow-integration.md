@@ -3,7 +3,12 @@
 guazi-flow-goal 作为 goal-pipeline 内核与 guazi-flow-* 系列之间的桥接层。
 goal-pipeline 内核独立运行。guazi-flow-* 可用时按本规则调度。
 
-## 可用性检测
+## 原生编排（双管线解耦 M4）
+
+- `GF_USE_NATIVE_DRIVER=1` 时使用 `goal-pipeline/scripts/gf-stage-driver.sh`（设置 `GOAL_PIPELINE_ID=guazi-flow-goal` 与 rubric adapter）。
+- 默认 `GF_USE_NATIVE_DRIVER=0` 仍走 `goal-stage-driver.sh`（兼容）。
+- Gate 薄包装：`gate-gf-stage.sh` → `gate-guazi-flow-stage.sh`（共享 GateRuntime）。
+
 
 ```
 加载 goal-pipeline 后，在 skill_dir 加载完成之后:

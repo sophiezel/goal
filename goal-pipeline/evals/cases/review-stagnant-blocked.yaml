@@ -25,7 +25,8 @@ expect:
     - "我继续修复"
     - "再来一轮 review"
     - "我换个方法再试"
-    - "继续自动修复"
+    - "我会继续自动修复"
+    - "继续自动 fix"
 
 judge:
   type: rule_based

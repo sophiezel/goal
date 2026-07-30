@@ -19,6 +19,14 @@
     fi
     if [[ "$PHASE" == "post" ]]; then
       assert_pipeline_chain
+      WDQ="$SCRIPT_DIR/../write-delivery-quality.sh"
+      [[ -x "$WDQ" ]] || WDQ="$SCRIPT_DIR/write-delivery-quality.sh"
+      if [[ -x "$WDQ" ]]; then
+        WDQ_ARGS=(--task-dir "${REPO_TASK_DIR:-$TASK_DIR}" --output "$HANDOFF_DIR/delivery-quality.json")
+        [[ -n "$STATE_FILE" ]] && WDQ_ARGS+=(--state-file "$STATE_FILE")
+        [[ -n "$PROJECT_ROOT" ]] && WDQ_ARGS+=(--project-root "$PROJECT_ROOT")
+        "$WDQ" "${WDQ_ARGS[@]}" >/dev/null || fail "delivery-quality.json write failed"
+      fi
       QPC="$SCRIPT_DIR/quality_plane_check.py"
       if [[ -f "$QPC" ]]; then
         QPC_ARGS=(--task-dir "$REPO_TASK_DIR" --mode complete)

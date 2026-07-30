@@ -245,17 +245,13 @@ if not os.path.isfile(impl_path):
     errors.append('handoff/implement.json missing')
 
 
-# guazi-flow rubric excerpt from index + SKILL summary
-gf_skill_path = os.path.join(git_root, '.agents', 'skills', 'guazi-flow-review', 'SKILL.md') if git_root else ''
-if not os.path.isfile(gf_skill_path):
-    for cand in [os.path.expanduser('~/.agents/skills/guazi-flow-review/SKILL.md'),
-                 os.path.join(os.path.dirname(verify_script or ''), '..', '..', 'guazi-flow-review', 'SKILL.md')]:
-        if os.path.isfile(cand):
-            gf_skill_path = cand
-            break
-gf_skill_excerpt = ''
-if gf_skill_path and os.path.isfile(gf_skill_path):
-    gf_skill_excerpt = open(gf_skill_path, encoding='utf-8').read()[:2500]
+# Rubric excerpt via kernel RubricProvider (guazi adapter when GOAL_REVIEW_RUBRIC_PROVIDER=guazi)
+_kern_root = os.path.normpath(os.path.join(_script_dir, '..'))
+if _kern_root not in sys.path:
+    sys.path.insert(0, _kern_root)
+from kernel.review.rubric import provider_from_env
+_gf_prov = provider_from_env()
+gf_skill_excerpt = _gf_prov.skill_summary(2500)
 guazi_flow_rubric = {
     'acceptance_matrix_excerpt': contract.get('acceptance_matrix', '')[:2000],
     'pseudocode_excerpt': contract.get('pseudocode_summary', '')[:2000],

@@ -1,16 +1,16 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "title": "delivery-quality",
-  "description": "complete 阶段交付质量报告（v3 §0 节点 I/O 契约）",
+  "description": "complete 阶段交付质量报告（Pipeline I/O Port Spec）",
   "type": "object",
   "required": ["schema_version", "task_dir", "computed_at", "chain_complete", "leak_rate", "gate_status"],
   "properties": {
-    "schema_version": { "type": "integer", "const": 1 },
+    "schema_version": { "type": "integer", "enum": [1, 2] },
+    "pipeline_id": { "type": "string", "enum": ["goal-pipeline", "guazi-flow-goal", ""] },
     "task_dir": { "type": "string" },
     "computed_at": { "type": "string", "format": "date-time" },
     "chain_complete": {
       "type": "object",
-      "description": "各节点 handoff 是否齐备",
       "properties": {
         "plan": { "type": "boolean" },
         "implement": { "type": "boolean" },
@@ -19,30 +19,52 @@
         "complete": { "type": "boolean" }
       }
     },
-    "leak_rate": {
-      "type": "number",
-      "description": "本任务 escapes / 1（单任务为 0 或 1）",
-      "minimum": 0,
-      "maximum": 1
-    },
-    "gate_status": {
-      "type": "string",
-      "enum": ["OK", "BLOCK"],
-      "description": "chain_complete 全 true 且 leak_rate=0 → OK"
-    },
-    "stages_summary": {
+    "leak_rate": { "type": "number", "minimum": 0, "maximum": 1 },
+    "gate_status": { "type": "string", "enum": ["OK", "BLOCK"] },
+    "stages_summary": { "type": "object" },
+    "task_tier": { "type": "string", "enum": ["XS", "S", "M", "L", "XL", ""] },
+    "plan_profile": { "type": "string", "enum": ["lite", "full", ""] },
+    "review_track": { "type": "string", "enum": ["single", "dual", ""] },
+    "timing": {
       "type": "object",
-      "description": "每节点 gate.passed_at 与 exit_code",
       "properties": {
-        "plan": { "type": "object" },
-        "implement": { "type": "object" },
-        "quality": { "type": "object" },
-        "review": { "type": "object" },
-        "complete": { "type": "object" }
+        "plan_ms": { "type": "number" },
+        "implement_ms": { "type": "number" },
+        "quality_ms": { "type": "number" },
+        "review_ms": { "type": "number" },
+        "total_ms": { "type": "number" },
+        "source": { "type": "string" }
       }
     },
-    "task_tier": { "type": "string", "enum": ["XS", "S", "M", "L", "XL"] },
-    "plan_profile": { "type": "string", "enum": ["lite", "full"] },
-    "review_track": { "type": "string", "enum": ["single", "dual"] }
+    "review_provenance": {
+      "type": "object",
+      "properties": {
+        "model_invocations": { "type": "integer" },
+        "latency_ms": { "type": "number" },
+        "provider": { "type": "string" },
+        "model": { "type": "string" },
+        "channels_used": { "type": "array", "items": { "type": "string" } },
+        "issues_goal": { "type": "integer" },
+        "issues_gf": { "type": "integer" }
+      }
+    },
+    "loops": {
+      "type": "object",
+      "properties": {
+        "review_rounds": { "type": "integer" },
+        "replan_count": { "type": "integer" },
+        "stagnant_blocked": { "type": "boolean" },
+        "final_action": { "type": "string" },
+        "first_pass": { "type": "boolean" }
+      }
+    },
+    "quality_summary": {
+      "type": "object",
+      "properties": {
+        "blocker_count_final": { "type": "integer" },
+        "leak_rate": { "type": "number" },
+        "handoff_coverage": { "type": "number" }
+      }
+    }
   }
 }

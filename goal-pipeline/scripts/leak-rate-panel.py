@@ -36,7 +36,8 @@ def collect_completes(workspace_dir: str) -> list[dict]:
             handoff_dir = os.path.join(root, "handoff")
             complete = load_json(os.path.join(handoff_dir, "complete.json"))
             if complete:
-                completes.append({"task_dir": root, "complete": complete})
+                dq = load_json(os.path.join(handoff_dir, "delivery-quality.json"))
+                completes.append({"task_dir": root, "complete": complete, "delivery_quality": dq})
     return completes
 
 
@@ -67,6 +68,15 @@ def compute_panel(workspace_dir: str, escape_path: str) -> dict:
     total_completes = len(completes)
     total_escapes = len(escapes)
     leak_rate = round(total_escapes / total_completes, 4) if total_completes else 0.0
+    delivery_leak_sum = 0.0
+    delivery_n = 0
+    for c in completes:
+        dq = c.get("delivery_quality") or {}
+        if dq.get("schema_version") in (1, 2):
+            delivery_n += 1
+            qs = dq.get("quality_summary") or {}
+            delivery_leak_sum += float(qs.get("leak_rate", dq.get("leak_rate", 0)))
+    delivery_leak_avg = round(delivery_leak_sum / delivery_n, 4) if delivery_n else None
 
     return {
         "schema_version": 1,
@@ -76,6 +86,8 @@ def compute_panel(workspace_dir: str, escape_path: str) -> dict:
         "total_completes": total_completes,
         "total_escapes": total_escapes,
         "leak_rate": leak_rate,
+        "delivery_quality_leak_rate_avg": delivery_leak_avg,
+        "delivery_quality_samples": delivery_n,
         "leak_rate_target": 0.10,
         "per_stage": {
             s: {

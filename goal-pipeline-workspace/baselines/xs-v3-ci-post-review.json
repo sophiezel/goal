@@ -1,7 +1,7 @@
 {
   "schema_version": 2,
-  "benchmark_at": "2026-07-29T11:41:37Z",
-  "goal_commit": "92d7d5f",
+  "benchmark_at": "2026-07-30T04:17:27Z",
+  "goal_commit": "2fe254a",
   "task_dir": "/Users/xuwei/Profession/goal/goal-pipeline/scripts/fixtures/guazi-flow-gate/chain-good",
   "profile": "default",
   "duration_ms": 37,

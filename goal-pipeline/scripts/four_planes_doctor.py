@@ -113,6 +113,7 @@ def main() -> int:
                      "plan-quality-gate.py", "resolve_plan_index_rules.py", "review_track.py",
                      "check_commit_before_review.py", "quality-gate.sh",
                      "acceptance-matrix-ratchet.py", "write-delivery-quality.sh",
+                     "validate-stage-port.py", "gf-stage-driver.sh", "gate-gf-stage.sh",
                      "leak-rate-panel.py", "benchmark-ci.sh", "escape-to-eval.py"):
             installed = SCRIPT_DIR / name
             source = repo_scripts / name

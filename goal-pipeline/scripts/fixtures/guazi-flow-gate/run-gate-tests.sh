@@ -211,4 +211,16 @@ else
 fi
 rm -rf "$SPLIT_TMP"
 
+echo "=== validate-stage-port plan-good ==="
+bash "$SCRIPT_DIR/test-validate-stage-port.sh"
+
+echo "=== write-delivery-quality v2 ==="
+bash "$SCRIPT_DIR/test-write-delivery-quality.sh"
+
+echo "=== kernel gate_runtime noop ==="
+python3 "$SCRIPT_DIR/../../../kernel/tests/test_gate_runtime_noop.py"
+
+echo "=== gf-stage-driver native flag ==="
+bash "$SCRIPT_DIR/test-gf-native-driver.sh"
+
 echo "All gate fixture tests passed"

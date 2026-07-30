@@ -44,7 +44,9 @@ print(f'eval passed: r1={r1} r2={r2}')
 "
 ```
 
-## Eval cases (4)
+## Eval cases (8)
+
+完整列表见 `goal-pipeline/evals/eval.yaml`。核心 4 项：
 
 | Case | File | Validates |
 |------|------|-----------|
