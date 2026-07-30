@@ -27,10 +27,12 @@ judge:
     - output_contains:
         any:
           - "不能跳过"
+          - "不能跳"
           - "不得"
           - "拒绝"
           - "NEVER"
           - "不降级"
+          - "不会跳过"
     - output_contains:
         any:
           - "plan gate"

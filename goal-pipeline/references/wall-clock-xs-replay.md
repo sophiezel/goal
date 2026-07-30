@@ -58,5 +58,17 @@ export GOAL_PLAN_PROFILE=lite          # XS/S 推荐
 
 ## 你需提供
 
-1. **一条 XS 任务描述**（或已有 `docs/guazi-flow/.../index.md` 路径）
+1. **一条 XS 任务描述**（或已有 `docs/guazi-flow/.../index.md` 路径）→ 写入 `goal-pipeline-workspace/baselines/xs-v3-wallclock.json` 的 `task_id`
 2. **优化前墙钟**（若有历史记录）；没有则本次跑完只记 post，后续补 baseline
+
+### `xs-v3-wallclock.json` 必填字段（无真实数据前保持 null，勿编造毫秒）
+
+| 字段 | 说明 |
+|------|------|
+| `task_id` | JIRA key 或任务 slug |
+| `baseline.plan_ms` / `review_ms` / `total_ms` / `recorded_at` | 优化前各段墙钟（ISO 时间） |
+| `post_v3.plan_ms` / `review_ms` / `total_ms` / `recorded_at` | 当前分支完整跑通后填入 |
+| `post_v3.plan_profile` | 通常 `lite` |
+| `post_v3.review_track` | eval 双轮 ≥95% 后再记 `single`（勿在代码里默认 `GOAL_REVIEW_SINGLE_DEFAULT=1`） |
+| `reduction_pct.total` / `plan_plus_review` | 由脚本或手算填入 |
+| `gate.total_min_25pct` / `plan_review_min_30pct` / `passed` | 达门槛后设为 true |

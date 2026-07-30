@@ -55,6 +55,7 @@ MERGE=$(resolve_script merge-review-issues.sh)
 [[ -f "$ASSEMBLE" ]] || { echo "review-chain: assemble-review-packet.sh missing" >&2; exit 1; }
 [[ -f "$REVIEW" ]] || { echo "review-chain: run-independent-review.sh missing" >&2; exit 1; }
 [[ -f "$MERGE" ]] || { echo "review-chain: merge-review-issues.sh missing" >&2; exit 1; }
+[[ -f "$GUARD" ]] || { echo "review-chain: review-channel-guard.py missing" >&2; exit 1; }
 
 _run_independent_review() {
   local extra_mode="${1:-$MODE}"
@@ -67,27 +68,30 @@ _run_independent_review() {
   fi
 }
 
-echo "review-chain [1/4] assemble-review-packet (artifact_mode=$ARTIFACT_MODE)"
-bash "$ASSEMBLE" "${COMMON_ARGS[@]}"
-
-echo "review-chain [2/4] run-independent-review --mode $MODE"
-[[ -f "$GUARD" ]] || { echo "review-chain: review-channel-guard.py missing" >&2; exit 1; }
+_run_kernel_review() {
+  python3 "$REVIEW_CLI" run --task-dir "$REPO_TASK_DIR" --mode "$MODE" \
+    ${STATE_FILE:+--state-file "$STATE_FILE"} \
+    ${PROJECT_ROOT:+--project-root "$PROJECT_ROOT"}
+}
 
 # Share detect probe cache across guard → run-independent-review → orchestrator (TTL 10min).
 export GOAL_REVIEW_DETECT_CACHE="${GOAL_REVIEW_DETECT_CACHE:-$(mktemp -t goal-review-detect.XXXXXX.json)}"
 trap 'rm -f "${GOAL_REVIEW_DETECT_CACHE:-}"' EXIT
 
-# Fail-fast: 0 usable review channels OR configured-but-unreachable → skip L2 timeout storm.
+echo "review-chain [1/4] review-channel-guard (artifact_mode=$ARTIFACT_MODE)"
 CHANNEL_JSON=$(python3 "$GUARD" --resolve --provider "" --model "" --force-det 0 --mode "$MODE" --format json 2>/dev/null || echo '{"has_candidates":false}')
 HAS_CH=$(echo "$CHANNEL_JSON" | python3 -c "import json,sys; print('1' if json.load(sys.stdin).get('has_candidates') else '0')" 2>/dev/null || echo 0)
 UNREACH=$(echo "$CHANNEL_JSON" | python3 -c "import json,sys; print('1' if json.load(sys.stdin).get('configured_but_unreachable') else '0')" 2>/dev/null || echo 0)
 
 if [[ "${GOAL_REVIEW_FORCE_DETERMINISTIC:-}" == "1" ]]; then
+  echo "review-chain [2/4] assemble-review-packet (forced deterministic)"
+  bash "$ASSEMBLE" "${COMMON_ARGS[@]}"
   python3 "$GUARD" --check --force-det 1 --provider deterministic
   bash "$REVIEW" "${COMMON_ARGS[@]}" --mode goal --provider deterministic
 elif [[ "$UNREACH" == "1" ]]; then
   echo "review-chain: WARN — review APIs configured but unreachable (short probe); skipping cascade" >&2
   echo "review-chain: use GOAL_REVIEW_CURSOR_TASK=1 / Cursor Task — do NOT treat as business not_pass" >&2
+  bash "$ASSEMBLE" "${COMMON_ARGS[@]}"
   mkdir -p "$GOAL_EVIDENCE_DIR"
   python3 - "$GOAL_EVIDENCE_DIR/review-channel-degraded.json" <<'PY'
 import json, sys
@@ -103,13 +107,13 @@ open(path, "w", encoding="utf-8").write(json.dumps({
 PY
   export REVIEW_CHANNEL_UNREACHABLE=1
   export GOAL_REVIEW_CURSOR_TASK_HINT=1
-  # Resolve shell exports so run-independent-review sees UNREACHABLE (json resolve doesn't export).
   eval "$(python3 "$GUARD" --resolve --provider "" --model "" --force-det 0 --mode "$MODE" 2>/dev/null || true)"
   export REVIEW_CHANNEL_UNREACHABLE=1
   _run_independent_review "$MODE"
 elif [[ "$HAS_CH" != "1" ]]; then
   echo "review-chain: WARN — 0 usable review channels; skipping L2 API cascade (separation=degraded)" >&2
   echo "review-chain: using deterministic_scope_only — confidence lowered; not a full independent review" >&2
+  bash "$ASSEMBLE" "${COMMON_ARGS[@]}"
   mkdir -p "$GOAL_EVIDENCE_DIR"
   python3 - "$GOAL_EVIDENCE_DIR/review-channel-degraded.json" <<'PY'
 import json, sys
@@ -124,7 +128,13 @@ open(path, "w", encoding="utf-8").write(json.dumps({
 PY
   export GOAL_REVIEW_FORCE_DETERMINISTIC=1
   bash "$REVIEW" "${COMMON_ARGS[@]}" --mode goal --provider deterministic
+elif [[ -f "$REVIEW_CLI" ]]; then
+  echo "review-chain [2/4] kernel.review.cli run --mode $MODE"
+  _run_kernel_review
+  echo "review-chain [4/4] done — run gate --post review next"
+  exit 0
 else
+  bash "$ASSEMBLE" "${COMMON_ARGS[@]}"
   _run_independent_review "$MODE"
 fi
 

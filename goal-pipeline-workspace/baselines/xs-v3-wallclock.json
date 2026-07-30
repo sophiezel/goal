@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "note": "Fill after real XS task replay (see wall-clock-xs-replay.md). Static benchmark does NOT substitute.",
+  "note": "BLOCKED: no real XS task_id or wall-clock timings yet. Provide task per wall-clock-xs-replay.md §「你需提供」— fill task_id, baseline/post_v3 plan_ms|review_ms|total_ms|recorded_at, then set gate.passed.",
   "task_id": "",
   "baseline": {
     "plan_ms": null,

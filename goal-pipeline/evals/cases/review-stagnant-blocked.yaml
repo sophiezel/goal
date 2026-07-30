@@ -36,17 +36,25 @@ judge:
           - "blocked_stagnant"
           - "熔断"
           - "stagnant"
+          - "info_gain"
           - "不继续"
           - "停止"
           - "blocked"
+          - "停滞"
+          - "盲修"
+          - "不会"
     - output_contains:
         any:
           - "用户"
           - "A/B/C"
+          - "走 A"
+          - "倾向 B"
           - "mini-replan"
+          - "replan"
           - "sign-off"
           - "abort"
           - "选项"
+          - "确认"
   failure:
     - output_contains:
         any:

@@ -29,7 +29,42 @@ def main() -> int:
     checks: list[dict] = []
     kernel = SCRIPT_DIR / "goal-pipeline-kernel.sh"
     checks.append(check("control.kernel_cli", kernel.is_file(), str(kernel)))
-    checks.append(check("control.driver", (SCRIPT_DIR / "goal-stage-driver.sh").is_file()))
+    kernel_pkg = SCRIPT_DIR.parent / "kernel" / "__init__.py"
+    kernel_ver = ""
+    if kernel_pkg.is_file():
+        txt = kernel_pkg.read_text(encoding="utf-8")
+        for line in txt.splitlines():
+            if line.strip().startswith("__version__"):
+                kernel_ver = line.split("=", 1)[-1].strip().strip('"').strip("'")
+                break
+    checks.append(check("control.kernel_package", kernel_pkg.is_file(), kernel_ver or str(kernel_pkg)))
+    gf_driver = SCRIPT_DIR / "gf-stage-driver.sh"
+    goal_driver = SCRIPT_DIR / "goal-stage-driver.sh"
+    gf_gate = SCRIPT_DIR / "gate-gf-stage.sh"
+    for label, path in (
+        ("control.gf_stage_driver", gf_driver),
+        ("control.gate_gf_stage", gf_gate),
+    ):
+        checks.append(check(label, path.is_file(), str(path)))
+    if kernel_ver and gf_driver.is_file() and goal_driver.is_file():
+        gfd = gf_driver.read_text(encoding="utf-8")
+        gsd = goal_driver.read_text(encoding="utf-8")
+        uses_kernel = "kernel/" in gfd or "kernel." in gfd
+        checks.append(
+            check(
+                "control.gf_driver_kernel_wire",
+                uses_kernel or "GF_USE_NATIVE_DRIVER" in gfd,
+                f"kernel_version={kernel_ver}",
+            )
+        )
+        checks.append(
+            check(
+                "control.kernel_version_goal_driver",
+                "goal-pipeline-kernel" in gsd or "kernel" in gsd,
+                kernel_ver,
+            )
+        )
+    checks.append(check("control.driver", goal_driver.is_file()))
     checks.append(check("control.gate", (SCRIPT_DIR / "gate-guazi-flow-stage.sh").is_file()))
     checks.append(check("control.assert_merged", (SCRIPT_DIR / "assert_plan_before_code.py").is_file()))
 
@@ -53,6 +88,8 @@ def main() -> int:
     gate_txt = (SCRIPT_DIR / "gate-guazi-flow-stage.sh").read_text(encoding="utf-8") if (SCRIPT_DIR / "gate-guazi-flow-stage.sh").is_file() else ""
     checks.append(check("efficiency.qg_state_file", "QG_ARGS+=(--state-file" in gate_txt or "--state-file \"$STATE_FILE\"" in gate_txt))
     checks.append(check("efficiency.pipeline_timing", (SCRIPT_DIR / "record-pipeline-timing.py").is_file()))
+    delivery_mod = SCRIPT_DIR.parent / "kernel" / "metrics" / "delivery_report.py"
+    checks.append(check("efficiency.delivery_report_kernel", delivery_mod.is_file(), str(delivery_mod)))
     checks.append(check("efficiency.postmortem", (SCRIPT_DIR / "pipeline-postmortem.py").is_file()))
     driver = (SCRIPT_DIR / "goal-stage-driver.sh").read_text(encoding="utf-8") if (SCRIPT_DIR / "goal-stage-driver.sh").is_file() else ""
     checks.append(check("efficiency.no_build_beta_in_wo", "build:beta" not in driver or "DO NOT run yarn build:beta" in driver))

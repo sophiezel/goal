@@ -17,6 +17,6 @@
   "gate": {
     "script": "gate-guazi-flow-stage.sh",
     "version": 1,
-    "passed_at": "2026-07-30T06:11:47Z"
+    "passed_at": "2026-07-30T06:18:02Z"
   }
 }

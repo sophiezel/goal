@@ -26,6 +26,18 @@
         [[ -n "$STATE_FILE" ]] && WDQ_ARGS+=(--state-file "$STATE_FILE")
         [[ -n "$PROJECT_ROOT" ]] && WDQ_ARGS+=(--project-root "$PROJECT_ROOT")
         "$WDQ" "${WDQ_ARGS[@]}" >/dev/null || fail "delivery-quality.json write failed"
+        KERNEL_ROOT="$SCRIPT_DIR/.."
+        if [[ -d "$KERNEL_ROOT/kernel/metrics" ]]; then
+          ADR_RC=0
+          ADR_OUT=$(PYTHONPATH="$KERNEL_ROOT" python3 "$KERNEL_ROOT/kernel/metrics/delivery_report.py" \
+            --output "$HANDOFF_DIR/delivery-quality.json" --adr-check \
+            ${STATE_FILE:+--state-file "$STATE_FILE"} 2>&1) || ADR_RC=$?
+          if [[ "$ADR_RC" -eq 0 && -n "$ADR_OUT" ]]; then
+            echo "complete: WARN delivery incomplete_metrics — $ADR_OUT" >&2
+          elif [[ "$ADR_RC" -ne 0 ]]; then
+            fail "delivery-quality ADR-0004: $ADR_OUT"
+          fi
+        fi
       fi
       QPC="$SCRIPT_DIR/quality_plane_check.py"
       if [[ -f "$QPC" ]]; then

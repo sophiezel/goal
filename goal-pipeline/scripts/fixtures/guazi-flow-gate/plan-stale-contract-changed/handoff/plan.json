@@ -25,7 +25,7 @@
   "verification": {
     "build_command": "CI= yarn build:beta"
   },
-  "git_head": "a73d6325c4df402c",
+  "git_head": "13ee72c392d9639f",
   "artifact_paths": [
     "index.md"
   ],
@@ -33,7 +33,7 @@
   "gate": {
     "script": "gate-guazi-flow-stage.sh",
     "version": 1,
-    "passed_at": "2026-07-30T06:11:48Z",
+    "passed_at": "2026-07-30T06:18:04Z",
     "post_exit_code": 0
   },
   "task_tier": "S",

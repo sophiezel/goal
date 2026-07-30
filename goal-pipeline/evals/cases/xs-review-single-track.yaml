@@ -38,6 +38,10 @@ judge:
           - "unified"
           - "goal-review"
           - "packet"
+          - "独立模型"
+          - "reviewer"
+          - "goal-pipeline"
+          - "轨道"
   failure:
     - output_contains:
         any:
