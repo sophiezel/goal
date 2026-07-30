@@ -48,12 +48,24 @@ COMMON_ARGS=(--task-dir "$REPO_TASK_DIR")
 
 ASSEMBLE=$(resolve_script assemble-review-packet.sh)
 REVIEW=$(resolve_script run-independent-review.sh)
+REVIEW_CLI="$SCRIPT_DIR/../kernel/review/cli.py"
 GUARD=$(resolve_script review-channel-guard.py)
 MERGE=$(resolve_script merge-review-issues.sh)
 
 [[ -f "$ASSEMBLE" ]] || { echo "review-chain: assemble-review-packet.sh missing" >&2; exit 1; }
 [[ -f "$REVIEW" ]] || { echo "review-chain: run-independent-review.sh missing" >&2; exit 1; }
 [[ -f "$MERGE" ]] || { echo "review-chain: merge-review-issues.sh missing" >&2; exit 1; }
+
+_run_independent_review() {
+  local extra_mode="${1:-$MODE}"
+  if [[ -f "$REVIEW_CLI" ]]; then
+    python3 "$REVIEW_CLI" invoke --task-dir "$REPO_TASK_DIR" --mode "$extra_mode" \
+      ${STATE_FILE:+--state-file "$STATE_FILE"} \
+      ${PROJECT_ROOT:+--project-root "$PROJECT_ROOT"}
+  else
+    bash "$REVIEW" "${COMMON_ARGS[@]}" --mode "$extra_mode"
+  fi
+}
 
 echo "review-chain [1/4] assemble-review-packet (artifact_mode=$ARTIFACT_MODE)"
 bash "$ASSEMBLE" "${COMMON_ARGS[@]}"
@@ -94,7 +106,7 @@ PY
   # Resolve shell exports so run-independent-review sees UNREACHABLE (json resolve doesn't export).
   eval "$(python3 "$GUARD" --resolve --provider "" --model "" --force-det 0 --mode "$MODE" 2>/dev/null || true)"
   export REVIEW_CHANNEL_UNREACHABLE=1
-  bash "$REVIEW" "${COMMON_ARGS[@]}" --mode "$MODE"
+  _run_independent_review "$MODE"
 elif [[ "$HAS_CH" != "1" ]]; then
   echo "review-chain: WARN — 0 usable review channels; skipping L2 API cascade (separation=degraded)" >&2
   echo "review-chain: using deterministic_scope_only — confidence lowered; not a full independent review" >&2
@@ -113,7 +125,7 @@ PY
   export GOAL_REVIEW_FORCE_DETERMINISTIC=1
   bash "$REVIEW" "${COMMON_ARGS[@]}" --mode goal --provider deterministic
 else
-  bash "$REVIEW" "${COMMON_ARGS[@]}" --mode "$MODE"
+  _run_independent_review "$MODE"
 fi
 
 UNIFIED_JSON="$GOAL_EVIDENCE_DIR/review-unified.json"

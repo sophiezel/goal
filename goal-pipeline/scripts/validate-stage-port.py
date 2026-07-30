@@ -89,6 +89,11 @@ def main():
     p.add_argument("--state-file", default="")
     p.add_argument("--stage", default="", help="single stage or empty for all present handoffs")
     p.add_argument("--require-delivery", action="store_true", help="fail if delivery-quality.json missing")
+    p.add_argument(
+        "--only-present",
+        action="store_true",
+        help="only validate stages whose handoff file already exists",
+    )
     args = p.parse_args()
 
     paths = resolve_paths(args.task_dir, args.state_file)
@@ -100,6 +105,11 @@ def main():
         if st not in STAGE_FILES:
             errors.append(f"unknown stage {st!r}")
             continue
+        if args.only_present:
+            spec = STAGE_FILES[st]
+            names = spec if isinstance(spec, tuple) else (spec,)
+            if not any(os.path.isfile(os.path.join(handoff_dir, n)) for n in names):
+                continue
         check_stage(handoff_dir, st, errors)
 
     if args.require_delivery or args.stage == "complete" or (not args.stage and os.path.isfile(os.path.join(handoff_dir, "complete.json"))):

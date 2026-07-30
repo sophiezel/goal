@@ -8,6 +8,10 @@ import sys
 from datetime import datetime, timezone
 
 SCRIPT_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "scripts")
+_KERN_ROOT = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", ".."))
+if _KERN_ROOT not in sys.path:
+    sys.path.insert(0, _KERN_ROOT)
+from kernel.review.loop_policy import LoopPolicy  # noqa: E402
 
 
 def load_json(path, default=None):
@@ -242,11 +246,8 @@ def main():
     round_n = int(prev.get("round", 0)) + 1 if prev else 1
 
     # Hard cap on fix rounds (docs promise "10 轮警告" — enforce as blocked).
-    # Infra actions (channel repair) are not code-churn loops and stay exempt.
-    try:
-        max_rounds = int(os.environ.get("GOAL_REVIEW_MAX_ROUNDS", "10") or "10")
-    except ValueError:
-        max_rounds = 10
+    policy = LoopPolicy.from_env()
+    max_rounds = policy.max_rounds
     rounds_exhausted = (
         merged_result != "pass"
         and round_n > max_rounds
@@ -256,15 +257,8 @@ def main():
         action = "blocked_user_decision"
 
     # info_gain 熔断 (v3 §8.3a): consecutive low info_gain → blocked_stagnant
-    # Infra-only issues are exempt (channel repair ≠ code churn).
-    try:
-        info_gain_threshold = float(os.environ.get("GOAL_REVIEW_INFO_GAIN_MIN", "0.10") or "0.10")
-    except ValueError:
-        info_gain_threshold = 0.10
-    try:
-        stagnant_rounds_limit = int(os.environ.get("GOAL_REVIEW_STAGNANT_ROUNDS", "2") or "2")
-    except ValueError:
-        stagnant_rounds_limit = 2
+    info_gain_threshold = policy.info_gain_min
+    stagnant_rounds_limit = policy.stagnant_rounds_limit
 
     cur_blockers = sum(1 for i in flat if i.get("severity") == "blocker")
     prev_blockers = int(prev.get("blocker_count", 0)) if prev else 0

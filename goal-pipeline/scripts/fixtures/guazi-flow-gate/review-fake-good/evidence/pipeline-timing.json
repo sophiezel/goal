@@ -75,11 +75,23 @@
         {
           "event": "start",
           "timestamp_utc": "2026-07-30T04:17:10Z"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-07-30T06:09:57Z"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-07-30T06:11:11Z"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-07-30T06:11:43Z"
         }
       ],
-      "started_at_utc": "2026-07-30T04:17:10Z",
-      "last_timestamp_utc": "2026-07-30T04:17:10Z"
+      "started_at_utc": "2026-07-30T06:11:43Z",
+      "last_timestamp_utc": "2026-07-30T06:11:43Z"
     }
   },
-  "updated_at_utc": "2026-07-30T04:17:10Z"
+  "updated_at_utc": "2026-07-30T06:11:43Z"
 }

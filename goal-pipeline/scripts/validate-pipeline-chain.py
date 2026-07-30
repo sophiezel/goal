@@ -243,6 +243,22 @@ def main():
             if merged == "not_pass" and action == "proceed_complete":
                 errors.append("review: not_pass cannot have action=proceed_complete")
 
+    port_py = os.path.join(script_dir, "validate-stage-port.py")
+    if os.path.isfile(port_py) and os.path.isfile(os.path.join(handoff_dir, "complete.json")):
+        import subprocess as sp
+
+        port_args = [sys.executable, port_py, "--task-dir", args.task_dir, "--only-present", "--require-delivery"]
+        if args.state_file:
+            port_args.extend(["--state-file", args.state_file])
+        pr = sp.run(port_args, capture_output=True, text=True)
+        if pr.returncode != 0:
+            try:
+                port_doc = json.loads(pr.stdout or "{}")
+                for pe in port_doc.get("errors", []):
+                    errors.append(f"port: {pe}")
+            except json.JSONDecodeError:
+                errors.append("port: validate-stage-port failed")
+
     out = {
         "ok": len(errors) == 0,
         "errors": errors,

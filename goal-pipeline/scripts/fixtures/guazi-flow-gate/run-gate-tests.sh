@@ -223,4 +223,12 @@ python3 "$SCRIPT_DIR/../../../kernel/tests/test_gate_runtime_noop.py"
 echo "=== gf-stage-driver native flag ==="
 bash "$SCRIPT_DIR/test-gf-native-driver.sh"
 
+echo "=== delivery-quality complete gate wiring ==="
+bash "$SCRIPT_DIR/test-delivery-quality-complete.sh"
+
+echo "=== kernel no docs/guazi-flow hardcode ==="
+bash "$SCRIPT_DIR/test-kernel-no-guazi-doc-paths.sh"
+
+python3 "$SCRIPT_DIR/../../../kernel/tests/test_loop_policy.py"
+
 echo "All gate fixture tests passed"
