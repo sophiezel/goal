@@ -91,7 +91,7 @@ runtime-smoke.sh → validate? → e2e? → quality-gate.sh → handoff/quality.
 **前置条件**：git、bash、python3
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | bash -s -- --channel stable
 ```
 
 一键完成：克隆仓库 → 检测环境 → universal 部署 skills（Claude 可选副本）→ 初始化 `~/.goal-pipeline/state/` → 部署 Cursor stop hook → 迁移旧数据
@@ -106,21 +106,36 @@ curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | ba
 
 ### 一键安装
 
+安装通道（详见 [goal-pipeline/references/release-channel.md](goal-pipeline/references/release-channel.md)）：
+
+| 通道 | 命令 |
+|------|------|
+| **stable**（推荐） | `curl .../main/install.sh \| bash -s -- --channel stable` |
+| **latest**（main 顶端） | `... \| bash -s -- --channel latest` |
+| **pinned**（指定版本） | `... \| bash -s -- --ref v3.0.0` |
+
 ```bash
-# HTTPS（默认，推荐）
-curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | bash
+# HTTPS（默认，推荐 stable）
+curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | bash -s -- --channel stable
+
+# latest（滚动 main）
+curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | bash -s -- --channel latest
+
+# 固定 tag（可与 tag 上的 install.sh 组合以保证可复现）
+curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | bash -s -- --ref v3.0.0
+curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/refs/tags/v3.0.0/install.sh | bash -s -- --ref v3.0.0
 
 # SSH（需已配置 SSH key）
-curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | bash -s -- --ssh
+curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | bash -s -- --ssh --channel stable
 
 # 仅安装 goal-pipeline（跳过 guazi-flow 系列）
-curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | bash -s -- --no-guazi
+curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | bash -s -- --no-guazi --channel stable
 
 # 限制检测展示的平台列表（skill 仍写入 ~/.agents/skills）
-curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | bash -s -- --agent cursor
+curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | bash -s -- --agent cursor --channel stable
 ```
 
-`install.sh` 是**通用安装入口**：克隆/更新 `~/.goal-pipeline/repository`（仅 `git pull` 远端）、软链 skill 到 `~/.agents/skills`、部署 `~/.goal-pipeline/state` 下的 **runtime**（`scripts/`、`kernel/`、`references/`）。**不会**读取本机 `GOAL_DEV_REPO` 或 `config.json` 里的 `dev_repo`。
+`install.sh` 是**通用安装入口**：按通道解析 Git 引用后克隆/检出 `~/.goal-pipeline/repository`、软链 skill、部署 `~/.goal-pipeline/state` 下的 **runtime**。通道写入 `config.json` → `install`。**不会**读取 `GOAL_DEV_REPO` 或 `config.json` 里的 `dev_repo`（贡献者 pre-push 除外）。
 
 贡献者本地开发的 pre-push 同步见下方「贡献者开发（可选）」。
 
@@ -160,18 +175,30 @@ curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | ba
 | 运行时 | `~/.goal-pipeline/state` | `GOAL_STATE_HOME`；任务数据 + 部署的 scripts/kernel/references |
 | Skills | `~/.agents/skills` | 软链指向 `repository/` 内 skill |
 
-`~/.goal-pipeline/state/VERSION` 记录 `goal_pipeline_version`、`kernel_version`、`kernel_tree_hash`（与 gate 脚本 hash 一并供 doctor 做漂移检测）。
+`~/.goal-pipeline/state/VERSION` 记录 `goal_pipeline_version`（来自 `goal-pipeline/VERSION`）、`install_channel`、`git_tag`、`kernel_tree_hash` 等（doctor 做漂移与更新提示）。
 
-skill 软链指向 `~/.goal-pipeline/repository`，`git pull` 安装仓即可更新 skill 内容。
+skill 软链指向 `~/.goal-pipeline/repository`；**不要**对 stable/pinned 安装仓手动 `git pull`，请用下方更新命令。
 
 > `--agent X` 仅收窄安装日志中的「Detected agents」列表，并影响是否安装 Claude 副本；**skill 始终写入** `~/.agents/skills`。
 
 ### 更新
 
 ```bash
-cd "${GOAL_PIPELINE_REPO:-$HOME/.goal-pipeline/repository}" && git pull    # 更新 skill 内容（软链自动生效）
-bash "${GOAL_PIPELINE_REPO:-$HOME/.goal-pipeline/repository}/goal-pipeline/scripts/sync-install-repo.sh" --deploy-only
-# 或重新运行 install.sh
+# 按 config.json 中的通道更新 repository + runtime + skills
+bash ~/.goal-pipeline/state/scripts/goal-install.sh --update
+
+# 切换通道或版本后更新
+GOAL_CHANNEL=stable bash ~/.goal-pipeline/state/scripts/goal-install.sh --update
+bash ~/.goal-pipeline/state/scripts/goal-install.sh --update --channel latest
+bash ~/.goal-pipeline/state/scripts/goal-install.sh --update --ref v3.0.0
+
+# 查看当前通道与 VERSION
+bash ~/.goal-pipeline/state/scripts/goal-install.sh --status
+# 或（安装仓内）
+bash install.sh --status
+
+# 仅重部署 runtime（不拉 git）
+bash ~/.goal-pipeline/state/scripts/sync-install-repo.sh --deploy-only
 ```
 
 仅重部署 skill 软链：
@@ -230,6 +257,8 @@ bash "${GOAL_STATE_HOME:-$HOME/.goal-pipeline/state}/scripts/sync-install-repo.s
 
 ### 卸载
 
+卸载与安装通道无关（移除 skills；`--purge` 删除 `repository` + `state`）。
+
 #### 统一卸载（推荐）
 
 ```bash
@@ -265,7 +294,11 @@ rm -rf ~/.goal-pipeline/state
 
 | 参数 | 说明 |
 |------|------|
-| `--symlink` | 符号链接（默认，git pull 自动更新） |
+| `--channel stable\|latest\|pinned` | 安装通道（默认 `stable`） |
+| `--ref REF` | 固定 tag 或 commit（隐含 pinned） |
+| `--update` | 按 config/通道重新同步并部署 |
+| `--status` | 打印通道与 VERSION 摘要 |
+| `--symlink` | 符号链接（默认） |
 | `--copy` | 复制文件 |
 | `--ssh` | SSH 克隆 |
 | `--agent X` | 限制检测展示的平台；skill 仍部署到 `~/.agents/skills` |

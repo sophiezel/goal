@@ -592,10 +592,12 @@ review not_pass:
 | 层 | 路径 | 职责 |
 |----|------|------|
 | 开发 | 本地 git clone | 开发、测试、push |
-| 安装 | `~/.goal-pipeline/repository` | install 克隆；pre-push fast-forward |
+| 安装 | `~/.goal-pipeline/repository` | install 克隆；通道见 `release-channel.md`；维护者 pre-push fast-forward |
 | 运行 | `~/.agents/skills` + `~/.goal-pipeline/state/` | Agent skill；gate 脚本、`kernel/` Python 包、references |
 
-`sync-install-repo.sh` 的 `deploy_runtime` 从安装仓（或维护者指定的 `DEPLOY_SOURCE`）复制 `goal-pipeline/scripts`、`goal-pipeline/kernel`、`goal-pipeline/references` 等到 `~/.goal-pipeline/state`，并写入 `VERSION`（含 `kernel_tree_hash`）。`four_planes_doctor` / `goal-pipeline-doctor` 会检查 kernel 是否存在及是否与 manifest 一致。每次 deploy 后通常再调用 `deploy-skills.sh`。
+发布模型：**SemVer tag**（`stable` 通道）+ **`main`**（`latest` 通道），无常驻 `release` 分支。`goal-install.sh --update` 按 `config.json` → `install` 重新解析并检出，再 `deploy_runtime` + skills。
+
+`sync-install-repo.sh` 的 `deploy_runtime` 从安装仓（或维护者指定的 `DEPLOY_SOURCE`）复制 `goal-pipeline/scripts`、`goal-pipeline/kernel`、`goal-pipeline/references` 等到 `~/.goal-pipeline/state`，并写入 `VERSION`（含 `goal_pipeline_version`、`install_channel`、`kernel_tree_hash`）。`four_planes_doctor` / `goal-pipeline-doctor` 会检查 kernel 是否存在及是否与 manifest 一致。每次 deploy 后通常再调用 `deploy-skills.sh`。
 
 ### 8.1 平台检测
 
@@ -765,10 +767,11 @@ goal/
 
 ### 11.2 安装与卸载
 
-安装与卸载速查见 [README.md](README.md)。要点：skill 统一部署到 `~/.agents/skills`；`--agent` 仅影响检测展示与 Claude 副本；卸载通过 `deploy-skills.sh --uninstall` 统一清理。
+安装与卸载速查见 [README.md](README.md) 与 [goal-pipeline/references/release-channel.md](goal-pipeline/references/release-channel.md)。要点：默认 **stable** 通道；`goal-install.sh --update` / `--status`；卸载与通道无关。
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | bash -s -- --channel stable
+bash ~/.goal-pipeline/state/scripts/goal-install.sh --update
 bash install.sh --uninstall
 bash install.sh --uninstall --purge
 ```

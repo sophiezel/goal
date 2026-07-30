@@ -5,6 +5,8 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck disable=SC1091
 source "$SCRIPT_DIR/source-goal-install-paths.sh"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/goal-install-lib.sh"
 _goal_install_paths
 REPO_DIR="$GOAL_PIPELINE_REPO"
 
@@ -113,13 +115,14 @@ sync_git() {
   fi
 
   if ! repo_clean; then
-    warn "skip git pull — $REPO_DIR has local changes (stash or reset first)"
+    warn "skip git sync — $REPO_DIR has local changes (stash or reset first)"
     return 0
   fi
 
-  log "📦 Pulling install repo: $REPO_DIR"
-  git -C "$REPO_DIR" fetch origin --quiet
-  git -C "$REPO_DIR" pull --ff-only --quiet
+  local origin_url
+  origin_url="$(git -C "$REPO_DIR" remote get-url origin 2>/dev/null || true)"
+  log "📦 Syncing install repo (install channel from config): $REPO_DIR"
+  goal_sync_git_from_install_config "$REPO_DIR" "$origin_url" || true
 }
 
 deploy_runtime() {
@@ -203,7 +206,7 @@ deploy_runtime() {
   for ref in failure-codes.json failure-code-dictionary.md four-planes-checklist.json \
              migration-compat.md measure-field-template.json plan-before-code.md \
              plan-quality-rules.json index-lite-protocol.md p2-eval-runbook.md \
-             response-playbook.md escape-register.template.json; do
+             response-playbook.md escape-register.template.json release-channel.md; do
     [[ -f "$REF_SRC/$ref" ]] || continue
     cp "$REF_SRC/$ref" "$REF_DST/$ref"
   done
@@ -242,14 +245,34 @@ print(h.hexdigest()[:16])
 PY
 )"
   KERNEL_TREE_HASH="${KERNEL_TREE_HASH:-unknown}"
+  local pipeline_version git_tag install_channel install_ref
+  pipeline_version="$(goal_get_pipeline_version_from_repo "$source_root")"
+  git_tag="$(git -C "$source_root" describe --tags --exact-match 2>/dev/null || true)"
+  install_channel=""
+  install_ref=""
+  if [[ -f "$GOAL_STATE_HOME/config.json" ]]; then
+    eval "$(python3 - "$GOAL_STATE_HOME/config.json" <<'PY'
+import json, sys
+try:
+    inst = (json.load(open(sys.argv[1], encoding="utf-8")).get("install") or {})
+except Exception:
+    inst = {}
+print(f'install_channel={json.dumps(inst.get("channel") or "")}')
+print(f'install_ref={json.dumps(inst.get("ref") or "")}')
+PY
+)"
+  fi
   local sync_note="$REPO_DIR"
   [[ "$source_root" != "$REPO_DIR" ]] && sync_note="${source_root} -> ${REPO_DIR}"
   cat > "$GOAL_STATE_HOME/VERSION" <<VEREOF
 {
-  "goal_pipeline_version": "2.3.0-dual-pipeline-kernel",
+  "goal_pipeline_version": "$pipeline_version",
   "kernel_version": "$KERNEL_VERSION",
   "kernel_tree_hash": "$KERNEL_TREE_HASH",
   "git_rev": "$GIT_REV",
+  "git_tag": "$git_tag",
+  "install_channel": "$install_channel",
+  "install_ref": "$install_ref",
   "gate_script_hash": "$GATE_HASH",
   "installed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "synced_from": "$sync_note"

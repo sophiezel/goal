@@ -17,6 +17,10 @@ FORCE_AGENT=""
 NO_GUAZI=false
 UNINSTALL=false
 PURGE=false
+INSTALL_CHANNEL="${GOAL_CHANNEL:-stable}"
+INSTALL_REF="${GOAL_REF:-}"
+DO_UPDATE=false
+DO_STATUS=false
 
 # === 参数解析 ===
 while [ $# -gt 0 ]; do
@@ -28,6 +32,10 @@ while [ $# -gt 0 ]; do
     --no-guazi) NO_GUAZI=true; shift ;;
     --uninstall) UNINSTALL=true; shift ;;
     --purge)    PURGE=true; shift ;;
+    --channel) INSTALL_CHANNEL="$2"; shift 2 ;;
+    --ref) INSTALL_REF="$2"; shift 2 ;;
+    --update) DO_UPDATE=true; shift ;;
+    --status) DO_STATUS=true; shift ;;
     --help|-h)
       cat <<'USAGE'
 goal-pipeline installer
@@ -35,6 +43,10 @@ goal-pipeline installer
 Usage: bash install.sh [options]
 
 Options:
+  --channel stable|latest|pinned  Install track (default: stable)
+  --ref REF                       Pin to tag (vX.Y.Z) or commit (implies pinned)
+  --update                        Re-sync repository + redeploy runtime/skills
+  --status                        Print install channel and VERSION summary
   --symlink    Create symlinks (default, git pull auto-updates)
   --copy       Copy files (for platforms that don't support symlinks)
   --ssh        Clone via SSH (requires configured SSH key)
@@ -46,18 +58,26 @@ Options:
   --purge     With --uninstall: also remove repo and state directory
   -h, --help   Show this help
 
+Environment: GOAL_CHANNEL, GOAL_REF
+
 Examples:
-  curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | bash
+  curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | bash -s -- --channel stable
+  curl -fsSL .../main/install.sh | bash -s -- --channel latest
+  curl -fsSL .../main/install.sh | bash -s -- --ref v3.0.0
+  bash install.sh --update
+  bash install.sh --status
   bash install.sh --ssh --agent cursor
-  bash install.sh --no-guazi --copy
-  bash install.sh --uninstall            # Universal skill cleanup
-  bash install.sh --uninstall --purge   # Also remove repo + state
+  bash install.sh --uninstall --purge
 USAGE
       exit 0
       ;;
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
 done
+
+if [ -n "$INSTALL_REF" ]; then
+  INSTALL_CHANNEL="pinned"
+fi
 
 # === Unified install paths (~/.goal-pipeline/{repository,state}) ===
 _goal_source_paths_sh() {
@@ -86,6 +106,59 @@ else
 fi
 REPO_DIR="$GOAL_PIPELINE_REPO"
 mkdir -p "$GOAL_HOME" "$GOAL_STATE_HOME"
+
+_goal_source_install_lib() {
+  local candidates=()
+  [[ -n "$INSTALL_SCRIPT_ROOT" ]] && candidates+=("$INSTALL_SCRIPT_ROOT/goal-pipeline/scripts/goal-install-lib.sh")
+  [[ -n "${GOAL_PIPELINE_REPO:-}" && -f "${GOAL_PIPELINE_REPO}/goal-pipeline/scripts/goal-install-lib.sh" ]] && \
+    candidates+=("${GOAL_PIPELINE_REPO}/goal-pipeline/scripts/goal-install-lib.sh")
+  [[ -f "$GOAL_STATE_HOME/scripts/goal-install-lib.sh" ]] && candidates+=("$GOAL_STATE_HOME/scripts/goal-install-lib.sh")
+  local p
+  for p in "${candidates[@]}"; do
+    if [[ -f "$p" ]]; then
+      # shellcheck disable=SC1090
+      source "$p"
+      return 0
+    fi
+  done
+  return 1
+}
+
+if _goal_source_install_lib; then
+  :
+else
+  echo "❌ goal-install-lib.sh not found" >&2
+  exit 1
+fi
+
+if [ "$DO_STATUS" = true ]; then
+  export GOAL_CHANNEL="${INSTALL_CHANNEL}"
+  export GOAL_REF="${INSTALL_REF}"
+  goal_print_install_status
+  exit 0
+fi
+
+if [ "$DO_UPDATE" = true ] && [ "$UNINSTALL" != true ]; then
+  export GOAL_CHANNEL="${INSTALL_CHANNEL}"
+  export GOAL_REF="${INSTALL_REF}"
+  GOAL_INSTALL_SH="$GOAL_STATE_HOME/scripts/goal-install.sh"
+  if [ -f "$GOAL_INSTALL_SH" ]; then
+    exec bash "$GOAL_INSTALL_SH" --update ${INSTALL_CHANNEL:+--channel "$INSTALL_CHANNEL"} ${INSTALL_REF:+--ref "$INSTALL_REF"}
+  fi
+  REPO_URL="$REPO_URL_HTTPS"
+  [ "$USE_SSH" = true ] && REPO_URL="$REPO_URL_SSH"
+  goal_read_install_config
+  goal_normalize_channel_ref
+  goal_sync_repository "$REPO_URL" "$REPO_DIR" "$GOAL_INSTALL_CHANNEL" "$GOAL_INSTALL_REF"
+  goal_write_install_config "$GOAL_INSTALL_CHANNEL" "$GOAL_INSTALL_REF" \
+    "${GOAL_RESOLVED_REF:-}" "${GOAL_RESOLVED_COMMIT:-}"
+  SYNC_SCRIPT="$REPO_DIR/goal-pipeline/scripts/sync-install-repo.sh"
+  [ -f "$SYNC_SCRIPT" ] && env -u GOAL_DEV_REPO DEPLOY_SOURCE="$REPO_DIR" bash "$SYNC_SCRIPT" --deploy-only
+  DEPLOY_SKILLS="$REPO_DIR/goal-pipeline/scripts/deploy-skills.sh"
+  [ -f "$DEPLOY_SKILLS" ] && bash "$DEPLOY_SKILLS" --also-platform-native
+  echo "✅ Update complete"
+  exit 0
+fi
 
 # === 平台检测 ===
 detect_all_agents() {
@@ -238,21 +311,24 @@ fi
 if [ "$NO_GUAZI" = true ]; then
   echo "  guazi-flow:      skipped"
 fi
+echo "  Channel:         $INSTALL_CHANNEL"
+if [ -n "$INSTALL_REF" ]; then
+  echo "  Ref:             $INSTALL_REF"
+fi
 echo ""
 
 # === Step 1: Clone or update install repo (origin only; never merge local dev checkout) ===
 REPO_URL="$REPO_URL_HTTPS"
 [ "$USE_SSH" = true ] && REPO_URL="$REPO_URL_SSH"
 
-if [ ! -d "$REPO_DIR/.git" ]; then
-  echo "📦 Cloning repository..."
-  git clone "$REPO_URL" "$REPO_DIR"
-else
-  echo "📦 Updating repository..."
-  if ! git -C "$REPO_DIR" pull --ff-only 2>/dev/null; then
-    echo "  ⚠️  git pull skipped (local changes or no remote); using existing clone"
-  fi
-fi
+export GOAL_CHANNEL="$INSTALL_CHANNEL"
+export GOAL_REF="$INSTALL_REF"
+goal_normalize_channel_ref
+echo "📦 Syncing repository (channel=${GOAL_INSTALL_CHANNEL})..."
+goal_sync_repository "$REPO_URL" "$REPO_DIR" "$GOAL_INSTALL_CHANNEL" "$GOAL_INSTALL_REF"
+goal_write_install_config "$GOAL_INSTALL_CHANNEL" "$GOAL_INSTALL_REF" \
+  "${GOAL_RESOLVED_REF:-}" "${GOAL_RESOLVED_COMMIT:-}"
+echo "  ✅ At ${GOAL_RESOLVED_REF:-?} (${GOAL_RESOLVED_COMMIT:-?})"
 
 SYNC_SCRIPT="$REPO_DIR/goal-pipeline/scripts/sync-install-repo.sh"
 
@@ -288,6 +364,14 @@ if [ ! -f "$GOAL_STATE_HOME/config.json" ]; then
   "channel_cache": {
     "last_probed": "",
     "channels": {}
+  },
+  "install": {
+    "channel": "stable",
+    "ref": "",
+    "resolved_ref": "",
+    "resolved_commit": "",
+    "default_branch": "main",
+    "installed_at": ""
   }
 }
 CONFIG
@@ -373,12 +457,17 @@ print(h.hexdigest()[:16])
 PY
 )
   KERNEL_TREE_HASH=${KERNEL_TREE_HASH:-unknown}
+  PIPELINE_VERSION=$(goal_get_pipeline_version_from_repo "$REPO_DIR")
+  GIT_TAG=$(git -C "$REPO_DIR" describe --tags --exact-match 2>/dev/null || true)
   cat > "$GOAL_STATE_HOME/VERSION" << VEREOF
 {
-  "goal_pipeline_version": "2.3.0-dual-pipeline-kernel",
+  "goal_pipeline_version": "$PIPELINE_VERSION",
   "kernel_version": "$KERNEL_VERSION",
   "kernel_tree_hash": "$KERNEL_TREE_HASH",
   "git_rev": "$GIT_REV",
+  "git_tag": "$GIT_TAG",
+  "install_channel": "$GOAL_INSTALL_CHANNEL",
+  "install_ref": "$GOAL_INSTALL_REF",
   "gate_script_hash": "$GATE_HASH",
   "installed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
   "synced_from": "$REPO_DIR"
@@ -399,7 +488,7 @@ VEREOF
   for ref in failure-codes.json failure-code-dictionary.md four-planes-checklist.json \
              migration-compat.md measure-field-template.json plan-before-code.md \
              plan-quality-rules.json index-lite-protocol.md p2-eval-runbook.md \
-             response-playbook.md escape-register.template.json; do
+             response-playbook.md escape-register.template.json release-channel.md; do
     [ -f "$REF_SRC/$ref" ] || continue
     cp "$REF_SRC/$ref" "$REF_DST/$ref"
   done
@@ -421,9 +510,9 @@ echo "  Agents:     $(echo $AGENTS | tr ' ' ', ')"
 echo "  Runtime:    $GOAL_STATE_HOME/scripts + kernel + references"
 echo ""
 if [ "$MODE" = "--symlink" ]; then
-  echo "  Update skills:   cd $REPO_DIR && git pull"
-  echo "  Update runtime:  bash $REPO_DIR/goal-pipeline/scripts/sync-install-repo.sh --deploy-only"
-  echo "                   or re-run: bash install.sh"
+  echo "  Update:          bash $GOAL_STATE_HOME/scripts/goal-install.sh --update"
+  echo "                   or: bash install.sh --update"
+  echo "  Status:          bash $GOAL_STATE_HOME/scripts/goal-install.sh --status"
 fi
 echo ""
 echo "  Usage:"

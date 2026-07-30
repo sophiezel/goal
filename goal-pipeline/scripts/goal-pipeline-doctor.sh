@@ -192,6 +192,75 @@ if version_file.is_file() and kernel_init.is_file():
 elif not kernel_init.is_file():
     status("version_kernel_tree_hash", False, "kernel/__init__.py missing")
 
+# Install channel / update hints
+install_cfg = {}
+if config_file.is_file():
+    try:
+        install_cfg = json.loads(config_file.read_text(encoding="utf-8")).get("install") or {}
+    except Exception:
+        install_cfg = {}
+inst_ch = install_cfg.get("channel") or "stable"
+if (repo / ".git").is_dir():
+    try:
+        desc = subprocess.run(
+            ["git", "-C", str(repo), "describe", "--tags", "--always"],
+            capture_output=True, text=True, timeout=10,
+        )
+        describe = (desc.stdout or "").strip() or "?"
+        status(
+            "install_channel",
+            True,
+            f"channel={inst_ch} ref={install_cfg.get('ref') or ''} describe={describe}",
+        )
+        lib = goal_home / "scripts" / "goal-install-lib.sh"
+        if not lib.is_file():
+            lib = repo / "goal-pipeline" / "scripts" / "goal-install-lib.sh"
+        if lib.is_file() and inst_ch == "stable":
+            r = subprocess.run(
+                [
+                    "bash", "-c",
+                    f"source '{lib}'; _goal_list_remote_tags '' '{repo}' | _goal_semver_pick_stable_tag",
+                ],
+                capture_output=True, text=True, timeout=60,
+            )
+            remote_stable = (r.stdout or "").strip()
+            current_tag = subprocess.run(
+                ["git", "-C", str(repo), "describe", "--tags", "--exact-match"],
+                capture_output=True, text=True, timeout=5,
+            )
+            cur = (current_tag.stdout or "").strip()
+            if remote_stable and cur and remote_stable != cur:
+                status(
+                    "install_stable_update_available",
+                    False,
+                    f"current={cur} remote_stable={remote_stable} — run goal-install.sh --update",
+                )
+            else:
+                status("install_stable_update_available", True, remote_stable or cur or "n/a")
+        if inst_ch == "latest":
+            subprocess.run(
+                ["git", "-C", str(repo), "fetch", "origin", "main", "--quiet"],
+                timeout=60,
+                capture_output=True,
+            )
+            behind = subprocess.run(
+                ["git", "-C", str(repo), "rev-list", "--count", "HEAD..origin/main"],
+                capture_output=True, text=True, timeout=10,
+            )
+            n = (behind.stdout or "0").strip()
+            if n.isdigit() and int(n) > 0:
+                status(
+                    "install_latest_behind_main",
+                    False,
+                    f"behind origin/main by {n} commits — run goal-install.sh --update",
+                )
+            else:
+                status("install_latest_behind_main", True, "up to date with origin/main")
+    except Exception as e:
+        status("install_channel", False, str(e)[:200])
+else:
+    status("install_channel", False, "repository not cloned")
+
 # Artifact path resolver
 status("resolve_artifact_paths", resolver.is_file(), str(resolver))
 
@@ -203,11 +272,12 @@ for s in ("goal-pipeline-kernel.sh", "goal-stage-driver.sh", "gf-stage-driver.sh
           "migrate-artifacts.py", "source-artifact-paths.sh",
           "index_contract_hash.py", "refresh-handoffs-after-index.sh",
           "four_planes_doctor.py", "quality_plane_check.py", "data_plane_check.py",
-          "efficiency_plane_check.py", "validate-state-path.sh", "assert-plan-before-code.sh"):
+          "efficiency_plane_check.py", "validate-state-path.sh", "assert-plan-before-code.sh",
+          "goal-install.sh", "goal-install-lib.sh"):
     p = goal_home / "scripts" / s
     status(f"script_{s}", p.is_file(), str(p))
 # Plane refs
-for s in ("failure-codes.json", "four-planes-checklist.json", "migration-compat.md"):
+for s in ("failure-codes.json", "four-planes-checklist.json", "migration-compat.md", "release-channel.md"):
     p = goal_home / "references" / s
     status(f"ref_{s}", p.is_file(), str(p))
 
