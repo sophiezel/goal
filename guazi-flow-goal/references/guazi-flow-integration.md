@@ -9,6 +9,7 @@ goal-pipeline 内核独立运行。guazi-flow-* 可用时按本规则调度。
 - 默认 `GF_USE_NATIVE_DRIVER=0` 仍走 `goal-stage-driver.sh`（兼容）。
 - Gate 薄包装：`gate-gf-stage.sh` → `gate-guazi-flow-stage.sh`（共享 GateRuntime）。
 
+**本机 runtime**：gate / complete / review merge 依赖 `~/.goal-state/kernel/`（由 `install.sh` 或 `sync-install-repo.sh --deploy-only` 部署）。仅更新 skill 软链不会同步 kernel。
 
 ```
 加载 goal-pipeline 后，在 skill_dir 加载完成之后:

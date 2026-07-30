@@ -286,8 +286,8 @@ if [ -f "$SYNC_SCRIPT" ]; then
   env -u GOAL_DEV_REPO DEPLOY_SOURCE="$REPO_DIR" bash "$SYNC_SCRIPT" --deploy-only
 else
   SCRIPTS_SRC="$REPO_DIR/goal-pipeline/scripts"
+  KERNEL_SRC="$REPO_DIR/goal-pipeline/kernel"
   mkdir -p "$GOAL_STATE_HOME/scripts"
-  rm -f "$GOAL_STATE_HOME/scripts/inject-docs-gitignore.sh"
   deployed=0
   for src in "$SCRIPTS_SRC"/*.sh "$SCRIPTS_SRC"/*.py "$SCRIPTS_SRC"/check-consistency; do
     [ -f "$src" ] || continue
@@ -298,6 +298,7 @@ else
   done
   if [ -d "$SCRIPTS_SRC/gate-lib" ]; then
     mkdir -p "$GOAL_STATE_HOME/scripts/gate-lib"
+    rm -f "$GOAL_STATE_HOME/scripts/gate-lib/"*.sh 2>/dev/null || true
     for src in "$SCRIPTS_SRC"/gate-lib/*.sh; do
       [ -f "$src" ] || continue
       cp "$src" "$GOAL_STATE_HOME/scripts/gate-lib/$(basename "$src")"
@@ -305,22 +306,68 @@ else
       deployed=$((deployed + 1))
     done
   fi
-  echo "  ✅ Scripts deployed to $GOAL_STATE_HOME/scripts/ ($deployed files)"
-# Write VERSION manifest with gate script hash for drift detection
-GATE_SRC="$REPO_DIR/goal-pipeline/scripts/gate-guazi-flow-stage.sh"
-GATE_HASH=$(shasum -a 256 "$GATE_SRC" 2>/dev/null | cut -c1-16 || sha256sum "$GATE_SRC" 2>/dev/null | cut -c1-16 || echo "unknown")
-GIT_REV=$(git -C "$REPO_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")
-cat > "$GOAL_STATE_HOME/VERSION" << VEREOF
+  if [ ! -d "$KERNEL_SRC" ]; then
+    echo "  ❌ kernel missing: $KERNEL_SRC" >&2
+    exit 1
+  fi
+  rm -rf "$GOAL_STATE_HOME/kernel"
+  mkdir -p "$GOAL_STATE_HOME/kernel"
+  cp -R "$KERNEL_SRC/." "$GOAL_STATE_HOME/kernel/"
+  kernel_files=$(find "$GOAL_STATE_HOME/kernel" -type f ! -path '*/__pycache__/*' ! -name '*.pyc' 2>/dev/null | wc -l | tr -d ' ')
+  SCHEMAS_SRC="$REPO_DIR/goal-pipeline/schemas"
+  if [ -d "$SCHEMAS_SRC" ]; then
+    rm -rf "$GOAL_STATE_HOME/schemas"
+    mkdir -p "$GOAL_STATE_HOME/schemas"
+    cp -R "$SCHEMAS_SRC/." "$GOAL_STATE_HOME/schemas/"
+  fi
+  echo "  ✅ Runtime deployed to $GOAL_STATE_HOME (scripts=$deployed, kernel_files=$kernel_files)"
+
+  GATE_SRC="$REPO_DIR/goal-pipeline/scripts/gate-guazi-flow-stage.sh"
+  GATE_HASH=$(shasum -a 256 "$GATE_SRC" 2>/dev/null | cut -c1-16 || sha256sum "$GATE_SRC" 2>/dev/null | cut -c1-16 || echo "unknown")
+  GIT_REV=$(git -C "$REPO_DIR" rev-parse --short HEAD 2>/dev/null || echo "unknown")
+  KERNEL_VERSION=$(python3 - "$KERNEL_SRC/__init__.py" <<'PY'
+import re, sys
+from pathlib import Path
+p = Path(sys.argv[1])
+if not p.is_file():
+    raise SystemExit(1)
+for line in p.read_text(encoding="utf-8").splitlines():
+    m = re.match(r"__version__\s*=\s*['\"]([^'\"]+)['\"]", line.strip())
+    if m:
+        print(m.group(1))
+        break
+PY
+)
+  KERNEL_VERSION=${KERNEL_VERSION:-unknown}
+  KERNEL_TREE_HASH=$(python3 - "$KERNEL_SRC" <<'PY'
+import hashlib, sys
+from pathlib import Path
+root = Path(sys.argv[1])
+if not root.is_dir():
+    raise SystemExit(1)
+h = hashlib.sha256()
+for p in sorted(root.rglob("*")):
+    if not p.is_file() or "__pycache__" in p.parts or p.suffix == ".pyc":
+        continue
+    h.update(p.relative_to(root).as_posix().encode())
+    h.update(p.read_bytes())
+print(h.hexdigest()[:16])
+PY
+)
+  KERNEL_TREE_HASH=${KERNEL_TREE_HASH:-unknown}
+  cat > "$GOAL_STATE_HOME/VERSION" << VEREOF
 {
-  "goal_pipeline_version": "2.2.0-review-contract",
+  "goal_pipeline_version": "2.3.0-dual-pipeline-kernel",
+  "kernel_version": "$KERNEL_VERSION",
+  "kernel_tree_hash": "$KERNEL_TREE_HASH",
   "git_rev": "$GIT_REV",
   "gate_script_hash": "$GATE_HASH",
-  "installed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  "installed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "synced_from": "$REPO_DIR"
 }
 VEREOF
-echo "  ✅ VERSION manifest ($GATE_HASH)"
+  echo "  ✅ VERSION manifest ($GATE_HASH)"
 
-# Sync guazi-flow artifact schema (read-only copy for gates)
   SCHEMA_SRC="$REPO_DIR/goal-pipeline/references/guazi-flow-artifact-schema"
   SCHEMA_DST="$GOAL_STATE_HOME/references/guazi-flow-artifact-schema"
   if [ -d "$SCHEMA_SRC" ]; then
@@ -332,11 +379,13 @@ echo "  ✅ VERSION manifest ($GATE_HASH)"
   REF_DST="$GOAL_STATE_HOME/references"
   mkdir -p "$REF_DST"
   for ref in failure-codes.json failure-code-dictionary.md four-planes-checklist.json \
-             migration-compat.md measure-field-template.json; do
+             migration-compat.md measure-field-template.json plan-before-code.md \
+             plan-quality-rules.json index-lite-protocol.md p2-eval-runbook.md \
+             response-playbook.md escape-register.template.json; do
     [ -f "$REF_SRC/$ref" ] || continue
     cp "$REF_SRC/$ref" "$REF_DST/$ref"
   done
-  echo "  ✅ four-plane references synced"
+  echo "  ✅ references synced"
 fi
 
 
@@ -350,11 +399,12 @@ echo "  State:      $GOAL_STATE_HOME"
 echo "  Repo:       $REPO_DIR"
 echo "  Skills dir:    ~/.agents/skills (universal)"
 echo "  Agents:     $(echo $AGENTS | tr ' ' ', ')"
+echo "  Runtime:    $GOAL_STATE_HOME/scripts + kernel + references"
 echo ""
 if [ "$MODE" = "--symlink" ]; then
-  echo "  Update skills:  cd $REPO_DIR && git pull"
-  echo "  Update scripts: env DEPLOY_SOURCE=$REPO_DIR bash $REPO_DIR/goal-pipeline/scripts/sync-install-repo.sh --deploy-only"
-  echo "                or re-run: bash install.sh"
+  echo "  Update skills:   cd $REPO_DIR && git pull"
+  echo "  Update runtime:  bash $REPO_DIR/goal-pipeline/scripts/sync-install-repo.sh --deploy-only"
+  echo "                   or re-run: bash install.sh"
 fi
 echo ""
 echo "  Usage:"

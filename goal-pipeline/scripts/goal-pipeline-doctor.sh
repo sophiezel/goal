@@ -160,13 +160,40 @@ if version_file.is_file() and gate_repo.is_file():
 else:
     status("version_gate_hash", False, "VERSION or gate script missing")
 
+# Kernel package (deployed beside scripts under GOAL_STATE_HOME)
+kernel_init = goal_home / "kernel" / "__init__.py"
+status("kernel_package", kernel_init.is_file(), str(kernel_init))
+if version_file.is_file() and kernel_init.is_file():
+    try:
+        v = json.loads(version_file.read_text())
+        installed_kh = v.get("kernel_tree_hash", "")
+        if installed_kh:
+            h = hashlib.sha256()
+            kroot = goal_home / "kernel"
+            for p in sorted(kroot.rglob("*")):
+                if not p.is_file() or "__pycache__" in p.parts or p.suffix == ".pyc":
+                    continue
+                h.update(p.relative_to(kroot).as_posix().encode())
+                h.update(p.read_bytes())
+            current_kh = h.hexdigest()[:16]
+            drift_k = installed_kh != current_kh
+            status("version_kernel_tree_hash", not drift_k,
+                   f"installed={installed_kh} current={current_kh} kernel_version={v.get('kernel_version','?')}")
+        else:
+            status("version_kernel_tree_hash", True, "no kernel_tree_hash in VERSION (legacy manifest)")
+    except Exception as e:
+        status("version_kernel_tree_hash", False, str(e))
+elif not kernel_init.is_file():
+    status("version_kernel_tree_hash", False, "kernel/__init__.py missing")
+
 # Artifact path resolver
 status("resolve_artifact_paths", resolver.is_file(), str(resolver))
 
 # Required scripts
-for s in ("goal-pipeline-kernel.sh", "goal-stage-driver.sh", "goal-run-review-chain.sh",
+for s in ("goal-pipeline-kernel.sh", "goal-stage-driver.sh", "gf-stage-driver.sh",
+          "goal-run-review-chain.sh",
           "goal-pipeline-recover.sh",
-          "gate-guazi-flow-stage.sh", "goal-pipeline-stop-hook.sh", "resolve-artifact-paths.py",
+          "gate-guazi-flow-stage.sh", "gate-gf-stage.sh", "goal-pipeline-stop-hook.sh", "resolve-artifact-paths.py",
           "migrate-artifacts.py", "source-artifact-paths.sh",
           "index_contract_hash.py", "refresh-handoffs-after-index.sh",
           "four_planes_doctor.py", "quality_plane_check.py", "data_plane_check.py",

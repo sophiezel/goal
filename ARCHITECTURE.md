@@ -593,9 +593,9 @@ review not_pass:
 |----|------|------|
 | 开发 | 本地 git clone | 开发、测试、push |
 | 安装 | `~/.goal-pipeline-repo` | install 克隆；pre-push fast-forward |
-| 运行 | `~/.agents/skills` + `~/.goal-state/scripts` | Agent skill + gate 脚本 |
+| 运行 | `~/.agents/skills` + `~/.goal-state/` | Agent skill；gate 脚本、`kernel/` Python 包、references |
 
-`deploy-skills.sh` 将 `goal-pipeline` / `guazi-flow-goal` 软链到安装仓，并清理 `~/.cursor/skills`、`~/.pi/skills` 等重复副本。`sync-install-repo.sh` 在每次 deploy 后自动调用。
+`sync-install-repo.sh` 的 `deploy_runtime` 从安装仓（或维护者指定的 `DEPLOY_SOURCE`）复制 `goal-pipeline/scripts`、`goal-pipeline/kernel`、`goal-pipeline/references` 等到 `~/.goal-state`，并写入 `VERSION`（含 `kernel_tree_hash`）。`four_planes_doctor` / `goal-pipeline-doctor` 会检查 kernel 是否存在及是否与 manifest 一致。每次 deploy 后通常再调用 `deploy-skills.sh`。
 
 ### 8.1 平台检测
 

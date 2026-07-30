@@ -167,6 +167,25 @@ deploy_runtime() {
     return 1
   fi
 
+  local kernel_src="$source_root/goal-pipeline/kernel"
+  local kernel_dst="$GOAL_STATE_HOME/kernel"
+  local kernel_files=0
+  if [[ ! -d "$kernel_src" ]]; then
+    warn "kernel dir missing: $kernel_src"
+    return 1
+  fi
+  rm -rf "$kernel_dst"
+  mkdir -p "$kernel_dst"
+  cp -R "$kernel_src/." "$kernel_dst/"
+  kernel_files="$(find "$kernel_dst" -type f ! -path '*/__pycache__/*' ! -name '*.pyc' 2>/dev/null | wc -l | tr -d ' ')"
+
+  local schemas_src="$source_root/goal-pipeline/schemas"
+  if [[ -d "$schemas_src" ]]; then
+    rm -rf "$GOAL_STATE_HOME/schemas"
+    mkdir -p "$GOAL_STATE_HOME/schemas"
+    cp -R "$schemas_src/." "$GOAL_STATE_HOME/schemas/"
+  fi
+
   SCHEMA_SRC="$source_root/goal-pipeline/references/guazi-flow-artifact-schema"
   SCHEMA_DST="$GOAL_STATE_HOME/references/guazi-flow-artifact-schema"
   if [[ -d "$SCHEMA_SRC" ]]; then
@@ -181,7 +200,7 @@ deploy_runtime() {
   for ref in failure-codes.json failure-code-dictionary.md four-planes-checklist.json \
              migration-compat.md measure-field-template.json plan-before-code.md \
              plan-quality-rules.json index-lite-protocol.md p2-eval-runbook.md \
-             escape-register.template.json; do
+             response-playbook.md escape-register.template.json; do
     [[ -f "$REF_SRC/$ref" ]] || continue
     cp "$REF_SRC/$ref" "$REF_DST/$ref"
   done
@@ -189,11 +208,44 @@ deploy_runtime() {
   GATE_SRC="$source_root/goal-pipeline/scripts/gate-guazi-flow-stage.sh"
   GATE_HASH="$(shasum -a 256 "$GATE_SRC" 2>/dev/null | cut -c1-16 || sha256sum "$GATE_SRC" 2>/dev/null | cut -c1-16 || echo unknown)"
   GIT_REV="$(git -C "$source_root" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+  KERNEL_VERSION="$(python3 - "$kernel_src/__init__.py" <<'PY'
+import re, sys
+from pathlib import Path
+p = Path(sys.argv[1])
+if not p.is_file():
+    raise SystemExit(1)
+for line in p.read_text(encoding="utf-8").splitlines():
+    m = re.match(r"__version__\s*=\s*['\"]([^'\"]+)['\"]", line.strip())
+    if m:
+        print(m.group(1))
+        break
+PY
+)"
+  KERNEL_VERSION="${KERNEL_VERSION:-unknown}"
+  KERNEL_TREE_HASH="$(python3 - "$kernel_src" <<'PY'
+import hashlib, sys
+from pathlib import Path
+root = Path(sys.argv[1])
+if not root.is_dir():
+    raise SystemExit(1)
+h = hashlib.sha256()
+for p in sorted(root.rglob("*")):
+    if not p.is_file() or "__pycache__" in p.parts or p.suffix == ".pyc":
+        continue
+    rel = p.relative_to(root).as_posix().encode()
+    h.update(rel)
+    h.update(p.read_bytes())
+print(h.hexdigest()[:16])
+PY
+)"
+  KERNEL_TREE_HASH="${KERNEL_TREE_HASH:-unknown}"
   local sync_note="$REPO_DIR"
   [[ "$source_root" != "$REPO_DIR" ]] && sync_note="${source_root} -> ${REPO_DIR}"
   cat > "$GOAL_STATE_HOME/VERSION" <<VEREOF
 {
-  "goal_pipeline_version": "2.2.0-review-contract",
+  "goal_pipeline_version": "2.3.0-dual-pipeline-kernel",
+  "kernel_version": "$KERNEL_VERSION",
+  "kernel_tree_hash": "$KERNEL_TREE_HASH",
   "git_rev": "$GIT_REV",
   "gate_script_hash": "$GATE_HASH",
   "installed_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
@@ -201,7 +253,7 @@ deploy_runtime() {
 }
 VEREOF
 
-  log "✅ Runtime scripts synced to $GOAL_STATE_HOME/scripts/ ($deployed files, git_rev=$GIT_REV)"
+  log "✅ Runtime synced to $GOAL_STATE_HOME (scripts=$deployed, kernel_files=$kernel_files, git_rev=$GIT_REV)"
 }
 
 deploy_skills() {

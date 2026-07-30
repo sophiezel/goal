@@ -120,7 +120,7 @@ curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | ba
 curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | bash -s -- --agent cursor
 ```
 
-`install.sh` 是**通用安装入口**：克隆/更新 `~/.goal-pipeline-repo`（仅 `git pull` 远端）、软链 skill 到 `~/.agents/skills`、部署 `~/.goal-state/scripts`。**不会**读取本机 `GOAL_DEV_REPO` 或 `config.json` 里的 `dev_repo`。
+`install.sh` 是**通用安装入口**：克隆/更新 `~/.goal-pipeline-repo`（仅 `git pull` 远端）、软链 skill 到 `~/.agents/skills`、部署 `~/.goal-state` 下的 **runtime**（`scripts/`、`kernel/`、`references/`）。**不会**读取本机 `GOAL_DEV_REPO` 或 `config.json` 里的 `dev_repo`。
 
 贡献者本地开发的 pre-push 同步见下方「贡献者开发（可选）」。
 
@@ -145,7 +145,7 @@ curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | ba
   → claude_code: ~/.claude/skills   (optional native copy)
 📁 Initializing state directory...
   ✅ config.json created
-  ✅ Scripts deployed to ~/.goal-state/scripts/
+  ✅ Runtime synced to ~/.goal-state/ (scripts + kernel + references)
   ✅ Stop hook deployed to ~/.cursor/hooks/goal-pipeline-stop-hook.sh
 ```
 
@@ -154,7 +154,9 @@ curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | ba
 | 层 | 路径 | 用途 |
 |----|------|------|
 | 安装 | `~/.goal-pipeline-repo` | `install.sh` 从 GitHub 克隆的 skill 源码 |
-| 运行 | `~/.agents/skills` + `~/.goal-state/` | Agent 读 skill（软链）；goal 状态与 gate 脚本 |
+| 运行 | `~/.agents/skills` + `~/.goal-state/` | Agent 读 skill（软链）；goal 状态、gate 脚本、**kernel** Python 包、四平面 references |
+
+`~/.goal-state/VERSION` 记录 `goal_pipeline_version`、`kernel_version`、`kernel_tree_hash`（与 gate 脚本 hash 一并供 doctor 做漂移检测）。
 
 skill 软链指向 `~/.goal-pipeline-repo`，`git pull` 安装仓即可更新 skill 内容。
 
@@ -163,9 +165,8 @@ skill 软链指向 `~/.goal-pipeline-repo`，`git pull` 安装仓即可更新 sk
 ### 更新
 
 ```bash
-cd ~/.goal-pipeline-repo && git pull    # 更新 skill 内容（软链自动生效）
-# 若需同步 gate 脚本到 ~/.goal-state：
-env DEPLOY_SOURCE=~/.goal-pipeline-repo bash ~/.goal-state/scripts/sync-install-repo.sh --deploy-only
+cd "${GOAL_PIPELINE_REPO:-$HOME/.goal-pipeline-repo}" && git pull    # 更新 skill 内容（软链自动生效）
+bash "${GOAL_PIPELINE_REPO:-$HOME/.goal-pipeline-repo}/goal-pipeline/scripts/sync-install-repo.sh" --deploy-only
 # 或重新运行 install.sh
 ```
 
@@ -185,7 +186,7 @@ copy 模式需重新运行安装脚本。
 bash ~/.goal-state/scripts/goal-pipeline-doctor.sh <project_root>
 ```
 
-典型检查项：skill 软链是否指向 `~/.goal-pipeline-repo`（禁止指向开发 clone）、`~/.pi/skills` 等重复项、gate 脚本 VERSION drift、审核通道、Cursor stop hook。
+典型检查项：skill 软链是否指向 `~/.goal-pipeline-repo`（禁止指向开发 clone）、`~/.pi/skills` 等重复项、gate/kernel VERSION drift、审核通道、Cursor stop hook。
 
 `goal-pipeline-doctor.sh` 启动时会尝试后台 `sync-install-repo.sh --quiet`。
 
@@ -205,7 +206,7 @@ bash ~/.goal-state/scripts/goal-pipeline-doctor.sh <project_root>
 | 开发 | 本地 git clone | 改代码、跑 gate tests、`git push` |
 | 安装 | `~/.goal-pipeline-repo` | 与上方相同；可由 pre-push 从开发仓 fast-forward |
 
-**硬规则**：skill 软链**禁止**指向本地开发 clone；`--from-dev` 仅用于把 gate 脚本快速拷贝到 `~/.goal-state/scripts`，skill 始终从安装仓部署。
+**硬规则**：skill 软链**禁止**指向本地开发 clone；`--from-dev` / `DEPLOY_SOURCE` 仅用于维护者把 **runtime**（`scripts/` + `kernel/` + `references/`）从本地 dev clone 部署到 `~/.goal-state`，skill 始终从安装仓部署。
 
 首次启用 pre-push hook（在开发 clone 根目录执行一次）：
 
@@ -218,7 +219,9 @@ bash scripts/setup-dev-sync-hooks.sh
 手动从开发 clone 同步：
 
 ```bash
-bash ~/.goal-state/scripts/sync-install-repo.sh --from-dev /path/to/your/goal-dev-clone
+bash "${GOAL_STATE_HOME:-$HOME/.goal-state}/scripts/sync-install-repo.sh" \
+  --from-dev /path/to/your/goal-dev-clone --deploy-only
+# 等价：DEPLOY_SOURCE=/path/to/your/goal-dev-clone ... --deploy-only
 ```
 
 ### 卸载
@@ -277,7 +280,7 @@ rm -rf ~/.goal-state
 | **通用（主入口）** | `~/.agents/skills/` | goal-pipeline / guazi-flow-goal 唯一入口 |
 | Claude Code（可选副本） | `~/.claude/skills/` | 仅当检测到 `.claude/` |
 | 生态 skill | `~/.agents/skills/` | guazi-flow-plan、e2e-device 等第三方 skill 同目录 |
-| 运行时脚本 | `~/.goal-state/scripts/` | gate / sync / doctor（非 skill） |
+| 运行时 | `~/.goal-state/` | `scripts/`、`kernel/`、`references/`（gate / sync / doctor；非 skill） |
 
 检测信号（`install.sh` 用于判定是否安装 Claude 副本等）：
 

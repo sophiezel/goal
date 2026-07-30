@@ -1,5 +1,18 @@
 # Kernel 迁移兼容窗
 
+## 安装布局（2.3+）
+
+自 `goal_pipeline_version` **2.3.0-dual-pipeline-kernel** 起，`sync-install-repo.sh` / `install.sh` 除 `~/.goal-state/scripts/` 外，还会部署：
+
+| 路径 | 内容 |
+|------|------|
+| `~/.goal-state/kernel/` | `goal-pipeline/kernel`（review merge、delivery metrics、gate_runtime 等） |
+| `~/.goal-state/references/` | 四平面与 eval 相关只读引用 |
+| `~/.goal-state/schemas/` | 可选；JSON schema 副本 |
+| `~/.goal-state/VERSION` | 含 `kernel_version`、`kernel_tree_hash` |
+
+从 2.2 升级：执行一次 `sync-install-repo.sh --deploy-only` 或重跑 `install.sh`；若仅有旧 `scripts/` 而无 `kernel/`，complete / review merge 会失败。
+
 ## 状态
 
 | 阶段 | 对外推荐 | 旧入口 |
