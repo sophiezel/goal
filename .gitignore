@@ -2,3 +2,9 @@
 __pycache__/
 *.pyc
 .DS_Store
+
+# Local skill-up / eval workspaces (regenerable; baselines stay versioned)
+goal-pipeline-workspace/*
+!goal-pipeline-workspace/baselines/
+!goal-pipeline-workspace/baselines/**
+guazi-flow-goal-workspace/
