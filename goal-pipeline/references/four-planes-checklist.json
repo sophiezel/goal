@@ -25,7 +25,9 @@
         "am_ratchet",
         "packet_preflight",
         "degraded_not_full_pass",
-        "fix_input_routing"
+        "fix_input_routing",
+        "contract_table_self_consistent_when_present",
+        "iq10_when_api_table_present"
       ],
       "doctor_checks": ["failure_codes_dict", "review_channel_policy", "uvo_script", "am_ratchet_script"]
     },

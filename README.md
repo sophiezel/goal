@@ -30,10 +30,12 @@ goal-pipeline（通用管线引擎 / 进化轨）
 ### 质检防火墙（兼容轨插入点）
 
 ```text
-guazi-flow-plan     → plan-quality-gate.py  → gate --post plan
-guazi-flow-implement → implement-qc-gate.py (UVO) → gate --post implement
+guazi-flow-plan     → plan-quality-gate.py (PQ-01..14)  → gate --post plan
+guazi-flow-implement → implement-qc-gate.py (IQ-01..02) + contract-conformance-check.py (IQ-10) → gate --post implement
 quality 阶段         → quality-gate.sh        → gate --post quality
 ```
+
+契约语义门禁（表驱动）：见 **[声明式契约门禁（术语）](goal-pipeline/references/declarative-contract-gates.md)**；RCA 收尾见 **[rca-plan-closeout-checklist.md](goal-pipeline/references/rca-plan-closeout-checklist.md)**。
 
 进化轨将 PQ/IQ 规则内嵌到 `goal-plan` / `goal-implement` SKILL，并调用同一脚本。
 

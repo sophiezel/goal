@@ -18,11 +18,12 @@
   ],
   "index_contract_hash": "51852c5909641dfa",
   "index_execution_tail_hash": "08fc10e6bf177caa",
+  "api_mapping_table_hash": "",
   "index_schema_hash": "51852c5909641dfa",
   "verification": {
     "build_command": "CI= yarn build"
   },
-  "git_head": "13ee72c392d9639f",
+  "git_head": "c6c986bcd339a078",
   "artifact_paths": [
     "index.md"
   ],
@@ -30,7 +31,7 @@
   "gate": {
     "script": "gate-guazi-flow-stage.sh",
     "version": 1,
-    "passed_at": "2026-07-30T06:17:44Z",
+    "passed_at": "2026-07-30T12:51:17Z",
     "post_exit_code": 0
   },
   "task_tier": "XS",

@@ -1,1 +1,1 @@
-{"attempts": [{"layer": "vertical", "fallback_layer": "packet_vertical", "provider": "mock-unified", "model": "", "packet_variant": "scoped", "shard_id": "", "latency_ms": 37, "result": "pass", "error": null, "error_kind": ""}], "partial": true}
+{"attempts": [{"layer": "vertical", "fallback_layer": "packet_vertical", "provider": "mock-unified", "model": "", "packet_variant": "scoped", "shard_id": "", "latency_ms": 25, "result": "pass", "error": null, "error_kind": ""}], "partial": true}

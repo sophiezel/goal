@@ -26,6 +26,6 @@
     "channel": "goal | guazi-flow-review",
     "severity": "blocker | warning | medium | high",
     "summary": "string",
-    "root_cause": "implement_error | plan_gap | spec_ambiguity"
+    "root_cause": "implement_error | plan_gap | spec_ambiguity | contract_drift | integration_gap"
   }
 }

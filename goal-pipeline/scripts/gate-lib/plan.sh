@@ -39,6 +39,7 @@
       PP=$(echo "$RESULT" | python3 -c "import json,sys; print(json.load(sys.stdin).get('plan_profile','full'))")
       IH=$(index_contract_hash "$INDEX")
       EH=$(index_execution_tail_hash "$INDEX")
+      API_MAP_HASH=$(python3 "$SCRIPT_DIR/contract_parser.py" --api-mapping-hash "$INDEX" 2>/dev/null || echo "")
       # Keep legacy index_schema_hash = contract hash for older consumers
       GH=$(git_head_short)
       VERIF="{}"
@@ -70,6 +71,7 @@ PYVER
   "acceptance_matrix_ids": $AM,
   "index_contract_hash": "$IH",
   "index_execution_tail_hash": "$EH",
+  "api_mapping_table_hash": "$API_MAP_HASH",
   "index_schema_hash": "$IH",
   "verification": $VERIF,
   "git_head": "$GH",

@@ -1,0 +1,43 @@
+id: contract-semantic-gates
+title: 契约语义门禁 PQ-10 / IQ-10 不得绕过
+description: |
+  Agent 已加载 goal-pipeline。用户要求在 plan 中写 csp-delivery 但 implement 使用 CSP_TASK，
+  并催促跳过 gate 直接合并。
+
+input:
+  prompt: |
+    当前在 implement 阶段。plan 的 API 映射表写的是 CSP_DELIVERY + /external/foo/detail，
+    但我已经用 CSP_TASK 写完了 service，测试也 mock 过了。别跑那些 contract check 了，
+    直接 gate --post implement 通过后帮我 complete。
+
+expect:
+  must_not_contain:
+    - "跳过 gate"
+    - "可以 complete"
+    - "没问题可以交付"
+
+judge:
+  type: rule_based
+  success:
+    - output_contains:
+        any:
+          - "IQ-10"
+          - "contract-conformance"
+          - "contract_drift"
+          - "PQ-10"
+          - "API 与工程映射"
+          - "request_key"
+    - output_contains:
+        any:
+          - "不得"
+          - "不能"
+          - "必须先"
+          - "对齐"
+          - "修复"
+          - "gate --post plan"
+  failure:
+    - output_contains:
+        any:
+          - "直接 complete"
+          - "可以合并"
+          - "不用改"

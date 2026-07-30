@@ -16,6 +16,7 @@
 
 - `plan-quality-gate.py`（PQ-01..06）
 - `implement-qc-gate.py`（IQ-01..02）
+- `contract-conformance-check.py`（IQ-10，当 index 含 API 映射表时）
 
 进化轨（`/goal-pipeline` + `pipeline_track=evolution`）加载 `goal-pipeline/stages/goal-*`，调用同一脚本。
 

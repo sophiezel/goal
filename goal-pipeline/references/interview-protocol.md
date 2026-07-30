@@ -184,3 +184,13 @@ Agent:
 - 编辑修改 → 用户修改后重新确认
 - 重新讨论 → 回到 Step 1
 - 放弃 → 退出
+
+## 冻结决策（grill / 多仓 / 集成任务）
+
+当 Phase 1 或 **grill-with-docs** 收敛了 API host、跨 App URL、loading 态等口径时：
+
+1. **MUST** 写入 `docs/guazi-flow/<task>/handoff/decisions.json`（schema 见 [`guazi-flow-artifact-schema/decisions.schema.json`](guazi-flow-artifact-schema/decisions.schema.json)）。
+2. guazi-flow-plan 产出 index 后 **MUST** 增加 `## 冻结决策` 段，包含 `decisions_hash: <sha16>`（与 decisions 文件 canonical JSON 一致）。
+3. 含 `cross_app` 或多 `project_root` 时 **禁止** interview fast-path 跳过集成最小清单（见 [`multi-goal-orchestration.md`](multi-goal-orchestration.md)）。
+
+桥接说明：[`guazi-flow-goal/references/decisions-handoff-protocol.md`](../../guazi-flow-goal/references/decisions-handoff-protocol.md)。

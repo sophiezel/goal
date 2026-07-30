@@ -3,7 +3,16 @@
     if [[ "$PHASE" == "pre" ]]; then
       [[ -f "$HANDOFF_DIR/review.json" ]] || fail "review handoff missing"
       RRES=$(python3 -c "import json; print(json.load(open('$HANDOFF_DIR/review.json')).get('result',''))" 2>/dev/null || echo "")
-      [[ "$RRES" == "pass" ]] || fail "review handoff result not pass"
+      WAIVER="${EVIDENCE_DIR}/goal-review-waiver.json"
+      if [[ "$RRES" != "pass" ]]; then
+        if [[ -f "$WAIVER" ]]; then
+          echo "complete pre: goal-review-waiver.json present — proceeding with documented waiver" >&2
+        elif [[ -n "${GOAL_REVIEW_WAIVER:-}" ]]; then
+          echo "complete pre: GOAL_REVIEW_WAIVER set — proceeding with env waiver" >&2
+        else
+          fail "review handoff result not pass (set evidence/goal-review-waiver.json or GOAL_REVIEW_WAIVER to document exception)"
+        fi
+      fi
     fi
     [[ -f "$INDEX" ]] || fail "index.md not found"
     grep -q 'guazi-flow-complete' "$INDEX" || fail "execution record missing guazi-flow-complete"

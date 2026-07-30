@@ -133,6 +133,23 @@ def main():
                 warnings.append(
                     "plan: legacy index_schema_hash only — migrate via gate --post plan or refresh-handoffs"
                 )
+            cp = os.path.join(script_dir, "contract_parser.py")
+            if os.path.isfile(cp) and os.path.isfile(index_path):
+                import importlib.util
+
+                spec = importlib.util.spec_from_file_location("contract_parser", cp)
+                cmod = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(cmod)
+                stored_api = (plan.get("api_mapping_table_hash") or "").strip()
+                cur_api = cmod.api_mapping_table_hash(open(index_path, encoding="utf-8").read())
+                if stored_api and cur_api and stored_api != cur_api:
+                    errors.append(
+                        "plan: api_mapping_table_hash mismatch — gate --post plan after API table edits"
+                    )
+                elif cur_api and not stored_api:
+                    warnings.append(
+                        "plan: api_mapping_table_hash missing in handoff — re-run gate --post plan"
+                    )
         except Exception as e:
             warnings.append(f"plan: freshness check error: {e}")
 
@@ -201,6 +218,19 @@ def main():
         current = state.get("current_stage") or fm(os.path.join(task_dir, "index.md"), "current_stage")
         if current in ("review", "quality", "runtime_smoke", "smoke", "complete"):
             errors.append("implement: handoff/implement.json missing for current_stage=" + str(current))
+
+    manifest_path = os.path.join(handoff_dir, "integration-manifest.json")
+    if os.path.isfile(manifest_path) and os.path.isfile(impl):
+        barrier_paths = [
+            os.path.join(goal_evidence_dir, "integration-barrier.json"),
+            os.path.join(repo_evidence_dir, "integration-barrier.json"),
+            os.path.join(task_dir, "evidence", "integration-barrier.json"),
+        ]
+        if not any(os.path.isfile(p) for p in barrier_paths):
+            warnings.append(
+                "implement: integration-manifest.json present but integration-barrier.json missing "
+                "— re-run gate --post implement after cross_app is satisfied"
+            )
 
     sm_path = os.path.join(goal_evidence_dir, "runtime-smoke.md")
     quality_handoff = os.path.join(handoff_dir, "quality.json")

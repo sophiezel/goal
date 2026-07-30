@@ -65,6 +65,20 @@
         "leak_rate": { "type": "number" },
         "handoff_coverage": { "type": "number" }
       }
+    },
+    "gate_evidence_rollup": {
+      "type": "array",
+      "description": "Generic rollup of gate outcome JSON in evidence/ (any file with top-level passed)",
+      "items": {
+        "type": "object",
+        "required": ["artifact", "passed", "issue_count"],
+        "properties": {
+          "artifact": { "type": "string" },
+          "passed": { "type": "boolean" },
+          "skipped": { "type": ["boolean", "null"] },
+          "issue_count": { "type": "integer" }
+        }
+      }
     }
   }
 }

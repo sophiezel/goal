@@ -84,6 +84,17 @@ def main() -> int:
     checks.append(check("quality.packet_preflight", (SCRIPT_DIR / "review_packet_preflight.py").is_file()))
     checks.append(check("quality.channel_policy", (SCRIPT_DIR / "review-channel-guard.py").is_file()))
     checks.append(check("quality.plane_check", (SCRIPT_DIR / "quality_plane_check.py").is_file()))
+    checks.append(check("quality.contract_parser", (SCRIPT_DIR / "contract_parser.py").is_file()))
+    checks.append(check("quality.contract_conformance", (SCRIPT_DIR / "contract-conformance-check.py").is_file()))
+    impl_gate = SCRIPT_DIR / "gate-lib" / "implement.sh"
+    impl_txt = impl_gate.read_text(encoding="utf-8") if impl_gate.is_file() else ""
+    checks.append(
+        check(
+            "quality.iq10_wired",
+            "contract-conformance-check.py" in impl_txt,
+            "implement post",
+        )
+    )
 
     gate_txt = (SCRIPT_DIR / "gate-guazi-flow-stage.sh").read_text(encoding="utf-8") if (SCRIPT_DIR / "gate-guazi-flow-stage.sh").is_file() else ""
     checks.append(check("efficiency.qg_state_file", "QG_ARGS+=(--state-file" in gate_txt or "--state-file \"$STATE_FILE\"" in gate_txt))
@@ -130,19 +141,28 @@ def main() -> int:
         )
         checks.append(check("data.canonical_state", r.returncode == 0, (r.stderr or r.stdout)[:200]))
 
-    # install-drift (v3 W1d): compare installed script SHAs vs repo source
+    # install-drift (v3 W1d): compare GOAL_STATE_HOME/scripts SHAs vs repo source
     import hashlib
+    checkout_root = SCRIPT_DIR.parent.parent
+    checkout_ok = (
+        checkout_root.is_dir()
+        and (checkout_root / "goal-pipeline" / "scripts").resolve() == SCRIPT_DIR.resolve()
+    )
     repo_root = Path(args.repo_root).expanduser() if args.repo_root else None
     if not repo_root:
         for cand in (
             Path(os.environ.get("GOAL_PIPELINE_REPO", "")).expanduser(),
             Path(os.environ.get("DEPLOY_SOURCE", "")).expanduser(),
+            checkout_root if checkout_ok else Path("."),
             Path.home() / ".goal-pipeline" / "repository",
-            SCRIPT_DIR.parent.parent,
         ):
             if str(cand) != "." and cand.is_dir() and (cand / "goal-pipeline" / "scripts").is_dir():
                 repo_root = cand
                 break
+    state_home = Path(os.environ.get("GOAL_STATE_HOME", "")).expanduser()
+    if not state_home.is_dir():
+        state_home = Path.home() / ".goal-pipeline" / "state"
+    installed_dir = state_home / "scripts" if (state_home / "scripts").is_dir() else SCRIPT_DIR
     if repo_root and repo_root.is_dir():
         repo_scripts = repo_root / "goal-pipeline" / "scripts"
         drift_files = []
@@ -151,8 +171,9 @@ def main() -> int:
                      "check_commit_before_review.py", "quality-gate.sh",
                      "acceptance-matrix-ratchet.py", "write-delivery-quality.sh",
                      "validate-stage-port.py", "gf-stage-driver.sh", "gate-gf-stage.sh",
-                     "leak-rate-panel.py", "benchmark-ci.sh", "escape-to-eval.py"):
-            installed = SCRIPT_DIR / name
+                     "leak-rate-panel.py", "benchmark-ci.sh", "escape-to-eval.py",
+                     "contract_parser.py", "contract-conformance-check.py"):
+            installed = installed_dir / name
             source = repo_scripts / name
             if not installed.is_file() or not source.is_file():
                 continue

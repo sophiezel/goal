@@ -161,6 +161,42 @@ def build_delivery_report(
             pass
 
     gate_status = "OK" if (all_complete and leak == 0.0) else "BLOCK"
+
+    def _gate_evidence_rollup(*dirs: str) -> list[dict[str, Any]]:
+        """Generic rollup: any evidence JSON with a top-level ``passed`` (gate outcome), not fix-input."""
+        roll: list[dict[str, Any]] = []
+        seen: set[str] = set()
+        skip_fragments = ("fix-input", "review-packet", "review-run", "pipeline-timing", "escape-register")
+        for base in dirs:
+            if not base or not os.path.isdir(base):
+                continue
+            for name in sorted(os.listdir(base)):
+                if not name.endswith(".json"):
+                    continue
+                if any(f in name for f in skip_fragments):
+                    continue
+                path = os.path.join(base, name)
+                if path in seen:
+                    continue
+                try:
+                    doc = json.load(open(path, encoding="utf-8"))
+                except (OSError, json.JSONDecodeError):
+                    continue
+                if not isinstance(doc, dict) or "passed" not in doc:
+                    continue
+                seen.add(path)
+                entry: dict[str, Any] = {
+                    "artifact": name,
+                    "passed": bool(doc.get("passed")),
+                    "issue_count": len(doc.get("issues") or []),
+                }
+                if "skipped" in doc:
+                    entry["skipped"] = bool(doc.get("skipped"))
+                roll.append(entry)
+        return roll
+
+    gate_evidence_rollup = _gate_evidence_rollup(goal_evidence, os.path.join(repo_task, "evidence"))
+
     report: dict[str, Any] = {
         "schema_version": 2,
         "pipeline_id": pipeline_id,
@@ -181,6 +217,7 @@ def build_delivery_report(
             "leak_rate": leak,
             "handoff_coverage": round(handoff_cov, 4),
         },
+        "gate_evidence_rollup": gate_evidence_rollup,
     }
     warnings = v2_completeness_warnings(report)
     if warnings:

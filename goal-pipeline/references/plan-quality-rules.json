@@ -63,6 +63,36 @@
       "summary": "Index-Lite 验收行数建议 3-5（lite only, warn）",
       "lite_min_rows": 3,
       "lite_max_rows": 5
+    },
+    "PQ-10": {
+      "id": "PQ-10",
+      "summary": "API 映射表自洽（同 path 单义 request_key）",
+      "standard": "warn",
+      "strict": "block"
+    },
+    "PQ-11": {
+      "id": "PQ-11",
+      "summary": "detail/VO 响应字段表",
+      "standard": "warn",
+      "strict": "block"
+    },
+    "PQ-12": {
+      "id": "PQ-12",
+      "summary": "decisions.json 与冻结决策 hash",
+      "standard": "block",
+      "strict": "block"
+    },
+    "PQ-13": {
+      "id": "PQ-13",
+      "summary": "多源文档数字常量冲突",
+      "standard": "warn",
+      "strict": "block"
+    },
+    "PQ-14": {
+      "id": "PQ-14",
+      "summary": "展示契约行（display_assert）",
+      "standard": "warn",
+      "strict": "block"
     }
   }
 }

@@ -179,11 +179,43 @@
         {
           "event": "end",
           "timestamp_utc": "2026-07-30T06:17:44Z"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-07-30T09:57:58Z"
+        },
+        {
+          "event": "end",
+          "timestamp_utc": "2026-07-30T09:57:58Z"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-07-30T12:49:20Z"
+        },
+        {
+          "event": "end",
+          "timestamp_utc": "2026-07-30T12:49:20Z"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-07-30T12:49:48Z"
+        },
+        {
+          "event": "end",
+          "timestamp_utc": "2026-07-30T12:49:48Z"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-07-30T12:51:16Z"
+        },
+        {
+          "event": "end",
+          "timestamp_utc": "2026-07-30T12:51:17Z"
         }
       ],
-      "started_at_utc": "2026-07-30T06:17:43Z",
-      "last_timestamp_utc": "2026-07-30T06:17:44Z"
+      "started_at_utc": "2026-07-30T12:51:16Z",
+      "last_timestamp_utc": "2026-07-30T12:51:17Z"
     }
   },
-  "updated_at_utc": "2026-07-30T06:17:44Z"
+  "updated_at_utc": "2026-07-30T12:51:17Z"
 }

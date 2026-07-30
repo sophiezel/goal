@@ -1,0 +1,48 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "handoff-decisions",
+  "description": "Machine-readable grill / Phase1 frozen decisions (per-goal, not engine defaults)",
+  "type": "object",
+  "required": ["schema_version", "frozen_at"],
+  "properties": {
+    "schema_version": { "type": "integer", "enum": [1] },
+    "frozen_at": { "type": "string", "format": "date-time" },
+    "integration": {
+      "type": "object",
+      "properties": {
+        "api": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["request_key", "paths"],
+            "properties": {
+              "request_key": { "type": "string" },
+              "paths": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "cross_app": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["from_project", "to_project", "path", "query"],
+            "properties": {
+              "from_project": { "type": "string" },
+              "to_project": { "type": "string" },
+              "path": { "type": "string" },
+              "query": { "type": "array", "items": { "type": "string" } },
+              "scan_globs": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        }
+      }
+    },
+    "ui": {
+      "type": "object",
+      "properties": {
+        "loading": { "type": "array", "items": { "type": "string" } }
+      }
+    }
+  },
+  "additionalProperties": true
+}

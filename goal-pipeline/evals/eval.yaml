@@ -21,6 +21,7 @@ cases:
     - evals/cases/index-lite-plan-gate.yaml
     - evals/cases/xs-review-single-track.yaml
     - evals/cases/review-stagnant-blocked.yaml
+    - evals/cases/contract-semantic-gates.yaml
   defaults:
     timeout_seconds: 600
     max_turns: 6

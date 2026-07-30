@@ -28,9 +28,11 @@ plan → implement → quality → review → complete
 ## 质检防火墙（兼容轨专用插入点）
 
 ```text
-guazi-flow-plan → plan-quality-gate.py → gate --post plan
-guazi-flow-implement → implement-qc-gate.py → gate --post implement
+guazi-flow-plan → plan-quality-gate.py (PQ-01..PQ-14) → gate --post plan
+guazi-flow-implement → implement-qc-gate.py (IQ-01..02) + contract-conformance-check.py (IQ-10) → gate --post implement
 ```
+
+语义契约（表驱动，无业务硬编码）：PQ-10 API 映射自洽、PQ-11 响应 VO、PQ-12 冻结决策、IQ-10 实现↔映射表。术语与边界见 [`declarative-contract-gates.md`](declarative-contract-gates.md)；适配器见 [`profile-contract-adapters.md`](profile-contract-adapters.md)。
 
 进化轨将 PQ/IQ 规则 **内嵌** 到 `goal-plan` / `goal-implement` SKILL，并调用同一脚本。
 

@@ -44,8 +44,13 @@ Handoff 根目录由 `resolve-artifact-paths.py` 解析（split / repo_full）�
 
 ### delivery-quality.json（complete post 写入）
 
+**用途**：complete 阶段的**管线可观测性快照**（不是业务验收、不是某框架/需求的打分）。只汇总 handoff 链是否齐全、各阶段 gate 时间、review 轮次、逃逸登记等**与任务内容无关**的元数据，供 leak-rate 面板、ADR-0004 strict 完整性检查、事后分析。
+
 - `schema_version` ≥ 1
 - v2 推荐：`timing`, `loops`, `review_provenance`, `pipeline_id`
+- v2 可选：`gate_evidence_rollup` — 扫描 `evidence/*.json` 中带顶层 `passed` 的门禁产物（如 UVO、契约检查），**按文件名汇总**，不解析业务字段
+
+业务契约是否满足，由 **当次 index/plan 表 + 各 stage gate** 判定；不写入 delivery-quality 的业务常量。
 
 ## fix-input 族
 

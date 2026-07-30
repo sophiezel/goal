@@ -66,6 +66,7 @@ guazi_flow_available = true 时，plan 阶段执行方式：
 | 时机 | 文件 | 用途 |
 |------|------|------|
 | Phase 1 开始前 | `goal-pipeline/references/interview-protocol.md` | 三步收敛访谈协议 |
+| Phase 1 / grill 结束（集成任务） | `guazi-flow-goal/references/decisions-handoff-protocol.md` | `handoff/decisions.json` + 冻结决策 hash |
 | Phase 1 开始前 | `goal-pipeline/references/platform-detection.md` | 平台检测和能力矩阵 |
 | plan 开始前（guazi 可用） | `references/guazi-flow-integration.md` | guazi-flow 调度规则与产物质量 GATE |
 | plan 开始前 | `goal-pipeline/references/task-tier-matrix.md` | task_tier（XS/S/M/L/XL）分层墙钟与并行策略 |

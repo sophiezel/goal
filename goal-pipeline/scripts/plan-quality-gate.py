@@ -8,9 +8,22 @@ import os
 import re
 import sys
 
+# Shared contract parsing (same directory)
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+if _SCRIPT_DIR not in sys.path:
+    sys.path.insert(0, _SCRIPT_DIR)
+from contract_parser import (  # noqa: E402
+    api_mapping_self_consistency_issues,
+    api_mapping_table_hash,
+    frozen_decisions_issues,
+    has_api_contract_intent,
+    parse_api_mapping_table,
+    requires_response_vo_table,
+    response_vo_section_present,
+)
 
 def parse_args():
-    p = argparse.ArgumentParser(description="Plan quality gate (PQ-01..PQ-09)")
+    p = argparse.ArgumentParser(description="Plan quality gate (PQ-01..PQ-14)")
     p.add_argument("--task-dir", required=True)
     p.add_argument("--tier", choices=("standard", "strict"), default="standard")
     p.add_argument("--rules", default="")
@@ -261,6 +274,101 @@ def check_pq09(index_text: str, tier: str, rules: dict, plan_profile: str = "ful
     return []
 
 
+def _semantic_block_severity(tier: str, rules: dict, rule_id: str, plan_profile: str, fm: dict) -> str:
+    rule = rules["rules"].get(rule_id, {})
+    if str(fm.get("contract_semantic", "")).lower() in ("required", "1", "true"):
+        return "block"
+    tt = str(fm.get("task_tier") or "").upper()
+    if tt in ("M", "L", "XL"):
+        return severity_for(rule, tier)
+    if plan_profile == "lite":
+        return "warn"
+    return severity_for(rule, tier)
+
+
+def check_pq10(index_text: str, tier: str, rules: dict, plan_profile: str, fm: dict) -> list[dict]:
+    issues: list[dict] = []
+    inconsistencies = api_mapping_self_consistency_issues(index_text)
+    sev_hard = "block"
+    for msg in inconsistencies:
+        issues.append({"id": "PQ-10", "severity": sev_hard, "message": msg})
+    rows = parse_api_mapping_table(index_text)
+    if has_api_contract_intent(index_text) and not rows:
+        sev = _semantic_block_severity(tier, rules, "PQ-10", plan_profile, fm)
+        issues.append(
+            {
+                "id": "PQ-10",
+                "severity": sev,
+                "message": "index mentions API paths/keys but missing ## API 与工程映射 table",
+            }
+        )
+    return issues
+
+
+def check_pq11(index_text: str, tier: str, rules: dict, plan_profile: str, fm: dict) -> list[dict]:
+    if not requires_response_vo_table(index_text, fm):
+        return []
+    if response_vo_section_present(index_text):
+        return []
+    sev = _semantic_block_severity(tier, rules, "PQ-11", plan_profile, fm)
+    return [
+        {
+            "id": "PQ-11",
+            "severity": sev,
+            "message": "GET detail (or requires_response_vo) requires ## 响应 VO section with VO fields",
+        }
+    ]
+
+
+def check_pq12(task_dir: str, index_text: str, tier: str, rules: dict) -> list[dict]:
+    issues: list[dict] = []
+    sev = severity_for(rules["rules"].get("PQ-12", {"standard": "block"}), tier)
+    for msg in frozen_decisions_issues(task_dir, index_text):
+        issues.append({"id": "PQ-12", "severity": sev, "message": msg})
+    return issues
+
+
+def check_pq13(index_text: str, tier: str, rules: dict) -> list[dict]:
+    """Warn on duplicate numeric limits for same field label in index."""
+    rule = rules["rules"].get("PQ-13")
+    if not rule:
+        return []
+    sev = severity_for(rule, tier)
+    issues: list[dict] = []
+    # e.g. 凭证 5 张 vs 20 张
+    for label in ("凭证", "voucher", "图片"):
+        nums = re.findall(rf"{label}[^\d]{{0,20}}(\d+)\s*张", index_text, re.I)
+        if len(set(nums)) > 1:
+            issues.append(
+                {
+                    "id": "PQ-13",
+                    "severity": sev,
+                    "message": f"conflicting counts for {label}: {sorted(set(nums))}",
+                }
+            )
+    return issues
+
+
+def check_pq14(index_text: str, tier: str, rules: dict, plan_profile: str, fm: dict) -> list[dict]:
+    rule = rules["rules"].get("PQ-14")
+    if not rule:
+        return []
+    if not has_api_contract_intent(index_text):
+        return []
+    sev = severity_for(rule, tier)
+    if plan_profile == "lite":
+        sev = "warn"
+    if re.search(r"display_assert|展示契约|字段路径", index_text, re.I):
+        return []
+    return [
+        {
+            "id": "PQ-14",
+            "severity": sev,
+            "message": "API contract present but acceptance matrix missing display_assert / 展示契约 rows",
+        }
+    ]
+
+
 def run_gate(task_dir: str, tier: str, rules_path: str, plan_profile: str = "") -> dict:
     index_path = os.path.join(task_dir, "index.md")
     if not os.path.isfile(index_path):
@@ -279,13 +387,20 @@ def run_gate(task_dir: str, tier: str, rules_path: str, plan_profile: str = "") 
     issues.extend(check_pq07(text, tier, rules))
     issues.extend(check_pq08(text, tier, rules, plan_profile))
     issues.extend(check_pq09(text, tier, rules, plan_profile))
+    issues.extend(check_pq10(text, tier, rules, plan_profile, fm))
+    issues.extend(check_pq11(text, tier, rules, plan_profile, fm))
+    issues.extend(check_pq12(task_dir, text, tier, rules))
+    issues.extend(check_pq13(text, tier, rules))
+    issues.extend(check_pq14(text, tier, rules, plan_profile, fm))
 
+    api_hash = api_mapping_table_hash(text)
     blocked = any(i["severity"] == "block" for i in issues)
     return {
         "passed": not blocked,
         "blocked": blocked,
         "tier": tier,
         "plan_profile": plan_profile,
+        "api_mapping_table_hash": api_hash,
         "issues": issues,
         "warnings": [i for i in issues if i["severity"] == "warn"],
     }

@@ -46,6 +46,16 @@ else:
 
 ---
 
+## 声明式契约门禁（术语）
+
+当次 `index.md` / `handoff/decisions.json` 里写明的 API、参数、集成约定，由 **plan/implement 的 gate** 做自洽与落地检查（PQ-10～PQ-14、IQ-10）。  
+**不叫**某个 Jira 的「缺陷类型」；引擎不硬编码具体项目或 `request_key` 取值。  
+
+完整说明：[`goal-pipeline/references/declarative-contract-gates.md`](../../goal-pipeline/references/declarative-contract-gates.md)。  
+`delivery-quality.json` 仅汇总管线 handoff/耗时等，**不**判定上述契约是否满足。
+
+---
+
 ## 各阶段集成策略
 
 ### plan 阶段
@@ -82,6 +92,9 @@ if guazi_flow_available:
           V# 全部被矩阵覆盖?
           缺口 → 记录为 plan_gap（review 阶段重点检查）
        3. 交叉验证结果写入 state.json.cross_validation
+       4. decisions.json vs index（若存在 `handoff/decisions.json`）:
+          `integration.*` 须在 index「设计与接口」/ API 映射表中出现且无矛盾
+          缺失或 hash 不一致 → PQ-12 block（见 `plan-quality-gate.py`）
     → 契约融入（后置，纯追加，不修改 index.md 已有内容）:
        读取 Phase 1 Goal 结构: Allowed Files / Out of Scope / Stop Conditions
        追加到 index.md 对应字段的子 section:
@@ -110,7 +123,7 @@ if guazi_flow_available:
        4. 检查 Stop Conditions: 新增依赖? 修改接口协议? 命中 → 暂停
        5. 审计结果写入 evidence/implement.md scope_compliance 字段
     → 写入 evidence/implement.md（guazi-flow schema）
-    → gate --post(implement) → implement-qc-gate（亦在 gate 内）→ goal-advance-stage.sh → **立即**进入 [3/5] quality
+    → gate --post(implement) → implement-qc-gate + **contract-conformance-check (IQ-10)** → goal-advance-stage.sh → **立即**进入 [3/5] quality
     → 输出: "[2/5] guazi-flow-implement: ✅ X files changed"
 else:
     → goal-pipeline 通用 implement

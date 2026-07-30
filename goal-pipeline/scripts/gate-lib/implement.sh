@@ -10,6 +10,12 @@
       if [[ "$PRE_WS_LEN" == "0" ]]; then
         fail "write_set empty at implement-pre — declare paths in index.md ## 范围与写集 before coding (P4 W1.5 pre-BLOCK)"
       fi
+      if [[ -f "$SCRIPT_DIR/contract_parser.py" && -f "$HANDOFF_DIR/plan.json" ]]; then
+        API_STALE=$(python3 "$SCRIPT_DIR/contract_parser.py" --api-mapping-stale "$INDEX" "$HANDOFF_DIR/plan.json" 2>/dev/null || echo "false")
+        if [[ "$API_STALE" == "true" ]]; then
+          fail "API mapping table changed since plan post — refresh handoff (gate --post plan) or mini-replan"
+        fi
+      fi
       pass "implement pre — plan gate passed; write_set non-empty; code changes now allowed within write_set"
     fi
     [[ -f "$HANDOFF_DIR/plan.json" ]] || fail "plan handoff missing — run gate --post plan first"
@@ -80,6 +86,47 @@ PYIQ
         gate_fail_with_issues "implement" "$DH_PRE" "fix_and_rerun" "$IQ_ISSUES" "implement-qc-gate structural check failed"
       fi
       rm -f "$IQ_JSON"
+      CC="$SCRIPT_DIR/contract-conformance-check.py"
+      if [[ -f "$CC" ]]; then
+        CC_JSON=$(mktemp)
+        CC_EVIDENCE="${GOAL_EVIDENCE_DIR}/contract-conformance.json"
+        if ! python3 "$CC" --task-dir "$TASK_DIR" --repo-root "$REPO_FOR_UVO" --json --evidence "$CC_EVIDENCE" > "$CC_JSON" 2>/dev/null; then
+          DH_PRE=$(diff_hash)
+          CC_ISSUES=$(python3 - "$CC_JSON" << 'PYCC'
+import json, sys
+data = json.load(open(sys.argv[1]))
+out = []
+for i in data.get("issues", []):
+    out.append({
+        "id": i.get("id", "IQ-10"),
+        "severity": "blocker",
+        "summary": i.get("message", ""),
+        "root_cause": i.get("root_cause", "contract_drift"),
+    })
+if not out:
+    out = [{"id": "IQ-10", "severity": "blocker", "summary": "contract-conformance-check failed", "root_cause": "contract_drift"}]
+print(json.dumps(out, ensure_ascii=False))
+PYCC
+)
+          rm -f "$CC_JSON"
+          gate_fail_with_issues "implement" "$DH_PRE" "fix_and_rerun" "$CC_ISSUES" "contract-conformance-check failed (IQ-10)"
+        fi
+        rm -f "$CC_JSON"
+      fi
+      INT_MANIFEST="$HANDOFF_DIR/integration-manifest.json"
+      INT_CHECK="$SCRIPT_DIR/integration-contract-check.sh"
+      if [[ -f "$INT_MANIFEST" && -f "$INT_CHECK" ]]; then
+        if ! bash "$INT_CHECK" "$INT_MANIFEST"; then
+          DH_PRE=$(diff_hash)
+          gate_fail_with_issues "implement" "$DH_PRE" "fix_and_rerun" \
+            '[{"id":"IQ-11","severity":"blocker","summary":"integration-contract-check failed (see manifest cross_app)","root_cause":"integration_gap"}]' \
+            "integration-contract-check failed"
+        fi
+        mkdir -p "$GOAL_EVIDENCE_DIR"
+        cat > "$GOAL_EVIDENCE_DIR/integration-barrier.json" << 'JSON'
+{"schema_version":1,"passed":true,"manifest":"handoff/integration-manifest.json"}
+JSON
+      fi
       PLAN_WS_LEN=$(python3 -c "import json; print(len(json.load(open('$HANDOFF_DIR/plan.json')).get('write_set',[])))" 2>/dev/null || echo 0)
       if [[ "$PLAN_WS_LEN" == "0" ]]; then
         DH=$(diff_hash)

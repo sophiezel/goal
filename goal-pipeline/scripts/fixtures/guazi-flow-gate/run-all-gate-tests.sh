@@ -3,6 +3,9 @@
 set -euo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 "$DIR/test-plan-quality-gate.sh"
+"$DIR/test-contract-gate.sh"
+"$DIR/test-integration-manifest.sh"
+"$DIR/test-implement-integration-wired.sh"
 "$DIR/test-verification-oracle.sh"
 "$DIR/test-review-packet-preflight.sh"
 "$DIR/test-code-subject-hash.sh"

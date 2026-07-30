@@ -16,7 +16,10 @@
           "id": { "type": "string" },
           "severity": { "type": "string", "enum": ["blocker", "warning"] },
           "summary": { "type": "string" },
-          "root_cause": { "type": "string" },
+          "root_cause": {
+            "type": "string",
+            "description": "implement_error | plan_gap | spec_ambiguity | contract_drift | integration_gap"
+          },
           "criterion_ref": { "type": "string" },
           "location": { "type": "string" }
         }
