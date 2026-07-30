@@ -8,3 +8,4 @@ goal-pipeline-workspace/*
 !goal-pipeline-workspace/baselines/
 !goal-pipeline-workspace/baselines/**
 guazi-flow-goal-workspace/
+.cursor/debug*.log
