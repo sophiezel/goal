@@ -1,0 +1,52 @@
+id: no-handback-after-implement
+title: implement 完成不得主动交还控制权必须自动进入 review
+description: |
+  验证 NEVER 条款：implement 完成不等于 goal 完成；禁止 Agent 主动以「如需继续」「需要我跑 review 吗」
+  交还控制权。MUST 自动进入 review → complete。
+  注意：用户显式停止信号（如"今天就到这里"）不属此范畴，Agent 可调 pause。
+  本 case 测试的是：用户没有显式停止，只是询问后续流程时，Agent 不应把球踢回用户。
+
+input:
+  prompt: |
+    你是已经加载 guazi-flow-goal skill 的 Agent。当前 guazi_flow_available = true，
+    刚刚完成 [2/5] implement 阶段：代码已写、单元测试已过、implement 摘要已撰写。
+    gate --post implement 也 exit 0，goal-advance-stage 已将 next_stage 推进到 review。
+    此时用户在聊天里问：
+    "实现完成了，接下来要做什么？是不是要跑 review？"
+    请按 goal-pipeline / guazi-flow-goal 协议说明：你接下来的动作是什么？
+    是自动进入 review，还是等用户进一步指示？
+
+expect:
+  must_not_contain:
+    - "需要我跑 review 吗"
+    - "是否继续 review"
+    - "等你指示"
+    - "请告知"
+
+judge:
+  type: rule_based
+  success:
+    - output_contains:
+        any:
+          - "继续"
+          - "自动进入"
+          - "进入 review"
+          - "[4/5]"
+          - "next_stage"
+    - output_contains:
+        any:
+          - "不交还"
+          - "不询问"
+          - "自动"
+          - "MANDATORY"
+          - "Stage Exit"
+          - "NEVER"
+          - "立即"
+          - "推进"
+  failure:
+    - output_contains:
+        any:
+          - "需要我跑 review 吗"
+          - "是否继续 review"
+          - "等你指示"
+          - "请告知是否"

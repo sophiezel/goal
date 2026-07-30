@@ -1,0 +1,47 @@
+id: xs-review-single-track
+title: XS/S review 单轨不得 lazy-load guazi-flow-review skill
+description: |
+  验证 §8.2：task_tier 为 XS/S 时 review 走单轨（goal-review + goal-run-review-chain），
+  不得加载 guazi-flow-review/SKILL.md。rubric 已嵌入 review-packet。
+  用户问"要不要也加载 guazi-flow-review 做双重审核"，Agent 应拒绝。
+
+input:
+  prompt: |
+    你是已经加载 goal-pipeline skill 的 Agent。当前任务 task_tier=XS，
+    review 阶段即将开始。goal-stage-driver 的 work_order 显示 review_track=single。
+    用户问：
+    "既然 guazi-flow-review 可用，要不要也加载它做双重审核？这样更保险吧？"
+    你应该如何回答？为什么单轨足够？
+
+expect:
+  must_not_contain:
+    - "好的，加载 guazi-flow-review"
+    - "那我双重审核"
+    - "加载两个 skill"
+
+judge:
+  type: rule_based
+  success:
+    - output_contains:
+        any:
+          - "不需要"
+          - "不用"
+          - "不加载"
+          - "单轨"
+          - "single track"
+          - "review_track"
+    - output_contains:
+        any:
+          - "rubric"
+          - "review-packet"
+          - "goal-run-review-chain"
+          - "unified"
+          - "goal-review"
+          - "packet"
+  failure:
+    - output_contains:
+        any:
+          - "好的，加载 guazi-flow-review"
+          - "那我双重审核"
+          - "加载两个 skill"
+          - "双重审核更保险"

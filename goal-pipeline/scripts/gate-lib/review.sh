@@ -65,6 +65,16 @@ PYFRESH
           fail "review-packet preflight failed (PKT-01/02/03)"
         fi
       fi
+      # commit-before-review (v3 §8.3b): write_set paths must be committed
+      COMMIT_CHK="$SCRIPT_DIR/check_commit_before_review.py"
+      if [[ -f "$COMMIT_CHK" ]]; then
+        REPO_FOR_COMMIT="${GIT_ROOT:-$PROJECT_ROOT}"
+        [[ -n "$REPO_FOR_COMMIT" ]] || REPO_FOR_COMMIT="$(pwd)"
+        if ! python3 "$COMMIT_CHK" --repo-root "$REPO_FOR_COMMIT" --task-dir "$TASK_DIR" --handoff-dir "$HANDOFF_DIR" >/dev/null 2>&1; then
+          python3 "$COMMIT_CHK" --repo-root "$REPO_FOR_COMMIT" --task-dir "$TASK_DIR" --handoff-dir "$HANDOFF_DIR" 2>&1 | head -5 >&2 || true
+          fail "uncommitted write_set — commit before review (failure_code: uncommitted_write_set; or GOAL_SKIP_COMMIT_BEFORE_REVIEW=1 local only)"
+        fi
+      fi
       pass "review gate"
     fi
     if [[ "$PHASE" == "post" ]]; then
@@ -201,6 +211,7 @@ actions = {
     "fix_and_rerun_review",
     "mini_replan",
     "blocked_user_decision",
+    "blocked_stagnant",
     "switch_to_cursor_task",
     "fix_channel",
 }
@@ -215,6 +226,9 @@ if d["merged_result"] == "not_pass" and d["action"] == "proceed_complete":
 # Infra actions must not be treated as business fix_and_rerun_review.
 if d.get("classification") == "infra_undetermined" and d["action"] == "fix_and_rerun_review":
     raise SystemExit("infra_undetermined cannot use fix_and_rerun_review")
+# info_gain 熔断 (v3 §8.3a): stagnant_blocked requires action=blocked_stagnant
+if d.get("stagnant_blocked") and d["action"] != "blocked_stagnant":
+    raise SystemExit("stagnant_blocked requires action=blocked_stagnant")
 # Hard round cap: exhausted business loops must not proceed_complete.
 import os
 try:
@@ -245,6 +259,12 @@ PYSCHEMA
         write_state_blocked "review_rounds_exhausted"
         show_review_issue_board
         fail "review fix rounds exhausted — blocked_user_decision required"
+      fi
+      FIX_STAGNANT=$(python3 -c "import json; print(str(json.load(open('$GOAL_EVIDENCE_DIR/review-fix-input.json')).get('stagnant_blocked', False)).lower())" 2>/dev/null || echo "false")
+      if [[ "$FIX_STAGNANT" == "true" ]]; then
+        write_state_blocked "review_stagnant"
+        show_review_issue_board
+        fail "review fix stagnant — info_gain < threshold for GOAL_REVIEW_STAGNANT_ROUNDS consecutive rounds (blocked_stagnant required)"
       fi
       if [[ "$RESULT_VAL" == "pass" && "$FIX_ACTION" != "proceed_complete" ]]; then
         fail "review pass requires review-fix-input action=proceed_complete"

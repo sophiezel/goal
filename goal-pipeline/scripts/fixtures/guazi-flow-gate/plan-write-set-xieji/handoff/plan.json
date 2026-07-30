@@ -6,6 +6,7 @@
   "task_dir": "/Users/xuwei/Profession/goal/goal-pipeline/scripts/fixtures/guazi-flow-gate/plan-write-set-xieji",
   "profile": "h5",
   "profile_detail": "react",
+  "plan_profile": "full",
   "write_set": [
     "src/pages/Foo/",
     "src/services/foo/"
@@ -21,7 +22,7 @@
   "verification": {
     "build_command": "CI= yarn build:beta"
   },
-  "git_head": "3cfb9c8d0c883852",
+  "git_head": "92d7d5f7eaa9f180",
   "artifact_paths": [
     "index.md"
   ],
@@ -29,7 +30,36 @@
   "gate": {
     "script": "gate-guazi-flow-stage.sh",
     "version": 1,
-    "passed_at": "2026-07-17T04:11:26Z",
+    "passed_at": "2026-07-29T11:41:18Z",
     "post_exit_code": 0
+  },
+  "task_tier": "S",
+  "task_tier_meta": {
+    "score": 4,
+    "signals": {
+      "write_set_count": 2,
+      "new_page_dirs": 1,
+      "touches_shared_entry": false,
+      "cross_domain": true,
+      "multi_ui_surfaces": 0,
+      "figma_required": false,
+      "domains": [
+        "pages",
+        "services"
+      ],
+      "multi_unit_doc": false
+    },
+    "slo": {
+      "p50_wall_min": 25,
+      "p90_wall_min": 40
+    },
+    "parallel": {
+      "strategy": "optional_2_subagents",
+      "max_subagents": 2,
+      "multi_unit": false,
+      "review_shard": false,
+      "shared_entry_serial": true,
+      "note": "Shared entry files (App.tsx / pages/index.ts) MUST be merged serially by orchestrator"
+    }
   }
 }

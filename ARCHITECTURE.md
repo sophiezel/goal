@@ -222,6 +222,15 @@ runtime-smoke.sh → quality-gate.sh → handoff/quality.json
 
 独立模型审核，Step 0–4 编排（gate-pre → packet → unified LLM → merge → gate-post）。
 
+**review 双轨（v3 §8.2）**：
+
+| track | task_tier | Agent 加载 skill | 脚本链 |
+|-------|-----------|------------------|--------|
+| **single** | XS, S | `goal-review/SKILL.md` only（不加载 guazi-flow-review） | `goal-run-review-chain.sh`（unified 分支） |
+| **dual** | M+（默认） | `guazi-flow-review` + chain | 现状（Step 1.5 注入 issues_gf） |
+
+路由由 [`review_track.py`](goal-pipeline/scripts/review_track.py) 决定（env `GOAL_REVIEW_TRACK` > `state.review_policy.track` > 默认 dual）。PR3 默认 dual；P2 eval ≥95% ×2 轮后 XS/S 默认 single。
+
 ### 3.6 complete 阶段
 
 所有门禁汇聚点：

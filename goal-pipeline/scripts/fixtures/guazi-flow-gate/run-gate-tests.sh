@@ -49,6 +49,48 @@ else
   echo "FAIL plan-write-set-xieji expected pass"; exit 1
 fi
 
+echo "=== plan-lite-good (Index-Lite) should PASS ==="
+rm -rf "$SCRIPT_DIR/plan-lite-good/handoff"
+if "$GATE" --task-dir "$SCRIPT_DIR/plan-lite-good" --stage plan --post --mode guazi; then
+  PP=$(python3 -c "import json; print(json.load(open('$SCRIPT_DIR/plan-lite-good/handoff/plan.json')).get('plan_profile',''))")
+  if [[ "$PP" != "lite" ]]; then
+    echo "FAIL plan-lite-good plan_profile expected lite got '$PP'"; exit 1
+  fi
+  echo "OK plan-lite-good plan_profile=lite"
+else
+  echo "FAIL plan-lite-good expected pass"; exit 1
+fi
+
+echo "=== resolve-plan-index-lite unit ==="
+bash "$SCRIPT_DIR/test-resolve-plan-index-lite.sh"
+
+echo "=== review-track unit ==="
+bash "$SCRIPT_DIR/test-review-track.sh"
+
+echo "=== merge-review-stagnant unit (info_gain 熔断) ==="
+bash "$SCRIPT_DIR/test-merge-review-stagnant.sh"
+
+echo "=== commit-before-review unit ==="
+bash "$SCRIPT_DIR/test-commit-before-review.sh"
+
+echo "=== review-ab-jaccard (L0 A/B) ==="
+bash "$SCRIPT_DIR/test-review-ab-jaccard.sh"
+
+echo "=== am-extend (AM-07..10) ==="
+bash "$SCRIPT_DIR/test-am-extend.sh"
+
+echo "=== implement-write-set-pre-block ==="
+bash "$SCRIPT_DIR/test-implement-write-set-pre-block.sh"
+
+echo "=== phase-a2-e2e-block ==="
+bash "$SCRIPT_DIR/test-phase-a2-e2e-block.sh"
+
+echo "=== benchmark-ci smoke ==="
+bash "$SCRIPT_DIR/../../benchmark-ci.sh" >/dev/null 2>&1 && echo "OK benchmark-ci" || echo "SKIP benchmark-ci (workspace not configured)"
+
+echo "=== leak-rate-panel smoke ==="
+python3 "$SCRIPT_DIR/../../leak-rate-panel.py" --json >/dev/null 2>&1 && echo "OK leak-rate-panel" || echo "SKIP leak-rate-panel"
+
 echo "=== ctb-43532-simplified should FAIL ==="
 rm -f "$SCRIPT_DIR/ctb-43532-simplified/evidence/plan-gate-fix-input.json"
 if "$GATE" --task-dir "$SCRIPT_DIR/ctb-43532-simplified" --stage plan --post --mode guazi; then

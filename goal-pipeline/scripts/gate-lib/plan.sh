@@ -36,6 +36,7 @@
       AM=$(echo "$RESULT" | python3 -c "import json,sys; print(json.dumps(json.load(sys.stdin)['acceptance_matrix_ids']))")
       PROF=$(echo "$RESULT" | python3 -c "import json,sys; print(json.load(sys.stdin).get('profile',''))")
       PD=$(echo "$RESULT" | python3 -c "import json,sys; print(json.load(sys.stdin).get('profile_detail',''))")
+      PP=$(echo "$RESULT" | python3 -c "import json,sys; print(json.load(sys.stdin).get('plan_profile','full'))")
       IH=$(index_contract_hash "$INDEX")
       EH=$(index_execution_tail_hash "$INDEX")
       # Keep legacy index_schema_hash = contract hash for older consumers
@@ -63,6 +64,7 @@ PYVER
   "task_dir": "$TASK_DIR",
   "profile": "$PROF",
   "profile_detail": "$PD",
+  "plan_profile": "$PP",
   "write_set": $WS,
   "write_set_normalized": true,
   "acceptance_matrix_ids": $AM,

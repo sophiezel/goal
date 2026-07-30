@@ -18,6 +18,9 @@ cases:
     - evals/cases/persistent-blocker-blocked.yaml
     - evals/cases/budget-100-pause.yaml
     - evals/cases/review-provider-separation.yaml
+    - evals/cases/index-lite-plan-gate.yaml
+    - evals/cases/xs-review-single-track.yaml
+    - evals/cases/review-stagnant-blocked.yaml
   defaults:
     timeout_seconds: 600
     max_turns: 6

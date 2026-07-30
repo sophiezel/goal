@@ -10,10 +10,11 @@ import sys
 
 
 def parse_args():
-    p = argparse.ArgumentParser(description="Plan quality gate (PQ-01..PQ-07)")
+    p = argparse.ArgumentParser(description="Plan quality gate (PQ-01..PQ-09)")
     p.add_argument("--task-dir", required=True)
     p.add_argument("--tier", choices=("standard", "strict"), default="standard")
     p.add_argument("--rules", default="")
+    p.add_argument("--plan-profile", default="", choices=("", "lite", "full"))
     p.add_argument("--json", action="store_true", dest="as_json")
     return p.parse_args()
 
@@ -46,14 +47,33 @@ def severity_for(rule: dict, tier: str) -> str:
     return rule.get(tier, rule.get("standard", "warn"))
 
 
+def resolve_profile(task_dir: str, explicit: str, index_path: str) -> str:
+    if explicit:
+        return explicit
+    try:
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        resolver = os.path.join(script_dir, "resolve_plan_index_rules.py")
+        if os.path.isfile(resolver) and os.path.isfile(index_path):
+            plan_json = os.path.join(task_dir, "handoff", "plan.json")
+            import subprocess
+            out = subprocess.check_output(
+                [sys.executable, resolver, "--index", index_path, "--plan-json", plan_json, "--format", "json"],
+                text=True,
+            )
+            return json.loads(out).get("profile", "full")
+    except Exception:
+        pass
+    return "full"
+
+
 def check_pq01(index_text: str, tier: str, rules: dict) -> list[dict]:
     issues = []
     sev = severity_for(rules["rules"]["PQ-01"], tier)
-    has_ws = bool(re.search(r"write_set\s*[:：]|##\s*(write_set|写集)", index_text, re.I))
+    has_ws = bool(re.search(r"write_set\s*[:：]|##\s*(write_set|写集|范围与写集)", index_text, re.I))
     if not has_ws:
         issues.append({"id": "PQ-01", "severity": sev, "message": "index.md missing write_set section"})
         return issues
-    ws = re.search(r"(?:write_set\s*[:：]|##\s*(?:write_set|写集))\s*(.+?)(?:\n##|\Z)", index_text, re.I | re.S)
+    ws = re.search(r"(?:write_set\s*[:：]|##\s*(?:write_set|写集|范围与写集))\s*(.+?)(?:\n##|\Z)", index_text, re.I | re.S)
     body = (ws.group(1) if ws else "").strip()
     if not body or body in ("-", "无", "none", "N/A"):
         issues.append({"id": "PQ-01", "severity": sev, "message": "write_set is empty"})
@@ -100,10 +120,16 @@ def check_pq05(index_text: str, tier: str, rules: dict) -> list[dict]:
     return issues
 
 
-def check_pq06(index_text: str, tier: str, rules: dict) -> list[dict]:
+def _pq06_min_chars(rule: dict, tier: str, plan_profile: str) -> int:
+    if plan_profile == "lite":
+        return int(rule.get("lite_min_chars", 80))
+    return int(rule.get(f"{tier}_min_chars", rule.get("standard_min_chars", 200)))
+
+
+def check_pq06(index_text: str, tier: str, rules: dict, plan_profile: str = "full") -> list[dict]:
     issues = []
     rule = rules["rules"]["PQ-06"]
-    min_chars = rule.get(f"{tier}_min_chars", rule.get("standard_min_chars", 200))
+    min_chars = _pq06_min_chars(rule, tier, plan_profile)
     pseudo = re.search(r"伪代码|pseudocode", index_text, re.I)
     if not pseudo:
         issues.append({"id": "PQ-06", "severity": "warn", "message": "no pseudocode section"})
@@ -113,8 +139,8 @@ def check_pq06(index_text: str, tier: str, rules: dict) -> list[dict]:
     if len(chunk.strip()) < min_chars:
         issues.append({
             "id": "PQ-06",
-            "severity": "warn" if tier == "standard" else "block",
-            "message": f"pseudocode section shorter than {min_chars} chars",
+            "severity": "warn" if tier == "standard" or plan_profile == "lite" else "block",
+            "message": f"pseudocode section shorter than {min_chars} chars (profile={plan_profile})",
         })
     return issues
 
@@ -177,25 +203,89 @@ def check_pq07(index_text: str, tier: str, rules: dict) -> list[dict]:
     return issues
 
 
-def run_gate(task_dir: str, tier: str, rules_path: str) -> dict:
+def _acceptance_rows(index_text: str) -> list[str]:
+    """Extract acceptance matrix table rows (lines starting with | after a header row)."""
+    rows: list[str] = []
+    in_matrix = False
+    for line in index_text.splitlines():
+        s = line.strip()
+        if re.search(r"验收|acceptance", s, re.I) and s.startswith("##"):
+            in_matrix = True
+            continue
+        if in_matrix:
+            if s.startswith("##"):
+                break
+            if s.startswith("|") and not re.match(r"^\|[\s\-:|]+\|$", s):
+                rows.append(s)
+    return rows
+
+
+def check_pq08(index_text: str, tier: str, rules: dict, plan_profile: str = "full") -> list[dict]:
+    """PQ-08: each acceptance row must contain a machine-verifiable column."""
+    rule = rules["rules"].get("PQ-08")
+    if not rule:
+        return []
+    # lite → always warn; full+standard → warn; full+strict → block
+    if plan_profile == "lite":
+        sev = "warn"
+    else:
+        sev = severity_for(rule, tier)
+    rows = _acceptance_rows(index_text)
+    issues: list[dict] = []
+    machine_re = re.compile(r"verify_command|data-testid|http_assert|automated|CI=|yarn\s|tsc\s|jest\s|pytest|curl\s", re.I)
+    for row in rows:
+        if not machine_re.search(row):
+            issues.append({
+                "id": "PQ-08",
+                "severity": sev,
+                "message": f"acceptance row not machine-verifiable: {row[:80]}",
+            })
+    return issues
+
+
+def check_pq09(index_text: str, tier: str, rules: dict, plan_profile: str = "full") -> list[dict]:
+    """PQ-09: lite acceptance rows should be 3-5 (warn only, lite only)."""
+    rule = rules["rules"].get("PQ-09")
+    if not rule or plan_profile != "lite":
+        return []
+    rows = _acceptance_rows(index_text)
+    n = len(rows)
+    lo = int(rule.get("lite_min_rows", 3))
+    hi = int(rule.get("lite_max_rows", 5))
+    if n < lo or n > hi:
+        return [{
+            "id": "PQ-09",
+            "severity": "warn",
+            "message": f"lite acceptance rows {n} outside recommended {lo}-{hi}",
+        }]
+    return []
+
+
+def run_gate(task_dir: str, tier: str, rules_path: str, plan_profile: str = "") -> dict:
     index_path = os.path.join(task_dir, "index.md")
     if not os.path.isfile(index_path):
-        return {"passed": False, "blocked": True, "issues": [{"id": "PQ-00", "severity": "block", "message": "index.md missing"}]}
+        return {"passed": False, "blocked": True, "plan_profile": plan_profile or "full", "issues": [{"id": "PQ-00", "severity": "block", "message": "index.md missing"}]}
 
     rules = load_rules(rules_path)
     text = open(index_path, encoding="utf-8").read()
     fm = front_matter(index_path)
     tier = fm.get("quality_tier", tier) or tier
+    plan_profile = plan_profile or resolve_profile(task_dir, str(fm.get("plan_profile") or "").lower(), index_path)
 
     issues: list[dict] = []
-    for fn in (check_pq01, check_pq02, check_pq03, check_pq04, check_pq05, check_pq06, check_pq07):
+    for fn in (check_pq01, check_pq02, check_pq03, check_pq04, check_pq05):
         issues.extend(fn(text, tier, rules))
+    issues.extend(check_pq06(text, tier, rules, plan_profile))
+    issues.extend(check_pq07(text, tier, rules))
+    issues.extend(check_pq08(text, tier, rules, plan_profile))
+    issues.extend(check_pq09(text, tier, rules, plan_profile))
 
     blocked = any(i["severity"] == "block" for i in issues)
     return {
         "passed": not blocked,
         "blocked": blocked,
         "tier": tier,
+        "plan_profile": plan_profile,
         "issues": issues,
         "warnings": [i for i in issues if i["severity"] == "warn"],
     }
@@ -203,7 +293,7 @@ def run_gate(task_dir: str, tier: str, rules_path: str) -> dict:
 
 def main():
     args = parse_args()
-    result = run_gate(args.task_dir, args.tier, args.rules)
+    result = run_gate(args.task_dir, args.tier, args.rules, args.plan_profile)
     if args.as_json:
         print(json.dumps(result, ensure_ascii=False, indent=2))
     else:

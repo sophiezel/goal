@@ -1,9 +1,9 @@
 {
   "schema_version": 1,
   "planes": {
-    "control": ["plan_code_order", "plan_gate_missing", "plan_artifact_missing", "plan_schema_incomplete", "wrong_stage", "infra_missing"],
+    "control": ["plan_code_order", "plan_gate_missing", "plan_artifact_missing", "plan_schema_incomplete", "wrong_stage", "infra_missing", "uncommitted_write_set"],
     "data": ["project_id_mismatch", "state_ambiguous", "handoff_missing", "contract_stale", "execution_cascade_plan_rejected"],
-    "quality": ["write_set_violation", "uvo_not_pass", "verification_oracle_failed", "am_ratchet_failed", "packet_preflight_failed", "review_forged", "review_undetermined", "review_degraded_as_pass", "review_channel_missing", "suspected_secret", "protected_branch", "delivery_evidence_missing", "review_stale", "postmerge_required", "noop_fix", "uvo_skipped_illegally", "review_rounds_exhausted"],
+    "quality": ["write_set_violation", "uvo_not_pass", "verification_oracle_failed", "am_ratchet_failed", "packet_preflight_failed", "review_forged", "review_undetermined", "review_degraded_as_pass", "review_channel_missing", "suspected_secret", "protected_branch", "delivery_evidence_missing", "review_stale", "postmerge_required", "noop_fix", "uvo_skipped_illegally", "review_rounds_exhausted", "review_stagnant"],
     "efficiency": ["noop_fix", "review_channel_timeout_storm", "duplicate_verify", "missing_state_file_context"]
   },
   "codes": {
@@ -11,6 +11,8 @@
     "plan_gate_missing": {"plane": "control", "summary": "handoff/plan.json gate.passed_at required", "silent_pass_forbidden": true},
     "noop_fix": {"plane": "quality", "summary": "subject_hash unchanged — do not rerun same gate", "silent_pass_forbidden": true},
     "review_rounds_exhausted": {"plane": "quality", "summary": "business fix rounds exceeded GOAL_REVIEW_MAX_ROUNDS", "silent_pass_forbidden": true},
+    "review_stagnant": {"plane": "quality", "summary": "info_gain < GOAL_REVIEW_INFO_GAIN_MIN for GOAL_REVIEW_STAGNANT_ROUNDS consecutive rounds", "silent_pass_forbidden": true},
+    "uncommitted_write_set": {"plane": "control", "summary": "write_set paths dirty at review-pre without commit", "silent_pass_forbidden": true},
     "review_degraded_as_pass": {"plane": "quality", "summary": "degraded separation marked as full independent pass", "silent_pass_forbidden": true},
     "review_forged": {"plane": "quality", "summary": "review-unified without review-run provenance", "silent_pass_forbidden": true},
     "uvo_skipped_illegally": {"plane": "quality", "summary": "implement post without UVO attestation", "silent_pass_forbidden": true},

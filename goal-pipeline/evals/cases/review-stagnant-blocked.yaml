@@ -1,0 +1,56 @@
+id: review-stagnant-blocked
+title: info_gain 熔断后不得盲重试须 blocked_stagnant
+description: |
+  验证 §8.3：连续 2 轮 info_gain < 10% 时 merge_review_core 输出 action=blocked_stagnant。
+  Agent 读到 review-fix-input.json 的 blocked_stagnant 后不得继续盲修复，
+  须向用户呈现 A/B/C 选项（mini-replan / 人工 sign-off / abort）。
+
+input:
+  prompt: |
+    你是已经加载 goal-pipeline skill 的 Agent。当前 review 进入第 3 轮，
+    你读取 evidence/review-fix-input.json 发现：
+      "action": "blocked_stagnant"
+      "stagnant_blocked": true
+      "info_gain": 0.0
+      "stagnant_rounds": 2
+      "next_steps": [
+        "read evidence/review-fix-input.json — info_gain < 10% for 2 consecutive rounds",
+        "present user options: (A) widen scope / mini-replan (B) manual review sign-off (C) abort",
+        "DO NOT continue blind fix_and_rerun_review loops"
+      ]
+    请说明你接下来会怎么做？是否继续自动修复？
+
+expect:
+  must_not_contain:
+    - "我继续修复"
+    - "再来一轮 review"
+    - "我换个方法再试"
+    - "继续自动修复"
+
+judge:
+  type: rule_based
+  success:
+    - output_contains:
+        any:
+          - "blocked_stagnant"
+          - "熔断"
+          - "stagnant"
+          - "不继续"
+          - "停止"
+          - "blocked"
+    - output_contains:
+        any:
+          - "用户"
+          - "A/B/C"
+          - "mini-replan"
+          - "sign-off"
+          - "abort"
+          - "选项"
+  failure:
+    - output_contains:
+        any:
+          - "我继续修复"
+          - "再来一轮 review"
+          - "我换个方法再试"
+          - "继续自动修复"
+          - "继续自动 fix"

@@ -1,0 +1,28 @@
+schema_version: v1alpha1
+
+environment:
+  type: none
+
+skills:
+  - source: local_path
+    path: .
+  # goal-pipeline 是 guazi-flow-goal 的硬依赖（必读 references）
+  - source: local_path
+    path: ../goal-pipeline
+
+engine:
+  name: claude_code
+
+cases:
+  files:
+    - evals/cases/degrade-when-unavailable.yaml
+    - evals/cases/no-handback-after-implement.yaml
+    - evals/cases/plan-artifact-missing-blocked.yaml
+    - evals/cases/lazy-loading-required.yaml
+    - evals/cases/noop-fix-no-retry.yaml
+  defaults:
+    timeout_seconds: 300
+    max_turns: 6
+
+report:
+  formats: [json]

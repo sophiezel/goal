@@ -3,7 +3,14 @@
     if [[ "$PHASE" == "pre" ]]; then
       # CI needs: semantics — no fresh plan gate ⇒ refuse implement entry.
       run_plan_before_code_guard 1
-      pass "implement pre — plan gate passed; code changes now allowed within write_set"
+      # P4 W1.5: write_set pre BLOCK — refuse implement entry if plan write_set is empty
+      # (moved from post so code is never written without a declared scope)
+      [[ -f "$HANDOFF_DIR/plan.json" ]] || fail "plan handoff missing — run gate --post plan first"
+      PRE_WS_LEN=$(python3 -c "import json; print(len(json.load(open('$HANDOFF_DIR/plan.json')).get('write_set',[])))" 2>/dev/null || echo 0)
+      if [[ "$PRE_WS_LEN" == "0" ]]; then
+        fail "write_set empty at implement-pre — declare paths in index.md ## 范围与写集 before coding (P4 W1.5 pre-BLOCK)"
+      fi
+      pass "implement pre — plan gate passed; write_set non-empty; code changes now allowed within write_set"
     fi
     [[ -f "$HANDOFF_DIR/plan.json" ]] || fail "plan handoff missing — run gate --post plan first"
     [[ -f "$INDEX" ]] || fail "index.md not found"

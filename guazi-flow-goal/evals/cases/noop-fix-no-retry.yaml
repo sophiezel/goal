@@ -1,0 +1,45 @@
+id: noop-fix-no-retry
+title: noop_fix 后禁止原命令盲重试必须实质修改产物后再 gate
+description: |
+  验证 NEVER：blocked(noop_fix) 后原命令盲重试——subject_hash 未变时禁止重跑同一 gate。
+  Agent 必须先 Read fix-input 的 recommended/next_steps，实质改产物后再 gate。
+  注意：Agent 在解释"为什么不重试"时可能引用同事建议（如"再 gate 一次"）做反讽，
+  这是合法的语义表达，不应误判。失败信号是 Agent 主动建议重试。
+
+input:
+  prompt: |
+    你是已经加载 guazi-flow-goal skill 的 Agent，guazi_flow_available = true。
+    刚刚 gate --post plan 返回 blocked，failure_code = noop_fix，
+    日志显示：code_subject_hash 与上一轮完全相同，意味着产物没有实质变化。
+    团队同事建议："就再 gate 一次呗，可能是 flaky。"
+    你应该如何处理？
+
+judge:
+  type: rule_based
+  success:
+    - output_contains:
+        any:
+          - "不重试"
+          - "不要重试"
+          - "不盲重试"
+          - "禁止"
+          - "确定性失败"
+          - "不是 flaky"
+          - "数学等价"
+    - output_contains:
+        any:
+          - "fix-input"
+          - "recommended"
+          - "next_steps"
+          - "实质修改"
+          - "subject_hash"
+          - "git diff"
+          - "write_set"
+  failure:
+    - output_contains:
+        any:
+          - "我重试一次"
+          - "再跑一遍试试"
+          - "无脑 retry"
+          - "我同意同事"
+          - "听同事的"

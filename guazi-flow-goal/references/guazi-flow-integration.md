@@ -57,8 +57,12 @@ if guazi_flow_available:
        python3 plan-quality-gate.py --task-dir docs/guazi-flow/<task>  # 亦在 gate --post 内强制执行
        ```
        - `--post` 校验 index.md schema（frontmatter + 核心事实/完整伪代码/验收与验证矩阵/执行记录）
-       - 通过则写入 `handoff/plan.json`；失败 exit 1 → blocked(plan_schema_incomplete)
+       - 通过则写入 `handoff/plan.json`（含 `plan_profile`）；失败 exit 1 → blocked(plan_schema_incomplete)
        - 简化 index（如缺完整伪代码）**无法通过** plan gate
+       - **Index-Lite（XS/S）**：`plan_profile: lite` 时按 [`plan-index-rules-lite.json`](../../goal-pipeline/references/guazi-flow-artifact-schema/plan-index-rules-lite.json) 校验
+         - 6 段（合并「范围与写集」）、伪代码 ≥80 chars、PQ-08 warn only
+         - PQ-01/02/05/07 **不降级**（仍 block）；详见 [`index-lite-protocol.md`](../../goal-pipeline/references/index-lite-protocol.md)
+         - 路由由 [`resolve_plan_index_rules.py`](../../goal-pipeline/scripts/resolve_plan_index_rules.py) 决定（env > plan.json M+ > frontmatter plan_profile > plan.json XS/S > 预估算）
 
     → 交叉验证（产物质量 GATE 通过后，契约融入之前）:
        1. write_set vs Allowed Files:
@@ -137,10 +141,11 @@ gate --post(implement) → validate-pipeline-chain (exit 0) → goal-advance-sta
 guazi-flow 可用时，在基础流程中注入两个增量步骤：
 
 **Step 0**: `gate --pre(review)` — implement handoff fresh
-**Step 1.5 注入（guazi-flow-review）**:
+**Step 1.5 注入（guazi-flow-review）** — **仅 `review_track=dual` 时执行**（v3 §8.2）:
   专业代码审阅：读 index.md/unit.md/Figma/evidence
   检查：契约可追溯、前置状态、E2E 证据、视觉契约
   → issues_gf[]
+  `review_track=single`（XS/S 快车道）时 **跳过本步**：rubric 经 `assemble-review-packet.sh` 嵌入 packet，`goal-run-review-chain.sh` unified 分支直接产出 issues；不加载 `guazi-flow-review/SKILL.md`
   不可用 → issues_gf = []
 
 **Step 4.5 注入（根因分类）**:

@@ -95,12 +95,14 @@ else:
 | plan 开始前 | `guazi-flow-plan/SKILL.md` |
 | implement 开始前 | `guazi-flow-implement/SKILL.md` |
 | quality 开始前 | `goal-pipeline/stages/goal-quality/SKILL.md` |
-| review 开始前 | `guazi-flow-review/SKILL.md` |
+| review 开始前 | `guazi-flow-review/SKILL.md` **或**（`review_track=single` 时）**仅** `goal-pipeline/stages/goal-review/SKILL.md` + `goal-run-review-chain.sh`（单轨，不加载 guazi-flow-review） |
 | complete 开始前 | `guazi-flow-complete/SKILL.md` |
+
+**review 单轨（v3 §8.2）**：`review_track=single` 时跳过 guazi-flow-review Agent turn（Step 1.5）；rubric 经 `assemble-review-packet.sh` 嵌入 packet，`goal-run-review-chain.sh` unified 分支已支持。默认 dual（PR3）；single 经 `GOAL_REVIEW_TRACK=single` 或 `state.review_policy.track=single` 开启。路由见 [`review_track.py`](goal-pipeline/scripts/review_track.py)。
 
 **不加载 → Agent 不知道 guazi-flow 具体指令 → 产物不符合规范。**
 
-**Do NOT Load**: guazi-flow-review/SKILL.md 在 plan/implement 阶段（仅 review 阶段加载）；guazi-flow-complete/SKILL.md 在 plan/implement/review 阶段。
+**Do NOT Load**: guazi-flow-review/SKILL.md 在 plan/implement 阶段（仅 review 阶段加载；**review_track=single 时也不加载**）；guazi-flow-complete/SKILL.md 在 plan/implement/review 阶段。
 
 ---
 
@@ -135,6 +137,10 @@ Fast-path（用户已提供 JIRA + 明确验收标准时）:
   ├─ 仍 MUST 执行 Step 5 创建 state.json
   ├─ 仍 MUST 输出 Goal 结构摘要（1 屏以内，默认确认，用户可打断）
   ├─ 可跳过访谈，不可跳过 gate --post plan 与完整 index.md schema
+  ├─ **Index-Lite（XS/S）**：task_tier 为 XS/S 时推荐使用 `plan_profile: lite` 精简 index
+  │   ├─ 启用信号：frontmatter `plan_profile: lite` 或 `task_tier: XS|S`；或 env `GOAL_PLAN_PROFILE=lite`
+  │   ├─ Lite schema：6 段（合并「范围与写集」）、伪代码 ≥80 chars（见 `goal-pipeline/references/index-lite-protocol.md`）
+  │   └─ **仍 MUST** gate --post plan + guazi-flow-plan lazy load；PQ-01/02/05/07 不降级
   └─ 不得因「需求清晰」跳过 Phase 1 entirely
 
 Step 2-3: 意图采集 + 自动推断 (interview-protocol.md)

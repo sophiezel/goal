@@ -179,7 +179,9 @@ deploy_runtime() {
   REF_DST="$GOAL_STATE_HOME/references"
   mkdir -p "$REF_DST"
   for ref in failure-codes.json failure-code-dictionary.md four-planes-checklist.json \
-             migration-compat.md measure-field-template.json plan-before-code.md; do
+             migration-compat.md measure-field-template.json plan-before-code.md \
+             plan-quality-rules.json index-lite-protocol.md p2-eval-runbook.md \
+             escape-register.template.json; do
     [[ -f "$REF_SRC/$ref" ]] || continue
     cp "$REF_SRC/$ref" "$REF_DST/$ref"
   done

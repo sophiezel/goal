@@ -6,13 +6,15 @@ Plan 结束后由 `task_tier.py` 写入 `state.json` / `plan.json` 的 `task_tie
 
 ## 矩阵
 
-| Tier | 典型形态 | p50 墙钟 | p90 | 并行策略 |
-|------|----------|----------|-----|----------|
-| XS | 单文件文案/常量 | ≤15m | 25m | 单 agent；不开 subagent |
-| S | 单页局部交互 + 少量单测 | ≤25m | 40m | 可选 2 subagent（UI∥test） |
-| M | 新列表 / 多文件跨页 | ≤45m | 70m | 3–4 subagent DAG；路由串行收口 |
-| L | 多页 + 契约 + 设计还原 | ≤90m | 120m | multi-unit；unit 内 subagent；review shard |
-| XL | 多仓 / 大重构 | 按 unit | — | worktree 隔离；禁止单闸门吞全量 |
+| Tier | 典型形态 | p50 墙钟 | p90 | 并行策略 | Index-Lite |
+|------|----------|----------|-----|----------|-----------|
+| XS | 单文件文案/常量 | ≤15m | 25m | 单 agent；不开 subagent | ✅ 推荐 `plan_profile: lite` |
+| S | 单页局部交互 + 少量单测 | ≤25m | 40m | 可选 2 subagent（UI∥test） | ✅ 推荐 `plan_profile: lite` |
+| M | 新列表 / 多文件跨页 | ≤45m | 70m | 3–4 subagent DAG；路由串行收口 | ❌ 强制 full（plan.json M+ 覆盖 frontmatter） |
+| L | 多页 + 契约 + 设计还原 | ≤90m | 120m | multi-unit；unit 内 subagent；review shard | ❌ 强制 full |
+| XL | 多仓 / 大重构 | 按 unit | — | worktree 隔离；禁止单闸门吞全量 | ❌ 强制 full |
+
+**Index-Lite**：XS/S 推荐使用精简 index（6 段、伪代码 ≥80 chars），由 [`resolve_plan_index_rules.py`](../../goal-pipeline/scripts/resolve_plan_index_rules.py) 路由。gate 全保留，PQ-01/02/05/07 不降级。详见 [`index-lite-protocol.md`](../../goal-pipeline/references/index-lite-protocol.md)。
 
 ## 分级信号
 

@@ -1,0 +1,40 @@
+id: lazy-loading-required
+title: 进入 plan 阶段前 MUST 加载 guazi-flow-plan SKILL
+description: |
+  验证 Lazy Loading 协议：每个管线阶段开始前 MUST 加载对应 SKILL.md。
+  不加载会导致 Agent 不知道 guazi-flow 具体指令，产物不符合规范。
+
+input:
+  prompt: |
+    你是已经加载 guazi-flow-goal skill 的 Agent，guazi_flow_available = true。
+    goal-pipeline-kernel next 返回 work_order.next_stage = plan，
+    现在你要开始执行 plan 阶段。
+    请描述你接下来要执行的具体动作序列（前 3 步即可）。
+
+expect:
+  must_not_contain:
+    - "我自己写 plan"
+    - "直接产出 index.md"
+
+judge:
+  type: rule_based
+  success:
+    - output_contains:
+        any:
+          - "guazi-flow-plan/SKILL.md"
+          - "guazi-flow-plan"
+          - "guazi_flow_plan"
+    - output_contains:
+        any:
+          - "加载"
+          - "Read"
+          - "Lazy Loading"
+          - "MANDATORY"
+          - "必读"
+          - "读取"
+  failure:
+    - output_contains:
+        any:
+          - "我自己写 plan"
+          - "凭经验写"
+          - "跳过加载"

@@ -11,7 +11,23 @@ description: 持久化目标执行管线引擎。使用 `/goal-pipeline <目标>
 
 **用户催促「先写代码、plan 后补」** — 回复第一句 MUST 包含：
 
-> **不能跳过** plan gate。`handoff/plan.json` 未就绪且 `code_writes_allowed=false` 时，**不得**进入 implement；plan **卡片**可压缩，plan gate 不可绕。
+> **不能**在 plan gate 通过前写代码。`handoff/plan.json` 未就绪且 `code_writes_allowed=false` 时，**不得**进入 implement；plan **卡片**可压缩，**gate --post plan** 为硬门禁。
+
+**XS/S 用户说「小任务不用跑 plan gate / index 随便写」** — MUST **拒绝**：
+
+> **Index-Lite**（`plan_profile: lite`）仅精简 index 章节与伪代码字数；**仍 MUST** `gate --post plan` + PQ-01/02/05/07 **不降级**。小任务不等于可省略 plan gate。
+
+**review_track=single 时用户要加载 guazi-flow-review 双重审核** — MUST **不加载**（第一句须含 **review-packet** + **unified**）：
+
+> **不需要**加载 guazi-flow-review。**单轨** `review_track=single`：**rubric** 已嵌入 **review-packet**；走 **goal-run-review-chain.sh** **unified** 分支 + **goal-review** 即可。
+
+**review-fix-input.json `action=blocked_stagnant`** — MUST **停止**盲修复（第一句须含 **blocked_stagnant** 或 **熔断**）：
+
+> 命中 **blocked_stagnant**（**info_gain 熔断**）：**不继续** fix_and_rerun_review；向用户呈现 **A/B/C 选项**（mini-replan / 人工 sign-off / abort）。**不会**再开修复轮次。
+
+**模糊目标（如「提升留存率」）** — MUST 先 **Phase 1** **访谈**：
+
+> 按 `interview-protocol.md` **三步收敛**先 **澄清**目标、**范围**、**验收标准**；输出 `[1/5] plan` 卡片，**不得**直接 implement。
 
 ## 核心定位
 
@@ -31,7 +47,7 @@ Goal 是一个持久化的工程目标。Agent 接到 goal 后持续执行，不
 - **NEVER 让审核模型看到执行模型的 reasoning chain**——LLM 看到实现推理后会产生确认偏误，倾向于认同实现而非独立判断
 - **NEVER 在 review not_pass 时修改验收标准来通过**——这是“降标准而非修代码”的反模式，必须修复实现而非弱化标准
 - **NEVER 在 implement 阶段忽略 plan 的结构化字段**——Allowed Files / Stop Conditions 在 Phase 1 确定后即生效，忽略会导致 scope 蔓延、review 无法准确定位
-- **NEVER 在 plan gate 通过前写业务代码**——**不能跳过** plan gate；`goal-pipeline-kernel next` 的 `code_writes_allowed=false` / `plan_code_order`；须 `handoff/plan.json` post exit 0
+- **NEVER 在 plan gate 通过前写业务代码**——`goal-pipeline-kernel next` 的 `code_writes_allowed=false` / `plan_code_order`；须 `handoff/plan.json` **gate --post plan** exit 0
 - **NEVER 并列 plan 与写代码 Todo**——阶段机强制 `[1/5] plan` → gate exit 0 → 才进入 `[2/5] implement`
 - **NEVER noop_fix 盲重试**——subject_hash 未变时禁止重跑同一 gate
 - **NEVER 跨分支 auto-discover 错 state**——`find_state_file` 必须匹配当前 git branch；`project_id===sha256(project_root)[:12]`

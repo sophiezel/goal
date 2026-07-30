@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "note": "Fill after real XS task replay (see wall-clock-xs-replay.md). Static benchmark does NOT substitute.",
+  "task_id": "",
+  "baseline": {
+    "plan_ms": null,
+    "review_ms": null,
+    "total_ms": null,
+    "recorded_at": null,
+    "source": "historical or xs-v3-pre manual timing"
+  },
+  "post_v3": {
+    "plan_ms": null,
+    "review_ms": null,
+    "total_ms": null,
+    "recorded_at": null,
+    "plan_profile": "lite",
+    "review_track": "single"
+  },
+  "reduction_pct": {
+    "total": null,
+    "plan_plus_review": null
+  },
+  "gate": {
+    "total_min_25pct": false,
+    "plan_review_min_30pct": false,
+    "passed": false
+  }
+}

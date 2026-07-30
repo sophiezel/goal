@@ -109,6 +109,24 @@ def load_pipeline_track():
 track = load_pipeline_track()
 STAGE_SKILL = STAGE_SKILL_EVOLUTION if track == "evolution" else STAGE_SKILL_COMPAT
 
+# Review single-track (v3 §8.2): XS/S may skip guazi-flow-review Agent turn.
+# Default dual in PR3; single opt-in via GOAL_REVIEW_TRACK=single or state.review_policy.track.
+def load_review_track():
+    import subprocess, sys as _sys
+    try:
+        rt_script = os.path.join(script_dir, "review_track.py")
+        if os.path.isfile(rt_script):
+            out = subprocess.check_output(
+                [_sys.executable, rt_script, "--state-file", state_file, "--format", "json"],
+                text=True,
+            )
+            return json.loads(out).get("track", "dual")
+    except Exception:
+        pass
+    return "dual"
+
+review_track = load_review_track()
+
 def build_mandatory(stage):
     plan_skill = STAGE_SKILL.get("plan", "guazi-flow-plan")
     impl_skill = STAGE_SKILL.get("implement", "guazi-flow-implement")
@@ -146,7 +164,7 @@ def build_mandatory(stage):
     if stage == "review":
         review_chain = f"{script_dir}/goal-run-review-chain.sh"
         refresh = f"{script_dir}/refresh-handoffs-after-index.sh"
-        return [
+        cmds = [
             # Refresh handoffs if index execution/contract drifted (no-op when fresh)
             f"{refresh} --task-dir {task_dir!r} --state-file {state_file!r} --project-root {project_root!r}",
             gate_cmd("review", "pre"),
@@ -154,6 +172,9 @@ def build_mandatory(stage):
             gate_cmd("review", "post"),
             f"{script_dir}/goal-advance-stage.sh --state-file {state_file!r} --task-dir {task_dir!r} --project-root {project_root!r}",
         ]
+        if review_track == "single":
+            cmds.insert(2, f"# single-track: load goal-review/SKILL.md only (NO guazi-flow-review Agent turn); rubric embedded in review-packet via assemble-review-packet.sh")
+        return cmds
     if stage == "complete":
         complete_skill = STAGE_SKILL.get("complete", "guazi-flow-complete")
         return [
@@ -175,13 +196,19 @@ if attempt and next_stage not in ("done", "blocked") and attempt != next_stage:
 
 mandatory = build_mandatory(next_stage) if next_stage != "done" else build_mandatory("done")
 
+# Review single-track: skill_to_load=goal-review (skip guazi-flow-review Agent turn)
+resolved_skill = STAGE_SKILL.get(next_stage)
+if next_stage == "review" and review_track == "single":
+    resolved_skill = "goal-review"
+
 work_order = {
     "schema_version": 1,
     "next_stage": next_stage,
     "blocked": blocked or wrong_stage,
     "blocked_reason": blocked_reason,
     "wrong_stage": wrong_stage,
-    "skill_to_load": STAGE_SKILL.get(next_stage),
+    "skill_to_load": resolved_skill,
+    "review_track": review_track,
     "progress": STAGE_PROGRESS.get(next_stage, f"[?] {next_stage}"),
     "mandatory_commands": mandatory,
     "required_commands_from_advance": required,

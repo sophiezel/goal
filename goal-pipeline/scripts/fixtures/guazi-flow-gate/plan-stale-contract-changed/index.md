@@ -3,6 +3,7 @@ version: 1
 current_stage: implement
 profile: h5
 profile_detail: react
+plan_profile: full
 ---
 
 ## 概览

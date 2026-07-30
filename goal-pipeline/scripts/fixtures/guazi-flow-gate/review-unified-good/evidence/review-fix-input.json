@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "round": 24,
+  "round": 35,
   "merged_result": "not_pass",
   "action": "blocked_user_decision",
   "issues": [
@@ -17,13 +17,13 @@
   ],
   "resolved_since_last_round": [],
   "next_steps": [
-    "review fix rounds exhausted (GOAL_REVIEW_MAX_ROUNDS=10, round=24)",
+    "review fix rounds exhausted (GOAL_REVIEW_MAX_ROUNDS=10, round=35)",
     "present user options A/B/C/D — do not continue blind fix loops",
     "optional: raise GOAL_REVIEW_MAX_ROUNDS only with explicit user approval"
   ],
   "provenance": {
-    "review_run_id": "e81b7764b2cca22c",
-    "packet_hash": "2efd826e9075c503",
+    "review_run_id": "2d5a25ae715b118f",
+    "packet_hash": "d7bd60ecfc5b8be0",
     "gf_skill_attested": true,
     "channels": [
       "goal",
@@ -32,5 +32,11 @@
   },
   "classification": "business",
   "max_rounds": 10,
-  "rounds_exhausted": true
+  "rounds_exhausted": true,
+  "blocker_count": 1,
+  "info_gain": 0.0,
+  "info_gain_threshold": 0.1,
+  "stagnant_rounds": 7,
+  "stagnant_rounds_limit": 2,
+  "stagnant_blocked": false
 }

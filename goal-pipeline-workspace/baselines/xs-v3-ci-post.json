@@ -1,0 +1,69 @@
+{
+  "schema_version": 2,
+  "benchmark_at": "2026-07-29T11:41:37Z",
+  "goal_commit": "92d7d5f",
+  "task_dir": "/Users/xuwei/Profession/goal/goal-pipeline/scripts/fixtures/guazi-flow-gate/plan-good",
+  "profile": "default",
+  "duration_ms": 38,
+  "op_counts": {
+    "verification_oracle_expected": 1,
+    "verify_review_full_in_assemble": 0,
+    "implement_qc_full_test_in_gate": 0,
+    "quality_gate_smoke_rerun": 0,
+    "stage_driver_mandatory_yarn_test": 0,
+    "review_uvo_skip_enabled": 1,
+    "review_orchestrator_wired": 1,
+    "review_fallback_orchestrator_present": 1,
+    "review_packet_shard_present": 1,
+    "review_depth_present": 1,
+    "readonly_subagent_present": 1,
+    "quality_tier_auto_upgrade": 0,
+    "default_diff_source_code_subject": 1,
+    "adapter_max_tokens_set": 1,
+    "plan_before_code_guard": 1,
+    "state_branch_scoped_discover": 1,
+    "quality_gate_receives_state_file": 0,
+    "review_zero_channel_failfast": 1,
+    "refresh_cascade_exec_guard": 1,
+    "pipeline_timing_utc": 1
+  },
+  "review_chain": {
+    "score": 8,
+    "max": 8,
+    "comparison": {
+      "baseline": {
+        "task": "CTB-43806-A4",
+        "review_wall_clock_min": 31,
+        "total_wall_clock_min": 46,
+        "packet_diff_chars": 61600,
+        "prompt_bytes_est": 88000,
+        "T_retry": 3,
+        "separation_score": "none",
+        "verify_review_repeat_test": true
+      },
+      "target": {
+        "review_wall_clock_min_max": 8,
+        "T_retry_max": 0,
+        "packet_diff_chars_max": 25000,
+        "separation_score_min": "medium",
+        "review_chain_features_min": 7
+      },
+      "delta_review_min_est": 23,
+      "features_enabled": 8,
+      "features_required": 7,
+      "projected_improvement": {
+        "uvo_skip_saves_min": "1-10",
+        "scoped_diff_prompt_reduction_pct": "40-60",
+        "fallback_prevents_blind_retry": true,
+        "shard_parallel_target_min": "2-4"
+      }
+    }
+  },
+  "acceptance": {
+    "uvo_calls_max": 1,
+    "assemble_verify_subprocess_max": 0,
+    "stage_driver_yarn_test_max": 0,
+    "review_chain_score_min": 7
+  },
+  "passed": true
+}

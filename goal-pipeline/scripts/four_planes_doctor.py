@@ -21,6 +21,8 @@ def main() -> int:
     ap.add_argument("--project-root", default="")
     ap.add_argument("--task-dir", default="")
     ap.add_argument("--state-file", default="")
+    ap.add_argument("--repo-root", default="",
+                   help="Repo source root for install-drift SHA comparison (auto-detected if omitted)")
     ap.add_argument("--format", choices=("json", "text"), default="json")
     args = ap.parse_args()
 
@@ -90,6 +92,40 @@ def main() -> int:
             text=True,
         )
         checks.append(check("data.canonical_state", r.returncode == 0, (r.stderr or r.stdout)[:200]))
+
+    # install-drift (v3 W1d): compare installed script SHAs vs repo source
+    import hashlib
+    repo_root = Path(args.repo_root).expanduser() if args.repo_root else None
+    if not repo_root:
+        for cand in (
+            Path(os.environ.get("GOAL_PIPELINE_REPO", "")).expanduser(),
+            Path(os.environ.get("DEPLOY_SOURCE", "")).expanduser(),
+            Path.home() / ".goal-pipeline-repo",
+            SCRIPT_DIR.parent.parent,
+        ):
+            if str(cand) != "." and cand.is_dir() and (cand / "goal-pipeline" / "scripts").is_dir():
+                repo_root = cand
+                break
+    if repo_root and repo_root.is_dir():
+        repo_scripts = repo_root / "goal-pipeline" / "scripts"
+        drift_files = []
+        for name in ("gate-guazi-flow-stage.sh", "goal-stage-driver.sh", "merge_review_core.py",
+                     "plan-quality-gate.py", "resolve_plan_index_rules.py", "review_track.py",
+                     "check_commit_before_review.py", "quality-gate.sh",
+                     "acceptance-matrix-ratchet.py", "write-delivery-quality.sh",
+                     "leak-rate-panel.py", "benchmark-ci.sh", "escape-to-eval.py"):
+            installed = SCRIPT_DIR / name
+            source = repo_scripts / name
+            if not installed.is_file() or not source.is_file():
+                continue
+            h_i = hashlib.sha256(installed.read_bytes()).hexdigest()[:16]
+            h_s = hashlib.sha256(source.read_bytes()).hexdigest()[:16]
+            if h_i != h_s:
+                drift_files.append(f"{name}: installed={h_i} repo={h_s}")
+        checks.append(check("meta.install_drift", len(drift_files) == 0,
+                            ("no drift" if not drift_files else "; ".join(drift_files))))
+    else:
+        checks.append(check("meta.install_drift", True, "repo root not found — drift check skipped"))
 
     failed = [c for c in checks if c["status"] != "ok"]
     by_plane: dict[str, list] = {}

@@ -153,11 +153,12 @@ def run_ratchet(
     # AM-06: UI refresh / seamless loading heuristic (C04 class — warning only)
     index_path = os.path.join(task_dir, "index.md")
     pseudo = ""
+    index_text = ""
     if os.path.isfile(index_path):
         try:
-            text = open(index_path, encoding="utf-8").read()
-            m = re.search(r"## 完整伪代码\s*\n(.*?)(?=\n## |\Z)", text, re.DOTALL)
-            pseudo = m.group(1) if m else text
+            index_text = open(index_path, encoding="utf-8").read()
+            m = re.search(r"## 完整伪代码\s*\n(.*?)(?=\n## |\Z)", index_text, re.DOTALL)
+            pseudo = m.group(1) if m else index_text
         except OSError:
             pseudo = ""
     wants_seamless = bool(re.search(r"无缝|下拉刷新|pull\s*refresh|refreshing", pseudo, re.I))
@@ -173,6 +174,52 @@ def run_ratchet(
         )
     else:
         checks.append({"id": "AM-06", "pass": True, "detail": "skipped — no C04 seamless-refresh conflict"})
+
+    # AM-07: write_set paths must exist in repo (catch phantom/typo paths) — warn (strict: block)
+    tier = str(plan.get("quality_tier") or os.environ.get("GOAL_QUALITY_TIER") or "standard").lower()
+    am07_sev = "block" if tier == "strict" else "warning"
+    phantom = [w for w in write_set if w and not w.endswith("/**") and not os.path.exists(os.path.join(repo_root, w))]
+    if phantom:
+        checks.append({"id": "AM-07", "pass": False, "severity": am07_sev, "detail": f"write_set paths not in repo: {', '.join(phantom[:5])}"})
+    else:
+        checks.append({"id": "AM-07", "pass": True, "detail": "all write_set paths exist"})
+
+    # AM-08: package.json diff must not add forbidden out-of-scope deps — block
+    import subprocess as _sp
+    forbidden_deps = ("jian-rn", "react-native-", "expo-")
+    bad_deps: list[str] = []
+    try:
+        pkg_diff = _sp.check_output(
+            ["git", "-C", repo_root, "diff", "HEAD", "--no-color", "--", "package.json"],
+            text=True, stderr=_sp.DEVNULL, timeout=10,
+        )
+    except Exception:
+        pkg_diff = ""
+    if pkg_diff:
+        for d in forbidden_deps:
+            if re.search(r'"' + re.escape(d) + r'[^"]*"\s*:', pkg_diff):
+                bad_deps.append(d)
+    checks.append({"id": "AM-08", "pass": len(bad_deps) == 0, "severity": "block" if bad_deps else "", "detail": f"forbidden deps added: {', '.join(bad_deps)}" if bad_deps else "no forbidden deps"})
+
+    # AM-09: data-testid declared in acceptance matrix must appear in changed files — warn (strict: block)
+    testids_declared: list[str] = re.findall(r'data-testid[=:"\s]+([a-zA-Z0-9_-]+)', index_text)
+    if testids_declared:
+        diff_blob = diff_text
+        missing_tids = [t for t in set(testids_declared) if t not in diff_blob]
+        if missing_tids:
+            checks.append({"id": "AM-09", "pass": False, "severity": am07_sev, "detail": f"declared data-testid not in diff: {', '.join(sorted(missing_tids)[:5])}"})
+        else:
+            checks.append({"id": "AM-09", "pass": True, "detail": "all declared data-testid present in diff"})
+    else:
+        checks.append({"id": "AM-09", "pass": True, "detail": "skipped — no data-testid declared"})
+
+    # AM-10: Stop Conditions referenced when package.json is touched — warn
+    touches_pkg = bool(pkg_diff)
+    has_stop_cond = bool(re.search(r"Stop\s*Conditions|停止条件|依赖.*Stop", index_text, re.I))
+    if touches_pkg and not has_stop_cond:
+        checks.append({"id": "AM-10", "pass": False, "severity": "warning", "detail": "write_set touches package.json but index has no Stop Conditions section"})
+    else:
+        checks.append({"id": "AM-10", "pass": True, "detail": "skipped — no package.json change or Stop Conditions present"})
 
     blockers = [c for c in checks if not c.get("pass") and c.get("severity") != "warning"]
     return {

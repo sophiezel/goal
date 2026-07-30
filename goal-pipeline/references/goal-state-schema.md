@@ -82,7 +82,10 @@
       "diff_bytes": 0,
       "tier": "standard",
       "reason": "small_change_set | large_change_set | strict_tier | explicit_light | explicit_full"
-    }
+    },
+    "track": "single | dual",
+    "resolved_at": "env_override | state_review_policy | auto_xs_s | default_dual",
+    "task_tier": "XS | S | M | L | XL"
   },
   "quality_policy": {
     "tier": "standard | strict",

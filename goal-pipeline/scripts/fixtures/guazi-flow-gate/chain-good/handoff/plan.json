@@ -7,9 +7,7 @@
   "profile": "h5",
   "profile_detail": "react",
   "write_set": [
-    "routes.ts",
-    "src/pages/DiscrepancyVideoAudit/",
-    "src/services/discrepancyVideoAudit/"
+    "routes.ts"
   ],
   "acceptance_matrix_ids": [
     "C01",
@@ -28,5 +26,10 @@
     "passed_at": "2026-07-02T12:53:50Z"
   },
   "index_contract_hash": "0a2d1cf082b1437d",
-  "index_execution_tail_hash": "08fc10e6bf177caa"
+  "index_execution_tail_hash": "08fc10e6bf177caa",
+  "write_set_pruned": true,
+  "write_set_pruned_paths": [
+    "src/pages/DiscrepancyVideoAudit",
+    "src/services/discrepancyVideoAudit"
+  ]
 }

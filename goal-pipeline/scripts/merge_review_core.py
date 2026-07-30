@@ -75,6 +75,7 @@ def action_label_zh(action: str) -> str:
         "fix_and_rerun_review": "修复后重跑 review",
         "mini_replan": "迷你 replan",
         "blocked_user_decision": "需用户决策",
+        "blocked_stagnant": "修复停滞（info_gain 熔断）",
         "switch_to_cursor_task": "切换 Cursor Task 审核",
         "fix_channel": "修复审核通道/网络",
     }
@@ -173,6 +174,12 @@ def next_steps_for_action(action):
         ]
     if action == "blocked_user_decision":
         return ["present user options A/B/C/D"]
+    if action == "blocked_stagnant":
+        return [
+            "read evidence/review-fix-input.json — info_gain < threshold for GOAL_REVIEW_STAGNANT_ROUNDS consecutive rounds",
+            "present user options: (A) widen scope / mini-replan (B) manual review sign-off (C) abort",
+            "DO NOT continue blind fix_and_rerun_review loops",
+        ]
     return [
         "read evidence/review-fix-input.json",
         "fix within write_set",
@@ -248,6 +255,39 @@ def main():
     if rounds_exhausted:
         action = "blocked_user_decision"
 
+    # info_gain 熔断 (v3 §8.3a): consecutive low info_gain → blocked_stagnant
+    # Infra-only issues are exempt (channel repair ≠ code churn).
+    try:
+        info_gain_threshold = float(os.environ.get("GOAL_REVIEW_INFO_GAIN_MIN", "0.10") or "0.10")
+    except ValueError:
+        info_gain_threshold = 0.10
+    try:
+        stagnant_rounds_limit = int(os.environ.get("GOAL_REVIEW_STAGNANT_ROUNDS", "2") or "2")
+    except ValueError:
+        stagnant_rounds_limit = 2
+
+    cur_blockers = sum(1 for i in flat if i.get("severity") == "blocker")
+    prev_blockers = int(prev.get("blocker_count", 0)) if prev else 0
+    if prev_blockers > 0:
+        info_gain = round((prev_blockers - cur_blockers) / max(prev_blockers, 1), 4)
+    else:
+        # No previous blockers: gain is 1.0 if now clean, 0.0 if new blockers appeared
+        info_gain = 1.0 if cur_blockers == 0 else 0.0
+    prev_stagnant = int(prev.get("stagnant_rounds", 0)) if prev else 0
+    if info_gain < info_gain_threshold:
+        stagnant_rounds = prev_stagnant + 1
+    else:
+        stagnant_rounds = 0
+    stagnant_blocked = (
+        not infra_only
+        and merged_result != "pass"
+        and stagnant_rounds >= stagnant_rounds_limit
+        and info_gain < info_gain_threshold
+        and action in ("fix_and_rerun_review", "mini_replan")
+    )
+    if stagnant_blocked:
+        action = "blocked_stagnant"
+
     run_doc = load_json(os.path.join(goal_evidence, "review-run.json"), {})
     provenance = {
         "review_run_id": run_doc.get("run_id", ""),
@@ -263,6 +303,8 @@ def main():
             "present user options A/B/C/D — do not continue blind fix loops",
             "optional: raise GOAL_REVIEW_MAX_ROUNDS only with explicit user approval",
         ]
+    if stagnant_blocked:
+        next_steps = next_steps_for_action("blocked_stagnant")
 
     fix_input = {
         "schema_version": 1,
@@ -276,6 +318,12 @@ def main():
         "classification": "infra_undetermined" if infra_only else "business",
         "max_rounds": max_rounds,
         "rounds_exhausted": rounds_exhausted,
+        "blocker_count": cur_blockers,
+        "info_gain": info_gain,
+        "info_gain_threshold": info_gain_threshold,
+        "stagnant_rounds": stagnant_rounds,
+        "stagnant_rounds_limit": stagnant_rounds_limit,
+        "stagnant_blocked": stagnant_blocked,
     }
     with open(fix_input_path, "w", encoding="utf-8") as f:
         json.dump(fix_input, f, indent=2, ensure_ascii=False)

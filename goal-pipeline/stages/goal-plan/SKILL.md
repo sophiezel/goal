@@ -18,6 +18,7 @@ Fork-and-Own 自 `guazi-flow-plan`。上游只读；本 skill 在 goal 仓库内
 1. **PQ 语义门禁**：产出 index.md 后 MUST 跑 `plan-quality-gate.py`；block 则按 `evidence/plan-gate-fix-input.json` 修复
 2. **契约 enrich**：Allowed Files / Stop Conditions 写入 index.md（桥接层规则）
 3. **strict tier**：伪代码 ≥500 字；验收矩阵无模糊措辞
+4. **Index-Lite（XS/S）**：`plan_profile: lite` 时按 [`plan-index-rules-lite.json`](../../references/guazi-flow-artifact-schema/plan-index-rules-lite.json) 校验（6 段、伪代码 ≥80 chars、PQ-08 warn）；路由由 [`resolve_plan_index_rules.py`](../../scripts/resolve_plan_index_rules.py) 决定；PQ-01/02/05/07 不降级。详见 [`index-lite-protocol.md`](../../references/index-lite-protocol.md)
 
 ## Stage Exit
 

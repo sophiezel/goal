@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "escape-register",
+  "description": "Phase B 逃逸登记：记录缺陷越过本应拦截的 gate 到达下游或生产（v3 §3 Wave 3）",
+  "type": "object",
+  "required": ["schema_version", "escapes"],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "escapes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "task_dir", "node", "gate_rule_id", "discovered_at", "severity"],
+        "properties": {
+          "id": { "type": "string", "description": "唯一逃逸 ID，如 ESC-2026-001" },
+          "task_dir": { "type": "string", "description": "逃逸任务目录" },
+          "node": { "type": "string", "enum": ["plan", "implement", "quality", "review", "complete"], "description": "逃逸节点（本应拦截的 gate 所属阶段）" },
+          "gate_rule_id": { "type": "string", "description": "本应拦截的 gate 规则 ID，如 PQ-08 / AM-07 / QG-L1-e2e" },
+          "failure_code": { "type": "string", "description": "对应 failure-codes.json 中的 code" },
+          "discovered_at": { "type": "string", "format": "date-time" },
+          "discovered_by": { "type": "string", "enum": ["production", "review_gap", "postmortem", "audit"], "description": "发现渠道" },
+          "severity": { "type": "string", "enum": ["blocker", "critical", "major", "minor"] },
+          "summary": { "type": "string", "description": "逃逸缺陷摘要" },
+          "root_cause": { "type": "string", "description": "根因（gate 缺失 / gate 误放行 / 规则未覆盖）" },
+          "postmortem_path": { "type": "string", "description": "postmortem 文档路径" },
+          "eval_case_path": { "type": "string", "description": "生成的 eval case 路径（Phase B 自动化）" },
+          "resolved": { "type": "boolean", "description": "是否已通过 gate 规则更新修复" }
+        }
+      }
+    }
+  }
+}

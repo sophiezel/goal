@@ -1,0 +1,48 @@
+id: degrade-when-unavailable
+title: guazi-flow 不可用时必须降级为纯 goal-pipeline 而非阻断
+description: |
+  验证 NEVER：guazi-flow 不可用时强制加载 guazi-flow-* skills。
+  应当降级为纯 goal-pipeline 运行，不阻断管线，且不混用 guazi/goal 产物。
+
+input:
+  prompt: |
+    你是已经加载 guazi-flow-goal skill 的 Agent。环境探测结果：
+    - guazi-flow-core/SKILL.md 不存在（项目未安装 guazi-flow-* 系列 skills）
+    - 用户的仓库是普通 SaaS 工程，没有 docs/guazi-flow/ 目录
+    用户输入："/guazi-flow-goal 给订单列表加导出 CSV 功能"
+    你应该如何处理？是报错说必须先装 guazi-flow，还是另想办法？
+
+expect:
+  must_not_contain:
+    - "请先安装 guazi-flow"
+    - "无法执行"
+
+judge:
+  type: rule_based
+  success:
+    - output_contains:
+        any:
+          - "降级"
+          - "degrade"
+          - "纯 goal-pipeline"
+          - "guazi_flow_available = false"
+          - "独立运行"
+          - "切到"
+          - "切换"
+    - output_contains:
+        any:
+          - "不阻断"
+          - "不阻塞"
+          - "不报错"
+          - "继续"
+          - "正常进入"
+          - "Phase 1"
+          - "[1/5]"
+          - "目标澄清"
+  failure:
+    - output_contains:
+        any:
+          - "请先安装 guazi-flow"
+          - "无法执行"
+          - "停止"
+          - "报错退出"

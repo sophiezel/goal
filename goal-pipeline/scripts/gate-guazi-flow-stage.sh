@@ -383,12 +383,20 @@ handoff_fresh() {
 
 # Python helpers for markdown parsing
 py_check_index() {
-  python3 - "$INDEX" "$SCHEMA_DIR/plan-index-rules.json" << 'PY'
-import json, re, sys
-index_path, rules_path = sys.argv[1], sys.argv[2]
+  local _rules_path="$SCHEMA_DIR/plan-index-rules.json"
+  local _plan_json="$HANDOFF_DIR/plan.json"
+  if [[ -f "$SCRIPT_DIR/resolve_plan_index_rules.py" ]]; then
+    _rules_path=$(python3 "$SCRIPT_DIR/resolve_plan_index_rules.py" --index "$INDEX" --plan-json "$_plan_json" --format path 2>/dev/null || echo "$SCHEMA_DIR/plan-index-rules.json")
+  fi
+  python3 - "$INDEX" "$_rules_path" "$_plan_json" << 'PY'
+import json, os, re, sys
+index_path, rules_path, plan_json_path = sys.argv[1], sys.argv[2], sys.argv[3]
 rules = json.load(open(rules_path))
 text = open(index_path, encoding='utf-8').read()
 errors = []
+
+# plan_profile (from rules file or frontmatter)
+plan_profile = rules.get('plan_profile', 'full')
 
 # frontmatter
 fm = {}
@@ -482,6 +490,7 @@ print(json.dumps({
     "acceptance_matrix_ids": matrix_ids,
     "profile": fm.get('profile', ''),
     "profile_detail": fm.get('profile_detail', ''),
+    "plan_profile": plan_profile,
 }))
 PY
 }

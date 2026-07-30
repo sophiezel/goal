@@ -42,13 +42,27 @@
       "id": "PQ-06",
       "summary": "伪代码最低字数",
       "standard_min_chars": 200,
-      "strict_min_chars": 500
+      "strict_min_chars": 500,
+      "lite_min_chars": 80
     },
     "PQ-07": {
       "id": "PQ-07",
       "summary": "写集含 src/pages 时验收矩阵须声明 build:beta",
       "standard": "block",
       "strict": "block"
+    },
+    "PQ-08": {
+      "id": "PQ-08",
+      "summary": "验收矩阵每行须含 verify_command | data-testid | http_assert 之一（lite=warn）",
+      "standard": "warn",
+      "strict": "block",
+      "lite": "warn"
+    },
+    "PQ-09": {
+      "id": "PQ-09",
+      "summary": "Index-Lite 验收行数建议 3-5（lite only, warn）",
+      "lite_min_rows": 3,
+      "lite_max_rows": 5
     }
   }
 }

@@ -54,6 +54,7 @@ add_issue() {
   local sev="$1" id="$2" msg="$3"
   ISSUES+=("[$sev] $id: $msg")
   [[ "$sev" == "BLOCK" ]] && BLOCKED=1
+  return 0
 }
 
 # L0: UVO evidence must exist and pass
@@ -139,13 +140,49 @@ if [[ "$SKIP_IQ" -eq 0 ]]; then
 fi
 
 INDEX="$TASK_DIR/index.md"
+# Resolve profile (h5 vs others) for Phase A2 e2e BLOCK gating
+PROFILE=""
+PLAN_HOFF="$TASK_DIR/handoff/plan.json"
+if [[ -f "$PLAN_HOFF" ]]; then
+  PROFILE=$(python3 -c "import json; print(json.load(open('$PLAN_HOFF')).get('profile',''))" 2>/dev/null || echo "")
+fi
+if [[ -z "$PROFILE" && -f "$INDEX" ]]; then
+  PROFILE=$(python3 -c "
+import re,sys
+t=open('$INDEX').read()
+m=re.match(r'^---\s*\n(.*?)\n---', t, re.DOTALL)
+if m:
+    for line in m.group(1).splitlines():
+        if line.strip().startswith('profile:'):
+            print(line.split(':',1)[1].strip().strip('\"')); break
+" 2>/dev/null || echo "")
+fi
+
 if [[ "$TIER" == "strict" ]]; then
   [[ -d "$TASK_DIR/evidence" || -d "$GOAL_EVIDENCE_DIR" ]] || add_issue "BLOCK" "QG-L1-evidence" "strict tier requires evidence/"
   if [[ "$SKIP_VALIDATE" -eq 0 ]]; then
     grep -qi 'validate' "$INDEX" 2>/dev/null || add_issue "WARN" "QG-L1-validate" "strict tier: no validate evidence referenced"
   fi
   if [[ "$SKIP_E2E" -eq 0 ]]; then
-    grep -qi 'e2e\|playwright' "$INDEX" 2>/dev/null || add_issue "WARN" "QG-L1-e2e" "strict tier: no e2e evidence referenced"
+    # Phase A2 (v3 §3 A2): strict + h5 → e2e BLOCK; otherwise WARN
+    E2E_SEV="WARN"
+    if [[ "$PROFILE" == "h5" ]]; then
+      E2E_SEV="BLOCK"
+    fi
+    # e2e evidence: evidence/e2e/ dir OR index references playwright
+    E2E_OK=0
+    if [[ -d "$GOAL_EVIDENCE_DIR/e2e" || -d "$TASK_DIR/evidence/e2e" ]]; then
+      E2E_OK=1
+    elif grep -qi 'playwright' "$INDEX" 2>/dev/null; then
+      E2E_OK=1
+    fi
+    if [[ "$E2E_OK" -eq 0 ]]; then
+      if [[ "$E2E_SEV" == "BLOCK" ]]; then
+        add_issue "BLOCK" "QG-L1-e2e" "Phase A2: strict+h5 requires e2e evidence (evidence/e2e/ or index playwright ref)"
+      else
+        add_issue "WARN" "QG-L1-e2e" "strict tier: no e2e evidence referenced"
+      fi
+    fi
   fi
 fi
 

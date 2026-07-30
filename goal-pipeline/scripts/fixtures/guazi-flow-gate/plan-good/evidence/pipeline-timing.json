@@ -19,11 +19,103 @@
         {
           "event": "end",
           "timestamp_utc": "2026-07-17T04:11:24Z"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-07-29T11:24:41Z"
+        },
+        {
+          "event": "end",
+          "timestamp_utc": "2026-07-29T11:24:42Z"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-07-29T11:25:12Z"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-07-29T11:26:06Z"
+        },
+        {
+          "event": "end",
+          "timestamp_utc": "2026-07-29T11:26:07Z"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-07-29T11:27:09Z"
+        },
+        {
+          "event": "end",
+          "timestamp_utc": "2026-07-29T11:27:10Z"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-07-29T11:29:16Z"
+        },
+        {
+          "event": "end",
+          "timestamp_utc": "2026-07-29T11:29:17Z"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-07-29T11:31:36Z"
+        },
+        {
+          "event": "end",
+          "timestamp_utc": "2026-07-29T11:31:37Z"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-07-29T11:33:05Z"
+        },
+        {
+          "event": "end",
+          "timestamp_utc": "2026-07-29T11:33:06Z"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-07-29T11:34:23Z"
+        },
+        {
+          "event": "end",
+          "timestamp_utc": "2026-07-29T11:34:23Z"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-07-29T11:36:11Z"
+        },
+        {
+          "event": "end",
+          "timestamp_utc": "2026-07-29T11:36:11Z"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-07-29T11:37:46Z"
+        },
+        {
+          "event": "end",
+          "timestamp_utc": "2026-07-29T11:37:46Z"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-07-29T11:40:41Z"
+        },
+        {
+          "event": "end",
+          "timestamp_utc": "2026-07-29T11:40:42Z"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-07-29T11:41:16Z"
+        },
+        {
+          "event": "end",
+          "timestamp_utc": "2026-07-29T11:41:16Z"
         }
       ],
-      "started_at_utc": "2026-07-17T04:11:24Z",
-      "last_timestamp_utc": "2026-07-17T04:11:24Z"
+      "started_at_utc": "2026-07-29T11:41:16Z",
+      "last_timestamp_utc": "2026-07-29T11:41:16Z"
     }
   },
-  "updated_at_utc": "2026-07-17T04:11:24Z"
+  "updated_at_utc": "2026-07-29T11:41:16Z"
 }
