@@ -17,7 +17,12 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-GOAL_STATE_HOME = Path(os.environ.get("GOAL_STATE_HOME", os.path.expanduser("~/.goal-pipeline/state")))
+_SCRIPT_DIR = Path(__file__).resolve().parent
+if str(_SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPT_DIR))
+from goal_state_paths import runtime_env_snapshot, state_home  # noqa: E402
+
+GOAL_STATE_HOME = state_home()
 
 TIER_R_EVIDENCE_FILES = (
     "verification-oracle.json",
@@ -328,6 +333,11 @@ def ensure_artifact_layout(paths: dict) -> dict:
         if purged and not layout.get("migrated_at"):
             layout["migrated_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
             changed = True
+
+    re_snap = runtime_env_snapshot()
+    if state.get("runtime_env") != re_snap:
+        state["runtime_env"] = re_snap
+        changed = True
 
     if changed:
         state["artifact_layout"] = layout

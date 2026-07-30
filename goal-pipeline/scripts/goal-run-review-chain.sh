@@ -3,7 +3,6 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-GOAL_STATE_HOME="${GOAL_STATE_HOME:-${GOAL_HOME:-$HOME/.goal-pipeline}/state}"
 
 TASK_DIR=""
 STATE_FILE=""
@@ -27,6 +26,10 @@ done
 [[ -n "$TASK_DIR" ]] || { echo "review-chain: --task-dir required" >&2; exit 2; }
 [[ "$TASK_DIR" != /* ]] && TASK_DIR="$(pwd)/$TASK_DIR"
 TASK_DIR="$(cd "$TASK_DIR" && pwd)"
+
+GOAL_BOOTSTRAP_STATE_FILE="${STATE_FILE:-}"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/goal-env-bootstrap.sh"
 
 resolve_script() {
   local name="$1"

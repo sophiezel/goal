@@ -298,22 +298,51 @@ if hooks_json.is_file():
 else:
     status("stop_hook", False, "hooks.json missing")
 
-# Review channels
+# Review channels (config vs reachability split)
 detect = Path("${DETECT}")
 if detect.is_file():
     try:
-        r = subprocess.run([str(detect), "--json", "--no-probe"], capture_output=True, text=True, timeout=30)
+        det_env = os.environ.copy()
+        det_env["GOAL_STATE_HOME"] = str(goal_home)
+        r = subprocess.run(
+            [str(detect), "--json", "--no-probe"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+            env=det_env,
+        )
         d = json.loads(r.stdout or "{}")
-        sel = (d.get("selected") or {}).get("provider", "deterministic")
-        only_det = sel == "deterministic"
-        status("review_channels", True, f"selected={sel}")
-        if only_det:
-            status("review_unified_ready", False, "only deterministic — configure API key or Ollama; review-chain will degrade (skip L2)")
+        sel = (d.get("selected") or {}).get("provider")
+        has_ranked = bool(d.get("ranked"))
+        configured = bool(d.get("configured_keys")) or has_ranked
+        status(
+            "review_channel_configured",
+            configured,
+            f"configured_keys={d.get('configured_keys', False)} has_candidates={d.get('has_candidates', False)}",
+        )
+        if d.get("configured_but_unreachable"):
+            status("review_channel_reachable", False, "keys configured but unreachable (run with --probe)")
+        elif d.get("has_candidates"):
+            status("review_channel_reachable", True, f"selected={sel}")
+        else:
+            status(
+                "review_channel_reachable",
+                not d.get("configured_keys"),
+                "no ranked channel — add api_keys to config.json or env",
+            )
+        status("review_channels", d.get("has_candidates", False), f"selected={sel or 'none'}")
+        only_det = not sel or sel == "deterministic"
+        if only_det or not d.get("has_candidates"):
+            status("review_unified_ready", False, "no independent channel — configure API key or Ollama")
         else:
             status("review_unified_ready", True, sel)
     except Exception as e:
+        status("review_channel_configured", False, str(e))
+        status("review_channel_reachable", False, str(e))
         status("review_channels", False, str(e))
 else:
+    status("review_channel_configured", False, "detect-review-channels missing")
+    status("review_channel_reachable", False, "detect-review-channels missing")
     status("review_channels", False, "detect-review-channels missing")
 
 # plan_code_order hard guard + state validator

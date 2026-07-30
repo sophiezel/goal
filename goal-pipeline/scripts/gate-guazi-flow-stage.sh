@@ -39,6 +39,9 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+GOAL_BOOTSTRAP_STATE_FILE="${STATE_FILE:-}"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/goal-env-bootstrap.sh"
 
 # === Assert-complete mode (Stop Hook / pipeline guard) ===
 if [[ "$ASSERT_COMPLETE" == "true" ]]; then

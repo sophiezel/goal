@@ -16,7 +16,7 @@
 
 | 来源 | 探测方式 | 排序权重 |
 |------|---------|:--:|
-| **全局配置** | 读取 `~/.goal-state/config.json` 的 `api_keys` 字段 | 最高(用户显式配置)|
+| **全局配置** | 读取 `~/.goal-pipeline/state/config.json`（`GOAL_STATE_HOME`）的 `api_keys` 字段 | 最高(用户显式配置)|
 | **标准环境变量** | `$OPENAI_API_KEY` / `$ANTHROPIC_API_KEY` / `$GEMINI_API_KEY` / `$GROQ_API_KEY` / `$DEEPSEEK_API_KEY` | 正常 |
 | **Agent 自省** | agent 回答 provider + model | 正常 |
 | **Ollama 本地** | `ollama list` | 正常 |
@@ -134,8 +134,8 @@
 
    **Gemini 半自动路径**（30秒, key 永不在 chat 出现）:
    - Agent 打开 https://aistudio.google.com/apikey
-   - 创建 ~/.goal-state/key-pending
-   - 用户终端执行: echo 'key' > ~/.goal-state/key-pending
+   - 创建 ~/.goal-pipeline/state/key-pending
+   - 用户终端执行: echo 'key' > ~/.goal-pipeline/state/key-pending
    - Agent 验证 API → 写入 config.json → 删除临时文件
 
    **人工审核**（逃生通道）: Ollama / Gemini 均不可用时
@@ -163,7 +163,7 @@
 
 若无候选 → 告知并引导(此时尚未进入访谈,零沉没成本):
 
-**API key 脱敏规则**:只写变量名和占位符 `"你的key"`,不写任何格式提示。必须告诉用户写到 `~/.goal-state/config.json` 这个文件,不可只说"设为环境变量"。严禁用户将 key 粘贴到 chat 中。
+**API key 脱敏规则**:只写变量名和占位符 `"你的key"`,不写任何格式提示。必须告诉用户写到 `~/.goal-pipeline/state/config.json` 这个文件,不可只说"设为环境变量"。严禁用户将 key 粘贴到 chat 中。
 
 ```
 ⚠️ Goal 需要独立审核,但当前环境无可用审核模型。
@@ -171,7 +171,7 @@
 推荐配置(30 秒,免费,一次配置所有项目通用):
 
   注册 Gemini API key: https://aistudio.google.com/apikey
-  获取后,打开 ~/.goal-state/config.json
+  获取后,打开 ~/.goal-pipeline/state/config.json
   在 api_keys 中添加: "GEMINI_API_KEY": "你的key"
   → 该文件在 home 目录,不在 git 仓库中,不会泄露
 
@@ -288,7 +288,7 @@ def normalize_review(review):
 
 ## 用户自定义审核模型
 
-`~/.goal-state/config.json` 中显式指定,覆盖所有自动选择:
+`~/.goal-pipeline/state/config.json` 中显式指定,覆盖所有自动选择:
 
 ```json
 {

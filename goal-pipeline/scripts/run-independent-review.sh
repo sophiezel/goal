@@ -35,6 +35,10 @@ done
 [[ "$TASK_DIR" != /* ]] && TASK_DIR="$(pwd)/$TASK_DIR"
 TASK_DIR="$(cd "$TASK_DIR" && pwd)"
 
+GOAL_BOOTSTRAP_STATE_FILE="${STATE_FILE:-}"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/goal-env-bootstrap.sh"
+
 RESOLVER="$SCRIPT_DIR/resolve-artifact-paths.py"
 _RESOLVE_ARGS=(--task-dir "$TASK_DIR" --format shell --ensure-state)
 [[ -n "$STATE_FILE" ]] && _RESOLVE_ARGS+=(--state-file "$STATE_FILE")

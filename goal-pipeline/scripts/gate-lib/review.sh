@@ -182,7 +182,19 @@ PY
       fi
       UNIFIED_RES=$(python3 -c "import json; print(json.load(open('$GOAL_EVIDENCE_DIR/review-unified.json')).get('result',''))" 2>/dev/null || echo "")
       if [[ "$UNIFIED_RES" == "review_undetermined" ]]; then
-        fail "review separation_confidence low — use cursor-task/claude-native provider"
+        REVIEW_FAIL=$(python3 - "$GOAL_EVIDENCE_DIR/review-run.json" <<'PY'
+import json, sys
+run = json.load(open(sys.argv[1], encoding="utf-8"))
+guard = run.get("channel_guard") or {}
+if not guard.get("has_candidates"):
+    print("review_channel_unconfigured — set api_keys in GOAL_STATE_HOME/config.json; export GOAL_STATE_HOME; rerun goal-run-review-chain.sh")
+elif run.get("provider") == "deterministic" and guard.get("has_candidates"):
+    print("review_provider_downgrade_blocked — configured channel present; rerun goal-run-review-chain.sh")
+else:
+    print("review_undetermined — fix channel or use cursor-task/claude-native (see review-fix-input.json)")
+PY
+)
+        fail "$REVIEW_FAIL"
       fi
       MERGED=$(python3 - "$REPO_EVIDENCE_DIR/review.md" << 'PYMG'
 import re, sys

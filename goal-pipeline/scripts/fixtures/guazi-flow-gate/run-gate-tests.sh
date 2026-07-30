@@ -138,7 +138,11 @@ echo "=== review-gf-count (no table inflation) ==="
 "$SCRIPT_DIR/test-review-gf-count.sh"
 
 echo "=== review-channel-guard anti-downgrade ==="
+echo "=== review-channel-guard ==="
 bash "$SCRIPT_DIR/test-review-channel-guard.sh"
+
+echo "=== detect-paths-ssot ==="
+bash "$SCRIPT_DIR/test-detect-paths-ssot.sh"
 
 echo "=== staleness + severity + write_set normalize ==="
 bash "$SCRIPT_DIR/test-staleness-and-severity.sh"
