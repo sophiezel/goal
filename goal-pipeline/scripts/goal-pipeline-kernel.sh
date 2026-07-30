@@ -12,7 +12,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-GOAL_STATE_HOME="${GOAL_STATE_HOME:-$HOME/.goal-state}"
+GOAL_STATE_HOME="${GOAL_STATE_HOME:-${GOAL_HOME:-$HOME/.goal-pipeline}/state}"
 
 resolve_bin() {
   local name="$1"

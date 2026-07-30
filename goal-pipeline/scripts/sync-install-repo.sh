@@ -1,10 +1,12 @@
 #!/bin/bash
-# sync-install-repo.sh — Keep ~/.goal-pipeline-repo and ~/.goal-state/scripts in sync
+# sync-install-repo.sh — Keep install repository and GOAL_STATE_HOME in sync
 set -euo pipefail
 
-REPO_DIR="${GOAL_PIPELINE_REPO:-$HOME/.goal-pipeline-repo}"
-GOAL_STATE_HOME="${GOAL_STATE_HOME:-$HOME/.goal-state}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/source-goal-install-paths.sh"
+_goal_install_paths
+REPO_DIR="$GOAL_PIPELINE_REPO"
 
 QUIET=false
 PULL_ONLY=false
@@ -25,7 +27,7 @@ while [[ $# -gt 0 ]]; do
       cat <<'USAGE'
 Usage: sync-install-repo.sh [options]
 
-Keep ~/.goal-pipeline-repo updated and redeploy runtime scripts to ~/.goal-state.
+Keep GOAL_HOME updated: repository git sync + redeploy runtime to GOAL_STATE_HOME.
 
 Options:
   --quiet         Minimal output
@@ -36,10 +38,11 @@ Options:
   -h, --help      Show help
 
 Environment:
-  GOAL_PIPELINE_REPO  Install clone path (default: ~/.goal-pipeline-repo)
-  GOAL_STATE_HOME     Runtime state path (default: ~/.goal-state)
+  GOAL_HOME           Application root (default: ~/.goal-pipeline)
+  GOAL_PIPELINE_REPO  Install clone (default: $GOAL_HOME/repository)
+  GOAL_STATE_HOME     Runtime state (default: $GOAL_HOME/state)
   GOAL_DEV_REPO       Optional local dev repo for --from-dev auto-detect
-  DEPLOY_SOURCE       Override deploy source (e.g. local Profession/goal checkout)
+  DEPLOY_SOURCE       Override deploy source (e.g. local dev checkout)
 USAGE
       exit 0
       ;;

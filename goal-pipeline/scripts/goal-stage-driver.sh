@@ -3,7 +3,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-GOAL_STATE_HOME="${GOAL_STATE_HOME:-$HOME/.goal-state}"
+GOAL_STATE_HOME="${GOAL_STATE_HOME:-${GOAL_HOME:-$HOME/.goal-pipeline}/state}"
 ADVANCE="$GOAL_STATE_HOME/scripts/goal-advance-stage.sh"
 [[ -x "$ADVANCE" ]] || ADVANCE="$SCRIPT_DIR/goal-advance-stage.sh"
 GATE="$GOAL_STATE_HOME/scripts/gate-guazi-flow-stage.sh"

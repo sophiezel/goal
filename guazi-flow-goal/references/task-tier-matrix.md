@@ -40,9 +40,9 @@ Plan 结束后由 `task_tier.py` 写入 `state.json` / `plan.json` 的 `task_tie
 ## CLI
 
 ```bash
-python3 ~/.goal-state/scripts/task_tier.py \
+python3 ~/.goal-pipeline/state/scripts/task_tier.py \
   --task-dir docs/guazi-flow/<task> \
   --plan-json <handoff>/plan.json \
-  --state-file ~/.goal-state/projects/<pid>/<branch>/<task>/state.json \
+  --state-file ~/.goal-pipeline/state/projects/<pid>/<branch>/<task>/state.json \
   --stamp-state
 ```

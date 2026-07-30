@@ -300,7 +300,7 @@ Step 4: gate --post review → handoff/review.json
 
 | 来源 | 探测方式 | 排序权重 |
 |------|---------|:--:|
-| **全局配置** | 读取 `~/.goal-state/config.json` | 最高 |
+| **全局配置** | 读取 `~/.goal-pipeline/state/config.json` | 最高 |
 | **标准环境变量** | `$OPENAI_API_KEY` / `$ANTHROPIC_API_KEY` / ... | 正常 |
 | **Agent 自省** | agent 回答 provider + model | 正常 |
 | **Ollama 本地** | `ollama list` | 正常 |
@@ -427,8 +427,8 @@ Step 4: gate --post review → handoff/review.json
 
 路径 B（Gemini 半自动，30秒）:
   Agent 打开 https://aistudio.google.com/apikey
-  创建 ~/.goal-state/key-pending
-  用户终端执行: echo 'key' > ~/.goal-state/key-pending
+  创建 ~/.goal-pipeline/state/key-pending
+  用户终端执行: echo 'key' > ~/.goal-pipeline/state/key-pending
   key 永不在 chat 中出现
 
 路径 C（人工审核）: A/B 都不可用时的逃生通道
@@ -532,7 +532,7 @@ review not_pass:
 ### 7.1 目录结构
 
 ```
-~/.goal-state/                              ← 全局目录
+~/.goal-pipeline/state/                              ← 全局目录
 ├── config.json                           ← API key + 偏好 + 通道缓存
 ├── projects/
 │   └── <project_id>/                    ← sha256(项目根绝对路径)[:12]
@@ -592,10 +592,10 @@ review not_pass:
 | 层 | 路径 | 职责 |
 |----|------|------|
 | 开发 | 本地 git clone | 开发、测试、push |
-| 安装 | `~/.goal-pipeline-repo` | install 克隆；pre-push fast-forward |
-| 运行 | `~/.agents/skills` + `~/.goal-state/` | Agent skill；gate 脚本、`kernel/` Python 包、references |
+| 安装 | `~/.goal-pipeline/repository` | install 克隆；pre-push fast-forward |
+| 运行 | `~/.agents/skills` + `~/.goal-pipeline/state/` | Agent skill；gate 脚本、`kernel/` Python 包、references |
 
-`sync-install-repo.sh` 的 `deploy_runtime` 从安装仓（或维护者指定的 `DEPLOY_SOURCE`）复制 `goal-pipeline/scripts`、`goal-pipeline/kernel`、`goal-pipeline/references` 等到 `~/.goal-state`，并写入 `VERSION`（含 `kernel_tree_hash`）。`four_planes_doctor` / `goal-pipeline-doctor` 会检查 kernel 是否存在及是否与 manifest 一致。每次 deploy 后通常再调用 `deploy-skills.sh`。
+`sync-install-repo.sh` 的 `deploy_runtime` 从安装仓（或维护者指定的 `DEPLOY_SOURCE`）复制 `goal-pipeline/scripts`、`goal-pipeline/kernel`、`goal-pipeline/references` 等到 `~/.goal-pipeline/state`，并写入 `VERSION`（含 `kernel_tree_hash`）。`four_planes_doctor` / `goal-pipeline-doctor` 会检查 kernel 是否存在及是否与 manifest 一致。每次 deploy 后通常再调用 `deploy-skills.sh`。
 
 ### 8.1 平台检测
 
@@ -664,7 +664,7 @@ guazi-flow 可用时，每个管线阶段开始前 **MUST 加载**对应 SKILL.m
 
 **split 模式（默认）** — 产物分两列存储：
 
-| 步骤 | Tier-G（repo，进 git） | Tier-R（~/.goal-state/artifacts，不进 git） |
+| 步骤 | Tier-G（repo，进 git） | Tier-R（~/.goal-pipeline/state/artifacts，不进 git） |
 |------|------------------------|---------------------------------------------|
 | gate --post(plan) | index.md | handoff/plan.json |
 | gate --post(implement) | index.md | handoff/implement.json |
@@ -722,7 +722,7 @@ guazi-flow-core 不可用时：
 |-------|--------|
 | GATE 检查失败后继续执行 guazi-flow 调度 | 必须降级为纯 goal-pipeline |
 | 跳过 Lazy Loading 直接执行阶段 | 产物不符合 guazi-flow schema |
-| 在 `~/.goal-state/` 中写入 guazi-flow 项目配置 | 写入边界隔离 |
+| 在 `~/.goal-pipeline/state/` 中写入 guazi-flow 项目配置 | 写入边界隔离 |
 | guazi-flow 不可用时强制加载 guazi-flow-* | 降级运行，不阻断 |
 | 修改 goal-pipeline 的 state.json 基础字段 | 扩展字段只能追加 |
 | guazi-flow-plan 产出前修改项目代码 | write_set 不匹配 |

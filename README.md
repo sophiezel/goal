@@ -9,7 +9,7 @@
 ```
 goal-pipeline（通用管线引擎 / 进化轨）
   │
-  │  ~/.goal-state/ 持久化
+  │  ~/.goal-pipeline/state/ 持久化
   │  /goal-pipeline-* 生命周期命令
   │  goal-stage-driver.sh 为每 turn 进度真相
   │
@@ -25,7 +25,7 @@ goal-pipeline（通用管线引擎 / 进化轨）
 | **进化轨** | `/goal-pipeline` | `goal-pipeline/stages/goal-*` | 无 |
 | **兼容轨** | `/guazi-flow-goal` | 黑盒 `guazi-flow-*` + 质检防火墙 | `guazi-flow-plan` 等生态 skill |
 
-两轨共享：`~/.goal-state/`、`handoff/*.json`、`plan-quality-gate.py` / `implement-qc-gate.py` / `quality-gate.sh`。详见 [`goal-pipeline/references/dual-track-contract.md`](goal-pipeline/references/dual-track-contract.md)。
+两轨共享：`~/.goal-pipeline/state/`、`handoff/*.json`、`plan-quality-gate.py` / `implement-qc-gate.py` / `quality-gate.sh`。详见 [`goal-pipeline/references/dual-track-contract.md`](goal-pipeline/references/dual-track-contract.md)。
 
 ### 质检防火墙（兼容轨插入点）
 
@@ -94,7 +94,7 @@ runtime-smoke.sh → validate? → e2e? → quality-gate.sh → handoff/quality.
 curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | bash
 ```
 
-一键完成：克隆仓库 → 检测环境 → universal 部署 skills（Claude 可选副本）→ 初始化 `~/.goal-state/` → 部署 Cursor stop hook → 迁移旧数据
+一键完成：克隆仓库 → 检测环境 → universal 部署 skills（Claude 可选副本）→ 初始化 `~/.goal-pipeline/state/` → 部署 Cursor stop hook → 迁移旧数据
 
 安装完成后，在你的 Agent 中输入：
 
@@ -120,7 +120,7 @@ curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | ba
 curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | bash -s -- --agent cursor
 ```
 
-`install.sh` 是**通用安装入口**：克隆/更新 `~/.goal-pipeline-repo`（仅 `git pull` 远端）、软链 skill 到 `~/.agents/skills`、部署 `~/.goal-state` 下的 **runtime**（`scripts/`、`kernel/`、`references/`）。**不会**读取本机 `GOAL_DEV_REPO` 或 `config.json` 里的 `dev_repo`。
+`install.sh` 是**通用安装入口**：克隆/更新 `~/.goal-pipeline/repository`（仅 `git pull` 远端）、软链 skill 到 `~/.agents/skills`、部署 `~/.goal-pipeline/state` 下的 **runtime**（`scripts/`、`kernel/`、`references/`）。**不会**读取本机 `GOAL_DEV_REPO` 或 `config.json` 里的 `dev_repo`。
 
 贡献者本地开发的 pre-push 同步见下方「贡献者开发（可选）」。
 
@@ -132,50 +132,54 @@ curl -fsSL https://raw.githubusercontent.com/sophiezel/goal/main/install.sh | ba
 ==========================================
 
   Detected agents: pi, codex, claude_code, cursor   ← 环境检测（非 per-agent 安装）
-  State dir:       ~/.goal-state
+  State dir:       ~/.goal-pipeline/state
   Install mode:    --symlink
   Clone method:    HTTPS
 
 📦 Cloning repository...
 📋 Deploying skills...
   → universal: ~/.agents/skills
-    ✅ goal-pipeline → symlink (~/.goal-pipeline-repo/...)
+    ✅ goal-pipeline → symlink (~/.goal-pipeline/repository/...)
     ✅ guazi-flow-goal → symlink
   cleaning platform duplicates...
   → claude_code: ~/.claude/skills   (optional native copy)
 📁 Initializing state directory...
   ✅ config.json created
-  ✅ Runtime synced to ~/.goal-state/ (scripts + kernel + references)
+  ✅ Runtime synced to ~/.goal-pipeline/state/ (scripts + kernel + references)
   ✅ Stop hook deployed to ~/.cursor/hooks/goal-pipeline-stop-hook.sh
 ```
 
 ### 安装布局
 
+应用根目录 **`GOAL_HOME`**（默认 `~/.goal-pipeline`）：
+
 | 层 | 路径 | 用途 |
 |----|------|------|
-| 安装 | `~/.goal-pipeline-repo` | `install.sh` 从 GitHub 克隆的 skill 源码 |
-| 运行 | `~/.agents/skills` + `~/.goal-state/` | Agent 读 skill（软链）；goal 状态、gate 脚本、**kernel** Python 包、四平面 references |
+| 应用根 | `~/.goal-pipeline` | `GOAL_HOME`；非 git 仓库 |
+| 安装仓 | `~/.goal-pipeline/repository` | `GOAL_PIPELINE_REPO`；`install.sh` 克隆的 skill 源码 |
+| 运行时 | `~/.goal-pipeline/state` | `GOAL_STATE_HOME`；任务数据 + 部署的 scripts/kernel/references |
+| Skills | `~/.agents/skills` | 软链指向 `repository/` 内 skill |
 
-`~/.goal-state/VERSION` 记录 `goal_pipeline_version`、`kernel_version`、`kernel_tree_hash`（与 gate 脚本 hash 一并供 doctor 做漂移检测）。
+`~/.goal-pipeline/state/VERSION` 记录 `goal_pipeline_version`、`kernel_version`、`kernel_tree_hash`（与 gate 脚本 hash 一并供 doctor 做漂移检测）。
 
-skill 软链指向 `~/.goal-pipeline-repo`，`git pull` 安装仓即可更新 skill 内容。
+skill 软链指向 `~/.goal-pipeline/repository`，`git pull` 安装仓即可更新 skill 内容。
 
 > `--agent X` 仅收窄安装日志中的「Detected agents」列表，并影响是否安装 Claude 副本；**skill 始终写入** `~/.agents/skills`。
 
 ### 更新
 
 ```bash
-cd "${GOAL_PIPELINE_REPO:-$HOME/.goal-pipeline-repo}" && git pull    # 更新 skill 内容（软链自动生效）
-bash "${GOAL_PIPELINE_REPO:-$HOME/.goal-pipeline-repo}/goal-pipeline/scripts/sync-install-repo.sh" --deploy-only
+cd "${GOAL_PIPELINE_REPO:-$HOME/.goal-pipeline/repository}" && git pull    # 更新 skill 内容（软链自动生效）
+bash "${GOAL_PIPELINE_REPO:-$HOME/.goal-pipeline/repository}/goal-pipeline/scripts/sync-install-repo.sh" --deploy-only
 # 或重新运行 install.sh
 ```
 
 仅重部署 skill 软链：
 
 ```bash
-bash ~/.goal-state/scripts/deploy-skills.sh
+bash ~/.goal-pipeline/state/scripts/deploy-skills.sh
 # 或
-bash ~/.goal-state/scripts/sync-install-repo.sh --skills-only
+bash ~/.goal-pipeline/state/scripts/sync-install-repo.sh --skills-only
 ```
 
 copy 模式需重新运行安装脚本。
@@ -183,10 +187,10 @@ copy 模式需重新运行安装脚本。
 ### 诊断与维护
 
 ```bash
-bash ~/.goal-state/scripts/goal-pipeline-doctor.sh <project_root>
+bash ~/.goal-pipeline/state/scripts/goal-pipeline-doctor.sh <project_root>
 ```
 
-典型检查项：skill 软链是否指向 `~/.goal-pipeline-repo`（禁止指向开发 clone）、`~/.pi/skills` 等重复项、gate/kernel VERSION drift、审核通道、Cursor stop hook。
+典型检查项：skill 软链是否指向 `~/.goal-pipeline/repository`（禁止指向开发 clone）、`~/.pi/skills` 等重复项、gate/kernel VERSION drift、审核通道、Cursor stop hook。
 
 `goal-pipeline-doctor.sh` 启动时会尝试后台 `sync-install-repo.sh --quiet`。
 
@@ -204,9 +208,9 @@ bash ~/.goal-state/scripts/goal-pipeline-doctor.sh <project_root>
 | 层 | 路径 | 用途 |
 |----|------|------|
 | 开发 | 本地 git clone | 改代码、跑 gate tests、`git push` |
-| 安装 | `~/.goal-pipeline-repo` | 与上方相同；可由 pre-push 从开发仓 fast-forward |
+| 安装 | `~/.goal-pipeline/repository` | 与上方相同；可由 pre-push 从开发仓 fast-forward |
 
-**硬规则**：skill 软链**禁止**指向本地开发 clone；`--from-dev` / `DEPLOY_SOURCE` 仅用于维护者把 **runtime**（`scripts/` + `kernel/` + `references/`）从本地 dev clone 部署到 `~/.goal-state`，skill 始终从安装仓部署。
+**硬规则**：skill 软链**禁止**指向本地开发 clone；`--from-dev` / `DEPLOY_SOURCE` 仅用于维护者把 **runtime**（`scripts/` + `kernel/` + `references/`）从本地 dev clone 部署到 `~/.goal-pipeline/state`，skill 始终从安装仓部署。
 
 首次启用 pre-push hook（在开发 clone 根目录执行一次）：
 
@@ -214,12 +218,12 @@ bash ~/.goal-state/scripts/goal-pipeline-doctor.sh <project_root>
 bash scripts/setup-dev-sync-hooks.sh
 ```
 
-之后 `git push` 会自动：同步 `~/.goal-pipeline-repo`、部署 scripts、重部署 skill 软链。
+之后 `git push` 会自动：同步 `~/.goal-pipeline/repository`、部署 scripts、重部署 skill 软链。
 
 手动从开发 clone 同步：
 
 ```bash
-bash "${GOAL_STATE_HOME:-$HOME/.goal-state}/scripts/sync-install-repo.sh" \
+bash "${GOAL_STATE_HOME:-$HOME/.goal-pipeline/state}/scripts/sync-install-repo.sh" \
   --from-dev /path/to/your/goal-dev-clone --deploy-only
 # 等价：DEPLOY_SOURCE=/path/to/your/goal-dev-clone ... --deploy-only
 ```
@@ -231,7 +235,7 @@ bash "${GOAL_STATE_HOME:-$HOME/.goal-state}/scripts/sync-install-repo.sh" \
 ```bash
 bash install.sh --uninstall
 # 或
-bash ~/.goal-state/scripts/deploy-skills.sh --uninstall --also-platform-native
+bash ~/.goal-pipeline/state/scripts/deploy-skills.sh --uninstall --also-platform-native
 ```
 
 清除 `~/.agents/skills` 中的 skill、平台目录重复项、以及 `~/.claude/skills` 可选副本。仓库和状态目录默认保留。
@@ -245,16 +249,16 @@ bash install.sh --uninstall --purge
 ```
 
 `--purge` 会额外删除：
-- `~/.goal-pipeline-repo/`（代码仓库）
-- `~/.goal-state/`（状态目录，含历史 goal）
+- `~/.goal-pipeline/repository/`（代码仓库）
+- `~/.goal-pipeline/state/`（状态目录，含历史 goal）
 
 #### 手动删除
 
 ```bash
 rm ~/.agents/skills/goal-pipeline ~/.agents/skills/guazi-flow-goal
 rm ~/.claude/skills/goal-pipeline ~/.claude/skills/guazi-flow-goal  # 若存在
-rm -rf ~/.goal-pipeline-repo
-rm -rf ~/.goal-state
+rm -rf ~/.goal-pipeline/repository
+rm -rf ~/.goal-pipeline/state
 ```
 
 ### 参数
@@ -280,7 +284,7 @@ rm -rf ~/.goal-state
 | **通用（主入口）** | `~/.agents/skills/` | goal-pipeline / guazi-flow-goal 唯一入口 |
 | Claude Code（可选副本） | `~/.claude/skills/` | 仅当检测到 `.claude/` |
 | 生态 skill | `~/.agents/skills/` | guazi-flow-plan、e2e-device 等第三方 skill 同目录 |
-| 运行时 | `~/.goal-state/` | `scripts/`、`kernel/`、`references/`（gate / sync / doctor；非 skill） |
+| 运行时 | `~/.goal-pipeline/state/` | `scripts/`、`kernel/`、`references/`（gate / sync / doctor；非 skill） |
 
 检测信号（`install.sh` 用于判定是否安装 Claude 副本等）：
 
@@ -400,7 +404,7 @@ rm -rf ~/.goal-state
 ## 持久化
 
 ```
-~/.goal-state/
+~/.goal-pipeline/state/
 ├── config.json                     ← API keys + 偏好 + channel_cache
 ├── projects/
 │   └── <project_id>/
@@ -420,12 +424,6 @@ docs/guazi-flow/<task>/             ← 兼容轨任务目录（Tier-G + evidenc
 ```
 
 `project_id = sha256(项目根绝对路径)[:12]`
-
-### 迁移
-
-首次安装自动检测并迁移旧数据：
-
-- `~/.guazi-flow-goal/` → `~/.goal-state/`
 
 ## 审核通道自动配置
 

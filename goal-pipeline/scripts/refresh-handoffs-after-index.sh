@@ -7,7 +7,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-GOAL_STATE_HOME="${GOAL_STATE_HOME:-$HOME/.goal-state}"
+GOAL_STATE_HOME="${GOAL_STATE_HOME:-${GOAL_HOME:-$HOME/.goal-pipeline}/state}"
 GATE="$GOAL_STATE_HOME/scripts/gate-guazi-flow-stage.sh"
 [[ -x "$GATE" ]] || GATE="$SCRIPT_DIR/gate-guazi-flow-stage.sh"
 ASSEMBLE="$GOAL_STATE_HOME/scripts/assemble-review-packet.sh"

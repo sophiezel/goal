@@ -17,7 +17,7 @@ Each issue must have channel (goal|guazi-flow-review), severity, summary; blocke
 
 
 def load_config():
-    cfg_path = os.path.expanduser(os.environ.get("GOAL_STATE_HOME", "~/.goal-state") + "/config.json")
+    cfg_path = os.path.expanduser(os.environ.get("GOAL_STATE_HOME", "~/.goal-pipeline/state") + "/config.json")
     try:
         return json.load(open(cfg_path, encoding="utf-8"))
     except (FileNotFoundError, json.JSONDecodeError):

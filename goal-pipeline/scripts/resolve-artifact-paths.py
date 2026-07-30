@@ -17,7 +17,7 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
-GOAL_STATE_HOME = Path(os.environ.get("GOAL_STATE_HOME", os.path.expanduser("~/.goal-state")))
+GOAL_STATE_HOME = Path(os.environ.get("GOAL_STATE_HOME", os.path.expanduser("~/.goal-pipeline/state")))
 
 TIER_R_EVIDENCE_FILES = (
     "verification-oracle.json",

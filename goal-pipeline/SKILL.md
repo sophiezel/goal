@@ -44,7 +44,7 @@ Goal 是一个持久化的工程目标。Agent 接到 goal 后持续执行，不
 - **NEVER 跳过 quality_plane_check 完成路径**——`gate --post complete` / `--assert-complete` / `kernel complete` 均须通过 forged/degraded/illegal-UVO 检测
 - **NEVER 让审核模型与执行模型使用同一 provider**——分离置信度降为 medium，审核独立性受损
 - **NEVER 在 review 通过前将 goal.status 设为 complete**——complete 需要所有门禁（review + quality + evidence + verify.sh）全部通过
-- **NEVER 在 state.json 中存储明文 API key**——key 存入 `~/.goal-state/config.json`，state.json 仅存审核结论
+- **NEVER 在 state.json 中存储明文 API key**——key 存入 `~/.goal-pipeline/state/config.json`，state.json 仅存审核结论
 - **NEVER 在管线执行中途把控制权还给用户**——除非命中 blocked 条件或 budget 耗尽，Agent 必须持续执行
 - **NEVER 让审核模型看到执行模型的 reasoning chain**——LLM 看到实现推理后会产生确认偏误，倾向于认同实现而非独立判断
 - **NEVER 在 review not_pass 时修改验收标准来通过**——这是“降标准而非修代码”的反模式，必须修复实现而非弱化标准
@@ -63,8 +63,8 @@ Goal 是一个持久化的工程目标。Agent 接到 goal 后持续执行，不
 
 - **对外入口**：`goal-pipeline-kernel`（控制面）；架构：`docs/architecture/goal-runtime.md`（四平面）
 
-- State boundary: `~/.goal-state/projects/<project_id>/<branch>/<task>/state.json`
-- Forbidden read: `~/.goal-state/projects/*/state.json`（非当前 task）、其他项目 `handoff/*.json`
+- State boundary: `~/.goal-pipeline/state/projects/<project_id>/<branch>/<task>/state.json`
+- Forbidden read: `~/.goal-pipeline/state/projects/*/state.json`（非当前 task）、其他项目 `handoff/*.json`
 - 跨管线隔离: 仅读写当前 task_dir；guazi-flow 扩展字段追加写入，不覆盖 goal-pipeline 基础字段
 
 ## 执行模型

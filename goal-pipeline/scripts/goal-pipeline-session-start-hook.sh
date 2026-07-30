@@ -1,14 +1,17 @@
 #!/bin/bash
 # goal-pipeline-session-start-hook.sh — Lightweight active-goal reminder (read-only)
 set -euo pipefail
-GOAL_STATE_HOME="${GOAL_STATE_HOME:-$HOME/.goal-state}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/source-goal-install-paths.sh"
+_goal_install_paths
 INPUT=$(cat)
 
 # Auto-sync install repo + runtime scripts (non-blocking), throttled by HEAD/mtime.
 # Skip when last sync < 10min AND install-repo HEAD unchanged (GOAL_SYNC_THROTTLE_SEC).
 SYNC="${GOAL_STATE_HOME}/scripts/sync-install-repo.sh"
 STAMP="${GOAL_STATE_HOME}/.last-session-sync"
-REPO_DIR="${GOAL_PIPELINE_REPO:-$HOME/.goal-pipeline-repo}"
+REPO_DIR="$GOAL_PIPELINE_REPO"
 THROTTLE_SEC="${GOAL_SYNC_THROTTLE_SEC:-600}"
 if [[ -x "$SYNC" ]]; then
   NEED_SYNC=1

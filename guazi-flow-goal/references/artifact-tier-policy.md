@@ -1,14 +1,14 @@
 # Artifact Tier Policy（产物分层契约）
 
-guazi-flow-goal 与 goal-pipeline 的**单一事实来源**：哪些产物进项目 git，哪些留在 `~/.goal-state`。
+guazi-flow-goal 与 goal-pipeline 的**单一事实来源**：哪些产物进项目 git，哪些留在 `~/.goal-pipeline/state`。
 
 ## 分层
 
 | 层级 | 名称 | 位置 | 进 git | 说明 |
 |------|------|------|:------:|------|
 | **Tier-G** | guazi-flow 契约产物 | `<project>/docs/guazi-flow/<task>/` | **是** | 与 guazi-flow-core 一致，随 MR 提交 |
-| **Tier-R** | goal 运行时产物 | `~/.goal-state/projects/<pid>/<branch>/<task>/artifacts/` | **否** | 编排、审核、修复循环；可跨 session 恢复 |
-| **Tier-S** | goal 编排状态 | `~/.goal-state/.../state.json` + `.lock` | **否** | 已有，不变 |
+| **Tier-R** | goal 运行时产物 | `~/.goal-pipeline/state/projects/<pid>/<branch>/<task>/artifacts/` | **否** | 编排、审核、修复循环；可跨 session 恢复 |
+| **Tier-S** | goal 编排状态 | `~/.goal-pipeline/state/.../state.json` + `.lock` | **否** | 已有，不变 |
 
 ## Tier-G（repo，commit）
 
@@ -26,7 +26,7 @@ docs/guazi-flow/<task>/
 ## Tier-R（goal-state，不 commit）
 
 ```
-~/.goal-state/projects/<pid>/<branch>/<task>/artifacts/
+~/.goal-pipeline/state/projects/<pid>/<branch>/<task>/artifacts/
 ├── handoff/
 │   ├── plan.json
 │   ├── implement.json
@@ -65,9 +65,9 @@ docs/guazi-flow/<task>/
 所有 goal 脚本通过 `resolve-artifact-paths.py` 解析路径，**禁止**硬编码 `task_dir/handoff`（split 模式下会错）。
 
 ```bash
-eval "$(python3 ~/.goal-state/scripts/resolve-artifact-paths.py \
+eval "$(python3 ~/.goal-pipeline/state/scripts/resolve-artifact-paths.py \
   --task-dir docs/guazi-flow/<task> \
-  --state-file ~/.goal-state/projects/.../state.json \
+  --state-file ~/.goal-pipeline/state/projects/.../state.json \
   --format shell)"
 # 导出: ARTIFACT_MODE REPO_TASK_DIR RUNTIME_ROOT HANDOFF_DIR REPO_EVIDENCE_DIR GOAL_EVIDENCE_DIR
 ```
@@ -83,7 +83,7 @@ eval "$(python3 ~/.goal-state/scripts/resolve-artifact-paths.py \
 complete 阶段在 repo `index.md` §执行记录追加一行摘要，例如：
 
 ```
-review: evidence/review.md pass | goal-runtime: ~/.goal-state/.../artifacts (review-run d9451f6c, deepseek/deepseek-v4-flash)
+review: evidence/review.md pass | goal-runtime: ~/.goal-pipeline/state/.../artifacts (review-run d9451f6c, deepseek/deepseek-v4-flash)
 ```
 
 MR 审查者无需打开 goal-state 即可看到审核结论。
@@ -99,7 +99,7 @@ MR 审查者无需打开 goal-state 即可看到审核结论。
 已有 task 目录含 `handoff/` 时：
 
 ```bash
-goal-pipeline-doctor.sh --migrate-artifacts --task-dir docs/guazi-flow/<task> --state-file ~/.goal-state/.../state.json
+goal-pipeline-doctor.sh --migrate-artifacts --task-dir docs/guazi-flow/<task> --state-file ~/.goal-pipeline/state/.../state.json
 ```
 
 split 模式下每次 `resolve-artifact-paths.py --ensure-state` 或 `gate --post` 成功后会 **purge** repo 中误写的 Tier-R（`handoff/`、review annex JSON 等），Tier-G 不受影响。防泄漏靠写入路径 + purge + migrate，**不在** repo 内生成 `docs/guazi-flow/.gitignore`。
@@ -107,5 +107,5 @@ split 模式下每次 `resolve-artifact-paths.py --ensure-state` 或 `gate --pos
 手动清理：
 
 ```bash
-goal-pipeline-doctor.sh --purge-repo-tier-r --task-dir docs/guazi-flow/<task> --state-file ~/.goal-state/.../state.json
+goal-pipeline-doctor.sh --purge-repo-tier-r --task-dir docs/guazi-flow/<task> --state-file ~/.goal-pipeline/state/.../state.json
 ```

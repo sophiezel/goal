@@ -2,16 +2,26 @@
 
 ## 安装布局（2.3+）
 
-自 `goal_pipeline_version` **2.3.0-dual-pipeline-kernel** 起，`sync-install-repo.sh` / `install.sh` 除 `~/.goal-state/scripts/` 外，还会部署：
+自 `goal_pipeline_version` **2.3.0-dual-pipeline-kernel** 起，`sync-install-repo.sh` / `install.sh` 除 `~/.goal-pipeline/state/scripts/` 外，还会部署：
 
 | 路径 | 内容 |
 |------|------|
-| `~/.goal-state/kernel/` | `goal-pipeline/kernel`（review merge、delivery metrics、gate_runtime 等） |
-| `~/.goal-state/references/` | 四平面与 eval 相关只读引用 |
-| `~/.goal-state/schemas/` | 可选；JSON schema 副本 |
-| `~/.goal-state/VERSION` | 含 `kernel_version`、`kernel_tree_hash` |
+| `~/.goal-pipeline/state/kernel/` | `goal-pipeline/kernel`（review merge、delivery metrics、gate_runtime 等） |
+| `~/.goal-pipeline/state/references/` | 四平面与 eval 相关只读引用 |
+| `~/.goal-pipeline/state/schemas/` | 可选；JSON schema 副本 |
+| `~/.goal-pipeline/state/VERSION` | 含 `kernel_version`、`kernel_tree_hash` |
 
 从 2.2 升级：执行一次 `sync-install-repo.sh --deploy-only` 或重跑 `install.sh`；若仅有旧 `scripts/` 而无 `kernel/`，complete / review merge 会失败。
+
+## 目录布局（2.4+）
+
+| 变量 | 默认路径 |
+|------|----------|
+| `GOAL_HOME` | `~/.goal-pipeline` |
+| `GOAL_PIPELINE_REPO` | `$GOAL_HOME/repository` |
+| `GOAL_STATE_HOME` | `$GOAL_HOME/state` |
+
+无旧版 `$HOME` 路径迁移；新装仅使用上表。`install.sh --uninstall --purge` 删除 `repository/` 与 `state/`（及空的 `GOAL_HOME`）。
 
 ## 状态
 

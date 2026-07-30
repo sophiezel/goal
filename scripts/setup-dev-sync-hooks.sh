@@ -1,5 +1,5 @@
 #!/bin/bash
-# setup-dev-sync-hooks.sh — Enable auto-sync of ~/.goal-pipeline-repo for this dev clone
+# setup-dev-sync-hooks.sh — Enable auto-sync of install repository for this dev clone
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -10,7 +10,7 @@ chmod +x "$HOOKS_DIR/pre-push" "$ROOT/goal-pipeline/scripts/sync-install-repo.sh
 git -C "$ROOT" config core.hooksPath .githooks
 
 DEV_REPO="$ROOT"
-STATE_HOME="${GOAL_STATE_HOME:-$HOME/.goal-state}"
+STATE_HOME="${GOAL_STATE_HOME:-${GOAL_HOME:-$HOME/.goal-pipeline}/state}"
 mkdir -p "$STATE_HOME"
 python3 - "$STATE_HOME/config.json" "$DEV_REPO" <<'PY'
 import json, os, sys
@@ -31,7 +31,7 @@ cfg_path.write_text(json.dumps(cfg, indent=2, ensure_ascii=False) + "\n", encodi
 print(f"  dev_repo -> {dev_repo}")
 PY
 
-echo "✅ git hooksPath -> .githooks (pre-push syncs ~/.goal-pipeline-repo)"
+echo "✅ git hooksPath -> .githooks (pre-push syncs install repository under GOAL_HOME)"
 echo "✅ dev_repo written to $STATE_HOME/config.json"
 echo ""
 echo "Run once now:"

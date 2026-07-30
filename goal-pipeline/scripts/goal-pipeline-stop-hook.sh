@@ -4,11 +4,13 @@
 
 set -euo pipefail
 
-GOAL_STATE_HOME="${GOAL_STATE_HOME:-$HOME/.goal-state}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/source-goal-install-paths.sh"
+_goal_install_paths
 GATE="$GOAL_STATE_HOME/scripts/gate-guazi-flow-stage.sh"
 KERNEL="$GOAL_STATE_HOME/scripts/goal-pipeline-kernel.sh"
 DRIVER="$GOAL_STATE_HOME/scripts/goal-stage-driver.sh"
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 [[ -x "$GATE" ]] || GATE="$SCRIPT_DIR/gate-guazi-flow-stage.sh"
 [[ -x "$KERNEL" ]] || KERNEL="$SCRIPT_DIR/goal-pipeline-kernel.sh"
 [[ -x "$DRIVER" ]] || DRIVER="$SCRIPT_DIR/goal-stage-driver.sh"

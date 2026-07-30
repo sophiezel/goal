@@ -98,7 +98,7 @@ def main() -> int:
         Path(__file__).resolve().parents[2] / "docs" / "architecture" / "goal-runtime.md",
         Path(os.environ.get("GOAL_PIPELINE_REPO", "")).expanduser() / "docs" / "architecture" / "goal-runtime.md",
         Path(os.environ.get("DEPLOY_SOURCE", "")).expanduser() / "docs" / "architecture" / "goal-runtime.md",
-        Path.home() / ".goal-pipeline-repo" / "docs" / "architecture" / "goal-runtime.md",
+        Path.home() / ".goal-pipeline" / "repository" / "docs" / "architecture" / "goal-runtime.md",
         SCRIPT_DIR.parent.parent / "docs" / "architecture" / "goal-runtime.md",
     ]
     arch = next((p for p in arch_candidates if p and str(p) != "." and p.is_file()), arch_candidates[0])
@@ -137,7 +137,7 @@ def main() -> int:
         for cand in (
             Path(os.environ.get("GOAL_PIPELINE_REPO", "")).expanduser(),
             Path(os.environ.get("DEPLOY_SOURCE", "")).expanduser(),
-            Path.home() / ".goal-pipeline-repo",
+            Path.home() / ".goal-pipeline" / "repository",
             SCRIPT_DIR.parent.parent,
         ):
             if str(cand) != "." and cand.is_dir() and (cand / "goal-pipeline" / "scripts").is_dir():

@@ -1,10 +1,12 @@
 #!/bin/bash
-# deploy-skills.sh — Deploy goal-pipeline skills from install repo only (~/.goal-pipeline-repo)
-# Default: universal mode → ~/.agents/skills only; removes platform duplicates.
+# deploy-skills.sh — Deploy goal-pipeline skills from install repository only
 set -euo pipefail
 
-REPO_DIR="${GOAL_PIPELINE_REPO:-$HOME/.goal-pipeline-repo}"
-GOAL_STATE_HOME="${GOAL_STATE_HOME:-$HOME/.goal-state}"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/source-goal-install-paths.sh"
+_goal_install_paths
+REPO_DIR="$GOAL_PIPELINE_REPO"
 SKILLS_DEPLOY_MODE="${SKILLS_DEPLOY_MODE:-universal}"
 MODE="--symlink"
 NO_GUAZI=false
@@ -29,7 +31,7 @@ usage() {
   cat <<'USAGE'
 Usage: deploy-skills.sh [options]
 
-Deploy goal-pipeline / guazi-flow-goal skills from the install repo (~/.goal-pipeline-repo).
+Deploy goal-pipeline / guazi-flow-goal skills from GOAL_PIPELINE_REPO (default: ~/.goal-pipeline/repository).
 Skill symlinks MUST NOT point at a dev checkout.
 
 Options:
@@ -42,7 +44,8 @@ Options:
   -h, --help             Show help
 
 Environment:
-  GOAL_PIPELINE_REPO     Install clone (default: ~/.goal-pipeline-repo)
+  GOAL_HOME              Application root (default: ~/.goal-pipeline)
+  GOAL_PIPELINE_REPO     Install clone (default: $GOAL_HOME/repository)
   SKILLS_DEPLOY_MODE     universal (default) | platform-native
 USAGE
 }

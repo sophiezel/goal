@@ -6,7 +6,7 @@
 ## 项目目录结构（guazi-flow 集成时）
 
 ```
-~/.goal-state/                              ← goal 全局目录（同基础 schema）
+~/.goal-pipeline/state/                              ← goal 全局目录（同基础 schema）
 ├── config.json
 ├── projects/<pid>/<branch>/<task>/
 │   ├── state.json                          ← 含 guazi-flow 扩展字段
@@ -24,14 +24,14 @@
     ├── evidence/cwiki/**                    ← Tier-G
     └── units/*.md
 
-~/.goal-state/projects/<pid>/<branch>/<task>/artifacts/   ← Tier-R（不进 git）
+~/.goal-pipeline/state/projects/<pid>/<branch>/<task>/artifacts/   ← Tier-R（不进 git）
 ├── handoff/*.json
 └── evidence/review-unified.json, review-run.json, ...
 ```
 
 ## guazi-flow 扩展字段
 
-位置: `~/.goal-state/projects/<pid>/<branch>/<task>/state.json`（基础字段见 goal-pipeline schema）
+位置: `~/.goal-pipeline/state/projects/<pid>/<branch>/<task>/state.json`（基础字段见 goal-pipeline schema）
 
 ```json
 {
@@ -110,9 +110,3 @@ Agent 禁止手改 `gate.passed_at` 或 `handoff/*.json`。
 - **Tier-G**（guazi-flow 契约）：写入 `docs/guazi-flow/<task>/` — `index.md`、`evidence/review.md`、`evidence/complete.md`、`evidence/cwiki/**`
 - **Tier-R**（goal 运行时）：写入 `artifact_layout.runtime_root` — `handoff/**`、review annex JSON、fix-input、runtime-smoke
 - goal **禁止**把 Tier-R 写入 `<project>/.guazi-flow/`
-
-## 兼容迁移
-
-检测 `~/.guazi-flow-goal/` 存在且 `~/.goal-state/` 不存在 → 自动迁移到新路径。
-检测 `<project>/.guazi-flow/goal/state.json` 存在 → 迁移到 `~/.goal-state/`，删除旧文件。
-`<project>/.guazi-flow/config.local.json` 中 goal 相关字段（api key / review_model）→ 自动迁移到 `~/.goal-state/config.json`，删除旧字段。

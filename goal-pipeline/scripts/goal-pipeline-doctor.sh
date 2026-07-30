@@ -2,9 +2,12 @@
 # goal-pipeline-doctor.sh — Pipeline infra diagnostics + artifact migration
 set -euo pipefail
 
-GOAL_STATE_HOME="${GOAL_STATE_HOME:-$HOME/.goal-state}"
-REPO_DIR="${GOAL_PIPELINE_REPO:-$HOME/.goal-pipeline-repo}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+source "$SCRIPT_DIR/source-goal-install-paths.sh"
+_goal_install_paths
+GOAL_STATE_HOME="$GOAL_STATE_HOME"
+REPO_DIR="$GOAL_PIPELINE_REPO"
 PROJECT_ROOT=""
 MIGRATE=false
 PURGE_REPO=false
@@ -163,6 +166,9 @@ else:
 # Kernel package (deployed beside scripts under GOAL_STATE_HOME)
 kernel_init = goal_home / "kernel" / "__init__.py"
 status("kernel_package", kernel_init.is_file(), str(kernel_init))
+
+status("install_layout.repository", (repo / ".git").exists(), str(repo))
+status("install_layout.state_runtime", (goal_home / "scripts").is_dir(), str(goal_home))
 if version_file.is_file() and kernel_init.is_file():
     try:
         v = json.loads(version_file.read_text())

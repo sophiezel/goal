@@ -3,7 +3,7 @@
 ## 目录结构
 
 ```
-~/.goal-state/                              ← 全局目录（goal 所有产物）
+~/.goal-pipeline/state/                              ← 全局目录（goal 所有产物）
 ├── config.json                           ← API key + 偏好 + 通道缓存（跨项目通用）
 ├── projects/
 │   └── <project_id>/                    ← sha256(项目根绝对路径)[:12]
@@ -24,7 +24,7 @@
 
 ## 全局配置文件
 
-位置: `~/.goal-state/config.json`
+位置: `~/.goal-pipeline/state/config.json`
 
 ```json
 {
@@ -51,7 +51,7 @@
 
 ## Goal 状态文件
 
-位置: `~/.goal-state/projects/<project_id>/<branch>/<task>/state.json`
+位置: `~/.goal-pipeline/state/projects/<project_id>/<branch>/<task>/state.json`
 
 ```json
 {
@@ -135,7 +135,7 @@
 
 ## Global Config Schema
 
-`~/.goal-state/config.json`:
+`~/.goal-pipeline/state/config.json`:
 
 ```json
 {
@@ -165,7 +165,7 @@
 
 详见 `guazi-flow-goal/references/guazi-flow-state-schema.md` 与 `guazi-flow-goal/references/artifact-tier-policy.md`。
 
-- `mode: split` — Tier-G 在 repo `docs/guazi-flow/<task>/`，Tier-R 在 `~/.goal-state/.../artifacts/`
+- `mode: split` — Tier-G 在 repo `docs/guazi-flow/<task>/`，Tier-R 在 `~/.goal-pipeline/state/.../artifacts/`
 - `mode: repo_full` — 全部在 task_dir（兼容旧项目）
 - 环境变量 `GOAL_ARTIFACT_MODE` 可覆盖
 
@@ -196,14 +196,14 @@
 
 ### Active/Blocked/Paused → Aborted
 - 用户执行 `/goal-pipeline-clear`
-- state.json 归档到 `~/.goal-state/archive/<project_id>/goal_<id>.json`
+- state.json 归档到 `~/.goal-pipeline/state/archive/<project_id>/goal_<id>.json`
 - evidence/ 保留（用户可能需要查看历史）
 
 ## 并发控制
 
 粒度: `(project_id, branch, task)` 三元组。
 
-锁文件: `~/.goal-state/projects/<project_id>/<branch>/<task>/.lock`
+锁文件: `~/.goal-pipeline/state/projects/<project_id>/<branch>/<task>/.lock`
 
 - 实现：`scripts/atomic_json.py` 的 `state_lock()`（Unix `fcntl.flock`，超时默认 30s）
 - `write_state_atomic()`：持锁 + temp 文件 + `os.replace` + `fsync`
@@ -215,8 +215,3 @@
 - 每次状态变更经 `write_state_atomic`（temp + rename + fsync）
 - 崩溃恢复从 state.json + git + evidence 重建
 - `state.json` 优先于 agent 内存状态
-
-## 兼容迁移
-
-检测 `~/.guazi-flow-goal/` 存在且 `~/.goal-state/` 不存在 → 自动 mv 到新路径。
-检测 `~/.guazi-flow-goal/config.json` 存在 → 迁移到 `~/.goal-state/config.json`，删除旧文件。

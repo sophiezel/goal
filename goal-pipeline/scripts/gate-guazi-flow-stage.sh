@@ -55,7 +55,7 @@ if [[ "$ASSERT_COMPLETE" == "true" ]]; then
     fi
   fi
   ADVANCE="$SCRIPT_DIR/goal-advance-stage.sh"
-  [[ -x "$ADVANCE" ]] || ADVANCE="${GOAL_STATE_HOME:-$HOME/.goal-state}/scripts/goal-advance-stage.sh"
+  [[ -x "$ADVANCE" ]] || ADVANCE="${GOAL_STATE_HOME:-${GOAL_HOME:-$HOME/.goal-pipeline}/state}}/scripts/goal-advance-stage.sh"
   [[ -x "$ADVANCE" ]] || { echo "gate assert-complete: goal-advance-stage.sh not found" >&2; exit 2; }
   ARGS=(--state-file "$STATE_FILE" --format json)
   [[ -n "$TASK_DIR" ]] && ARGS+=(--task-dir "$TASK_DIR")

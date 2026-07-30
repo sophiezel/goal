@@ -1,2 +1,2 @@
 #!/bin/bash
-exec "$HOME/.goal-state/scripts/goal-pipeline-stop-hook.sh"
+exec "${GOAL_STATE_HOME:-${GOAL_HOME:-$HOME/.goal-pipeline}/state}/scripts/goal-pipeline-stop-hook.sh"

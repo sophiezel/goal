@@ -10,8 +10,7 @@ set -e
 # === 配置 ===
 REPO_URL_HTTPS="https://github.com/sophiezel/goal.git"
 REPO_URL_SSH="git@github.com-sophiezel:sophiezel/goal.git"
-REPO_DIR="$HOME/.goal-pipeline-repo"
-GOAL_STATE_HOME="${GOAL_STATE_HOME:-$HOME/.goal-state}"
+INSTALL_SCRIPT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)" || INSTALL_SCRIPT_ROOT=""
 MODE="--symlink"
 USE_SSH=false
 FORCE_AGENT=""
@@ -59,6 +58,34 @@ USAGE
     *) echo "Unknown option: $1"; exit 1 ;;
   esac
 done
+
+# === Unified install paths (~/.goal-pipeline/{repository,state}) ===
+_goal_source_paths_sh() {
+  local candidates=()
+  [[ -n "$INSTALL_SCRIPT_ROOT" ]] && candidates+=("$INSTALL_SCRIPT_ROOT/goal-pipeline/scripts/source-goal-install-paths.sh")
+  [[ -n "${GOAL_PIPELINE_REPO:-}" && -f "${GOAL_PIPELINE_REPO}/goal-pipeline/scripts/source-goal-install-paths.sh" ]] && \
+    candidates+=("${GOAL_PIPELINE_REPO}/goal-pipeline/scripts/source-goal-install-paths.sh")
+  local p
+  for p in "${candidates[@]}"; do
+    if [[ -f "$p" ]]; then
+      # shellcheck disable=SC1090
+      source "$p"
+      return 0
+    fi
+  done
+  return 1
+}
+
+if ! _goal_source_paths_sh; then
+  GOAL_HOME="${GOAL_HOME:-$HOME/.goal-pipeline}"
+  GOAL_PIPELINE_REPO="${GOAL_PIPELINE_REPO:-$GOAL_HOME/repository}"
+  GOAL_STATE_HOME="${GOAL_STATE_HOME:-$GOAL_HOME/state}"
+  export GOAL_HOME GOAL_PIPELINE_REPO GOAL_STATE_HOME
+else
+  _goal_install_paths
+fi
+REPO_DIR="$GOAL_PIPELINE_REPO"
+mkdir -p "$GOAL_HOME" "$GOAL_STATE_HOME"
 
 # === 平台检测 ===
 detect_all_agents() {
@@ -169,19 +196,22 @@ if [ "$UNINSTALL" = true ]; then
 
   if [ "$PURGE" = true ]; then
     echo ""
-    echo "🗑️  Purging repo and state..."
-    if [ -d "$REPO_DIR" ]; then
-      rm -rf "$REPO_DIR"
-      echo "  ✅ Removed repo: $REPO_DIR"
+    echo "🗑️  Purging install home..."
+    if [ -d "$GOAL_PIPELINE_REPO" ]; then
+      rm -rf "$GOAL_PIPELINE_REPO"
+      echo "  ✅ Removed repository: $GOAL_PIPELINE_REPO"
     fi
     if [ -d "$GOAL_STATE_HOME" ]; then
       rm -rf "$GOAL_STATE_HOME"
       echo "  ✅ Removed state: $GOAL_STATE_HOME"
     fi
+    if [ -d "$GOAL_HOME" ]; then
+      rmdir "$GOAL_HOME" 2>/dev/null || true
+    fi
   else
     echo ""
-    echo "  ℹ️  Repo ($REPO_DIR) and state ($GOAL_STATE_HOME) preserved."
-    echo "     Use --purge to also remove them."
+    echo "  ℹ️  GOAL_HOME ($GOAL_HOME) preserved."
+    echo "     Use --purge to remove repository + state under GOAL_HOME."
   fi
 
   echo ""
@@ -196,7 +226,9 @@ echo "  goal-pipeline installer"
 echo "=========================================="
 echo ""
 echo "  Detected agents: $(echo $AGENTS | tr ' ' ', ')"
+echo "  GOAL_HOME:       $GOAL_HOME"
 echo "  State dir:       $GOAL_STATE_HOME"
+echo "  Repository:      $REPO_DIR"
 echo "  Install mode:    $MODE"
 if [ "$USE_SSH" = true ]; then
   echo "  Clone method:    SSH"
@@ -237,21 +269,7 @@ else
   echo "  ⚠️  deploy-skills.sh not found — skip skill deploy"
 fi
 
-# === Step 4: Migrate old paths (before skeleton creation) ===
-if [ -d "$HOME/.guazi-flow-goal" ]; then
-  echo ""
-  echo "🔄 Migrating from ~/.guazi-flow-goal/ to $GOAL_STATE_HOME/..."
-  mkdir -p "$GOAL_STATE_HOME/projects" "$GOAL_STATE_HOME/archive"
-  if [ -d "$HOME/.guazi-flow-goal/projects" ]; then
-    cp -r "$HOME/.guazi-flow-goal/projects"/* "$GOAL_STATE_HOME/projects/" 2>/dev/null || true
-  fi
-  if [ -d "$HOME/.guazi-flow-goal/archive" ]; then
-    cp -r "$HOME/.guazi-flow-goal/archive"/* "$GOAL_STATE_HOME/archive/" 2>/dev/null || true
-  fi
-  echo "  ✅ Migration complete (old directory preserved at ~/.guazi-flow-goal/)"
-fi
-
-# === Step 5: Initialize ~/.goal-state/ skeleton ===
+# === Initialize GOAL_STATE_HOME skeleton ===
 echo ""
 echo "📁 Initializing state directory..."
 
@@ -395,8 +413,9 @@ echo "=========================================="
 echo "  🎉 Installation complete!"
 echo "=========================================="
 echo ""
-echo "  State:      $GOAL_STATE_HOME"
-echo "  Repo:       $REPO_DIR"
+echo "  GOAL_HOME:    $GOAL_HOME"
+echo "  State:        $GOAL_STATE_HOME"
+echo "  Repository:   $REPO_DIR"
 echo "  Skills dir:    ~/.agents/skills (universal)"
 echo "  Agents:     $(echo $AGENTS | tr ' ' ', ')"
 echo "  Runtime:    $GOAL_STATE_HOME/scripts + kernel + references"

@@ -18,7 +18,7 @@ description: guazi-flow-goal 统一入口。加载 goal-pipeline 管线引擎，
 
 - **NEVER 在 GATE 检查失败后继续执行 guazi-flow 调度**——GATE 不可读必须设 `guazi_flow_available = false` 并降级为纯 goal-pipeline
 - **NEVER 跳过 Lazy Loading 直接执行阶段**——不加载阶段 SKILL.md → 产物不符合 guazi-flow schema → review 必定 not_pass
-- **NEVER 在 `~/.goal-state/` 中写入 guazi-flow 项目配置**——`.guazi-flow/config.local.json` 只存 JIRA_TOKEN/repos 等 guazi-flow 自身字段，goal 产物不混入
+- **NEVER 在 `~/.goal-pipeline/state/` 中写入 guazi-flow 项目配置**——`.guazi-flow/config.local.json` 只存 JIRA_TOKEN/repos 等 guazi-flow 自身字段，goal 产物不混入
 - **NEVER 在 guazi-flow 不可用时强制加载 guazi-flow-* skills**——降级为纯 goal-pipeline 运行，不阻断管线
 - **NEVER 修改 goal-pipeline 的 state.json 基础字段**——guazi-flow 扩展字段（guazi_flow_*）只能追加，不覆盖管线字段
 - **NEVER 在 guazi-flow-plan 产出 index.md 前进入 implement**——MUST 先执行 guazi-flow-plan 完整流程，验证必需章节；否则 blocked（plan_artifact_missing / plan_schema_incomplete）
@@ -40,7 +40,7 @@ description: guazi-flow-goal 统一入口。加载 goal-pipeline 管线引擎，
 - **NEVER 在 subject_hash 未变时重复 gate**——`blocked(noop_fix)` 表示修复无效，须实质性修改产物后再跑
 - **NEVER 因仅追加 `## 执行记录` 触发 mini-replan**——执行记录变更用 `refresh-handoffs-after-index.sh --cascade implement`；仅当 `index_contract_hash`（契约段）变化时才 `gate --post plan`
 - **NEVER 输出 [N/5] ✅ 而未运行 gate --post（exit 0）**——进度行必须对应机器门禁通过
-- **NEVER 在 ~/.goal-state/scripts/ 缺失时进入 Phase 2**——先 Pre-flight 部署或 blocked(infra_missing)
+- **NEVER 在 ~/.goal-pipeline/state/scripts/ 缺失时进入 Phase 2**——先 Pre-flight 部署或 blocked(infra_missing)
 - **NEVER 因「需求已清晰」跳过 Phase 1 entirely**——Fast-path 仍须创建 state.json 并输出 Goal 摘要
 
 ## 关键执行协议（Phase 2 必读）
@@ -121,10 +121,10 @@ Step 1: 环境初始化
       └─ 无 → 继续
 
 Step 1.5: Pre-flight（MANDATORY，Phase 2 前亦须可用）
-  ├─ 检查 goal-pipeline-kernel.sh（安装后 ~/.goal-state/scripts/）存在
+  ├─ 检查 goal-pipeline-kernel.sh（安装后 ~/.goal-pipeline/state/scripts/）存在
   ├─ 检查 gate-guazi-flow-stage.sh / goal-advance-stage.sh / goal-stage-driver.sh 存在（Kernel 内部依赖）
   ├─ 检查 failure-codes.json / four-planes-checklist.json 存在
-  ├─ 检查 ~/.goal-state/references/guazi-flow-artifact-schema/ 存在
+  ├─ 检查 ~/.goal-pipeline/state/references/guazi-flow-artifact-schema/ 存在
 │   任一缺失 → 立即输出 blocked(failure_code: infra_missing)，不得进入 Phase 2；然后运行 `bash <goal-repo>/install.sh --agent <detected>` 修复部署，或提示用户手动部署
   ├─ 推荐：goal-pipeline-kernel init 创建 canonical state（project_id=sha256(root)）
   ├─ detect-review-channels --json（guazi_flow_available=true 时）
@@ -155,13 +155,13 @@ Step 4: 生成 + 确认 Goal 结构
   └─ 确认 → 继续 Step 5
 
 Step 5: 初始化 state（路径计算见 goal-pipeline/references/goal-state-schema.md）
-  ├─ mkdir -p ~/.goal-state/ → 失败则 blocked（failure_code: state_dir_creation_failed）
+  ├─ mkdir -p ~/.goal-pipeline/state/ → 失败则 blocked（failure_code: state_dir_creation_failed）
   ├─ 创建 state.json（project_id/branch/task 路径见 goal-state-schema.md）
   ├─ 写入 project_root: `git rev-parse --show-toplevel` 绝对路径（供 stop hook / advance 匹配工作区）
   ├─ **MUST** 若 task 路径已知，同步写入：
   │     guazi_flow_task: docs/guazi-flow/<task>
   │     artifact_layout.mode: split
-  │     artifact_layout.runtime_root: ~/.goal-state/projects/<pid>/<branch>/<task>/artifacts
+  │     artifact_layout.runtime_root: ~/.goal-pipeline/state/projects/<pid>/<branch>/<task>/artifacts
   │     artifact_layout.repo_task_dir: <abs path to task dir>
   ├─ 验证 state.json 可读写 → 失败则 blocked（failure_code: state_json_unwritable）
   └─ 检测并迁移旧路径 .guazi-flow/goal/ 产物（若存在）
@@ -225,7 +225,7 @@ goal-pipeline-kernel complete --state-file <state> --task-dir <task> --project-r
 
 ### 硬门禁执行顺序（MANDATORY）
 
-每个 guazi-flow 阶段 MUST 按以下顺序执行（脚本：`~/.goal-state/scripts/gate-guazi-flow-stage.sh`）：
+每个 guazi-flow 阶段 MUST 按以下顺序执行（脚本：`~/.goal-pipeline/state/scripts/gate-guazi-flow-stage.sh`）：
 
 ```
 gate --pre(<stage>) --mode guazi
@@ -324,12 +324,12 @@ Phase 2 每个阶段**开头**亦须运行 `goal-pipeline-kernel next`（内含 
 
 | 文件 | 操作 |
 |------|------|
-| `~/.goal-state/config.json` | 创建骨架 + 写 api_keys |
-| `~/.goal-state/projects/<pid>/<branch>/<task>/state.json` | 读/写（含 `artifact_layout`） |
-| `~/.goal-state/projects/<pid>/<branch>/<task>/artifacts/**` | Tier-R：handoff + goal review annex |
-| `~/.goal-state/projects/<pid>/<branch>/<task>/.lock` | 读/写 |
-| `~/.goal-state/archive/<pid>/goal_<id>.json` | 写入 |
-| `~/.goal-state/scripts/` | 首次部署 |
+| `~/.goal-pipeline/state/config.json` | 创建骨架 + 写 api_keys |
+| `~/.goal-pipeline/state/projects/<pid>/<branch>/<task>/state.json` | 读/写（含 `artifact_layout`） |
+| `~/.goal-pipeline/state/projects/<pid>/<branch>/<task>/artifacts/**` | Tier-R：handoff + goal review annex |
+| `~/.goal-pipeline/state/projects/<pid>/<branch>/<task>/.lock` | 读/写 |
+| `~/.goal-pipeline/state/archive/<pid>/goal_<id>.json` | 写入 |
+| `~/.goal-pipeline/state/scripts/` | 首次部署 |
 | `docs/guazi-flow/<task>/index.md` 等 **Tier-G** | 委托 guazi-flow-*；进 git |
 | `docs/guazi-flow/<task>/handoff/**` | ❌ split 模式下不写 repo（Tier-R 在 goal-state） |
 | `docs/guazi-flow/.gitignore` | ❌ 不创建 repo `.gitignore`（Tier-R 防泄漏靠 split 写入路径 + purge） |
