@@ -142,11 +142,12 @@ deploy_runtime() {
     return 1
   }
 
-  # Deploy all top-level runtime scripts (*.sh, *.py, check-consistency).
+  # Deploy all top-level runtime scripts (*.sh, *.py, check-consistency, extensionless helpers).
   # Excludes fixtures/ — new pipeline scripts auto-sync on install/update.
   shopt -s nullglob
   local deployed=0
-  for src in "$scripts_dir"/*.sh "$scripts_dir"/*.py "$scripts_dir"/check-consistency; do
+  for src in "$scripts_dir"/*.sh "$scripts_dir"/*.py "$scripts_dir"/check-consistency \
+    "$scripts_dir"/detect-review-channels "$scripts_dir"/detect-platform; do
     [[ -f "$src" ]] || continue
     local base
     base="$(basename "$src")"

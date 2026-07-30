@@ -302,7 +302,7 @@ else:
 detect = Path("${DETECT}")
 if detect.is_file():
     try:
-        r = subprocess.run([str(detect), "--json"], capture_output=True, text=True, timeout=15)
+        r = subprocess.run([str(detect), "--json", "--no-probe"], capture_output=True, text=True, timeout=30)
         d = json.loads(r.stdout or "{}")
         sel = (d.get("selected") or {}).get("provider", "deterministic")
         only_det = sel == "deterministic"

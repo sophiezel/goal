@@ -391,7 +391,8 @@ else
   KERNEL_SRC="$REPO_DIR/goal-pipeline/kernel"
   mkdir -p "$GOAL_STATE_HOME/scripts"
   deployed=0
-  for src in "$SCRIPTS_SRC"/*.sh "$SCRIPTS_SRC"/*.py "$SCRIPTS_SRC"/check-consistency; do
+  for src in "$SCRIPTS_SRC"/*.sh "$SCRIPTS_SRC"/*.py "$SCRIPTS_SRC"/check-consistency \
+    "$SCRIPTS_SRC"/detect-review-channels "$SCRIPTS_SRC"/detect-platform; do
     [ -f "$src" ] || continue
     base="$(basename "$src")"
     cp "$src" "$GOAL_STATE_HOME/scripts/$base"
@@ -540,7 +541,14 @@ with open(path) as f:
 hooks = data.setdefault("hooks", {})
 stop = hooks.setdefault("stop", [])
 cmd = {"command": "./hooks/goal-pipeline-stop-hook.sh", "loop_limit": 10}
-if not any(h.get("command","").endswith("goal-pipeline-stop-hook.sh") for h in stop):
+found = False
+for h in stop:
+    if h.get("command", "").endswith("goal-pipeline-stop-hook.sh"):
+        found = True
+        if h.get("loop_limit", 0) < 10:
+            h["loop_limit"] = 10
+        break
+if not found:
     stop.append(cmd)
 with open(path, "w") as f:
     json.dump(data, f, indent=2)
