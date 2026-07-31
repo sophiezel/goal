@@ -127,13 +127,28 @@ def _is_api_path_not_repo_path(p: str) -> bool:
 
 _APP_ENTRY_ALIASES = {
     "App.tsx": "src/App.tsx",
+    "App.test.tsx": "src/App.test.tsx",
     "pages/index.ts": "src/pages/index.ts",
     "pages/index.tsx": "src/pages/index.tsx",
 }
 
 
+def _strip_prose_suffix(raw: str) -> str:
+    """Drop markdown suffix after path token (e.g. `path/**` 页面与样式)."""
+    p = raw.strip().strip("`").strip()
+    if " " in p:
+        head = p.split()[0].strip("`")
+        if head.startswith("src/") or head.endswith((".ts", ".tsx", ".js", ".scss", "/")):
+            p = head
+    if "页面" in p or "样式" in p:
+        for sep in ("**", "—", "–", "-"):
+            if sep in p:
+                p = p.split(sep, 1)[0].strip().strip("`")
+    return p
+
+
 def normalize_write_set_entry(path: str) -> str:
-    p = (path or "").strip().strip("`").strip()
+    p = _strip_prose_suffix(path or "")
     if not p:
         return ""
     if is_write_set_contamination(p):
@@ -145,6 +160,8 @@ def normalize_write_set_entry(path: str) -> str:
     elif p.endswith("App.tsx") and not p.startswith("src/"):
         p = f"src/{p}"
     elif p.startswith("pages/") and not p.startswith("src/"):
+        p = f"src/{p}"
+    elif p.endswith("App.test.tsx") and not p.startswith("src/"):
         p = f"src/{p}"
     # src/foo/** → src/foo/
     if p.endswith("/**"):
@@ -204,6 +221,8 @@ def _extract_write_set_paths_from_index(index_text: str) -> List[str]:
             continue
         if re.match(r"^(排除|除外|不做|不包含|exclude)", line, re.I):
             break
+        if "viewingResults" in line and re.search(r"不含|忽略|及带看|不做|非目标", line):
+            continue
         bm = re.match(r"^[-*]\s+`?([^`]+)`?", line)
         if bm:
             n = normalize_write_set_entry(bm.group(1))
@@ -288,7 +307,9 @@ def extract_verification_hints(index_text: str) -> dict:
     # testPathPattern=...
     m = re.search(r"testPathPattern[=:]?\s*[`\"]?([^`\"\\s|]+)", index_text)
     if m:
-        hints["test_pattern"] = m.group(1).strip()
+        pat = m.group(1).strip()
+        if pat and pat not in ("=", "-", "—") and len(pat) >= 2:
+            hints["test_pattern"] = pat
     return hints
 
 

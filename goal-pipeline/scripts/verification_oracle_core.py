@@ -292,7 +292,7 @@ def build_test_commands(
                     "source": "findRelatedTests",
                 }
             )
-    elif test_pattern:
+    elif test_pattern and len(str(test_pattern).strip()) >= 2 and str(test_pattern).strip() not in ("=", "-"):
         if os.path.isfile(os.path.join(repo_root, "yarn.lock")):
             cmds.append(
                 {
