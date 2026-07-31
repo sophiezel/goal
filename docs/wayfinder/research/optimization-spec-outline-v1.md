@@ -93,8 +93,8 @@
 | merge-review parity | `test-kernel-review-cli-parity.sh` + `kernel.review.cli` timing substep | **#23** ✅ |
 | four_planes_doctor + handoff tier | [four-planes-handoff-tier.md](four-planes-handoff-tier.md) | **#17** ✅ |
 | timing HTML v1 | [pipeline-timing-report-input.md](../../../goal-pipeline/references/pipeline-timing-report-input.md) + `render-pipeline-timing-report.py --format html` | **#9** ✅ |
-| postmerge ↔ complete | 平面衔接 | **#18** |
-| goal-quality e2e profile | tier 对齐 | **#19** |
+| postmerge ↔ complete | [postmerge-complete-plane.md](postmerge-complete-plane.md) | **#18** ✅ |
+| goal-quality e2e profile | tier 对齐 | **#19** ✅ — [goal-quality-e2e-profile.md](../../../goal-pipeline/references/goal-quality-e2e-profile.md) + `goal_quality_e2e_policy.py` |
 | CTB 附录 | #3 回写 — [ctb-44243-guazi-flow-goal-rca.md](ctb-44243-guazi-flow-goal-rca.md) §8 | **#22** ✅ doc（2026-08-01） |
 
 ---
@@ -104,6 +104,7 @@
 | Date | Version | Action |
 |------|---------|--------|
 | 2026-08-01 | v1.0 | Phase-3b HITL 全 C1 收口；关闭 v0 §未决；实现 deferred 链 Phase-3 表 |
+| 2026-08-01 | v1.0.1 | **#19** goal-quality e2e profile × tier SSOT + `goal_quality_e2e_policy.py` |
 | 2026-08-01 | v1.0 | #22：CTB-44243 平面归因附录写入 RCA §8 |
 | 2026-08-01 | v0.2 | 见 [optimization-spec-outline-v0.md](optimization-spec-outline-v0.md) |
 

@@ -160,24 +160,42 @@ fi
 
 if [[ "$TIER" == "strict" ]]; then
   [[ -d "$TASK_DIR/evidence" || -d "$GOAL_EVIDENCE_DIR" ]] || add_issue "BLOCK" "QG-L1-evidence" "strict tier requires evidence/"
-  if [[ "$SKIP_VALIDATE" -eq 0 ]]; then
-    grep -qi 'validate' "$INDEX" 2>/dev/null || add_issue "WARN" "QG-L1-validate" "strict tier: no validate evidence referenced"
+  POLICY_JSON=""
+  if [[ -f "$SCRIPT_DIR/goal_quality_e2e_policy.py" ]]; then
+    POLICY_JSON=$(GOAL_EVIDENCE_DIR="$GOAL_EVIDENCE_DIR" python3 "$SCRIPT_DIR/goal_quality_e2e_policy.py" \
+      --task-dir "$TASK_DIR" --tier "$TIER" --json 2>/dev/null || echo "")
   fi
-  if [[ "$SKIP_E2E" -eq 0 ]]; then
-    # Phase A2 (v3 §3 A2): strict + h5 → e2e BLOCK; otherwise WARN
+  if [[ -n "$POLICY_JSON" ]]; then
+    read -r VAL_SEV E2E_SEV E2E_OK <<< "$(python3 -c "
+import json,sys
+d=json.loads(sys.argv[1])
+g=d.get('gate',{})
+ev=d.get('evidence',{})
+print(g.get('validate_index_ref','none'), g.get('e2e_evidence','none'), '1' if ev.get('e2e_present') else '0')
+" "$POLICY_JSON")"
+  else
+    VAL_SEV="warn"
     E2E_SEV="WARN"
-    if [[ "$PROFILE" == "h5" ]]; then
-      E2E_SEV="BLOCK"
-    fi
-    # e2e evidence: evidence/e2e/ dir OR index references playwright
+    [[ "$PROFILE" == "h5" ]] && E2E_SEV="BLOCK"
     E2E_OK=0
     if [[ -d "$GOAL_EVIDENCE_DIR/e2e" || -d "$TASK_DIR/evidence/e2e" ]]; then
       E2E_OK=1
     elif grep -qi 'playwright' "$INDEX" 2>/dev/null; then
       E2E_OK=1
     fi
-    if [[ "$E2E_OK" -eq 0 ]]; then
-      if [[ "$E2E_SEV" == "BLOCK" ]]; then
+  fi
+  if [[ "$SKIP_VALIDATE" -eq 0 && "$VAL_SEV" == "warn" ]]; then
+    if [[ -n "$POLICY_JSON" ]]; then
+      VAL_OK=$(python3 -c "import json,sys; print('1' if json.loads(sys.argv[1])['evidence'].get('validate_mentioned') else '0')" "$POLICY_JSON")
+    else
+      VAL_OK=0
+      grep -qi 'validate' "$INDEX" 2>/dev/null && VAL_OK=1
+    fi
+    [[ "$VAL_OK" == "1" ]] || add_issue "WARN" "QG-L1-validate" "strict tier: no validate evidence referenced"
+  fi
+  if [[ "$SKIP_E2E" -eq 0 && "$E2E_SEV" != "none" ]]; then
+    if [[ "$E2E_OK" != "1" ]]; then
+      if [[ "$E2E_SEV" == "block" ]]; then
         add_issue "BLOCK" "QG-L1-e2e" "Phase A2: strict+h5 requires e2e evidence (evidence/e2e/ or index playwright ref)"
       else
         add_issue "WARN" "QG-L1-e2e" "strict tier: no e2e evidence referenced"

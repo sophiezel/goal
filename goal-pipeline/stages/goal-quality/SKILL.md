@@ -11,6 +11,7 @@ description: Lean quality 阶段（原生）。内部编排 smoke/validate/e2e +
 
 - `goal-pipeline/references/tiered-adjudication.md`
 - `goal-pipeline/references/dual-track-contract.md`
+- `goal-pipeline/references/goal-quality-e2e-profile.md`（#19：lite/standard/strict × validate/e2e 默认与 gate 证据）
 
 ## 内部编排（L0+L1）
 
@@ -28,8 +29,11 @@ runtime-smoke.sh → quality-gate.sh → gate --post quality
 
 | tier | Agent 侧 validate/e2e |
 |------|------------------------|
-| standard | optional |
-| strict | 推荐执行并在 index/evidence 留痕；gate 仅 WARN 提醒未引用 |
+| standard（lite 或 full） | validate / e2e **默认 off**；test+lint 由 **UVO**（implement） |
+| strict + full | validate / e2e **推荐**（h5 e2e 优先）；gate 对缺失引用 **WARN**，h5 缺 e2e 证据 **BLOCK** |
+| strict + lite | 同 strict，但 Agent e2e 对非 h5 **默认 off**（墙钟）；质量面不 skip（#13） |
+
+完整矩阵与 PQ/IQ/UVO dedupe：[goal-quality-e2e-profile.md](../../references/goal-quality-e2e-profile.md)。
 
 ## Stage Exit
 

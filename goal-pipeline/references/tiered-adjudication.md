@@ -16,7 +16,9 @@
 | smoke | `runtime-smoke.sh` |
 | validate | `guazi-flow-validate` cases（policy 要求时） |
 | e2e | Playwright exit code（policy 要求时） |
-| test+lint | `quality-gate.sh` standard+ |
+| test+lint | **UVO**（implement post）；quality-gate **不重跑** |
+
+Profile × tier 默认与 gate 证据：[goal-quality-e2e-profile.md](goal-quality-e2e-profile.md)。
 
 ## L2 — 条件独立 LLM
 

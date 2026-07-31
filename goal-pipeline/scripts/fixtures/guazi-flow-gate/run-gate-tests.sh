@@ -82,8 +82,8 @@ bash "$SCRIPT_DIR/test-am-extend.sh"
 echo "=== implement-write-set-pre-block ==="
 bash "$SCRIPT_DIR/test-implement-write-set-pre-block.sh"
 
-echo "=== phase-a2-e2e-block ==="
-bash "$SCRIPT_DIR/test-phase-a2-e2e-block.sh"
+echo "=== quality-e2e-profile-tier (#19, includes phase-a2) ==="
+bash "$SCRIPT_DIR/test-quality-e2e-profile-tier.sh"
 
 echo "=== benchmark-ci smoke ==="
 bash "$SCRIPT_DIR/../../benchmark-ci.sh" >/dev/null 2>&1 && echo "OK benchmark-ci" || echo "SKIP benchmark-ci (workspace not configured)"

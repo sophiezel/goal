@@ -16,6 +16,8 @@ GitHub 主副本：[Wayfinder: Goal 交付质量与全链路效率优化（guazi
 - **UX auto-fix audit (#11)** — `be2d7a8`；[ux-auto-fix-c1.md](../../goal-pipeline/references/ux-auto-fix-c1.md) + implement post fixtures
 - **Merge-review CLI parity (#23)** — `fd9fdf9`；`test-kernel-review-cli-parity.sh` + review timing substep on CLI path
 - **W2 matrix leakage (#10)** — `af42c42`；unsatisfied vs waived bookkeeping（#16 C1）
+- **Postmerge ↔ complete plane (#18)** — [postmerge-complete-plane.md](research/postmerge-complete-plane.md) + `resolve_postmerge_policy.py` + `test-quality-plane-postmerge.sh`
+- **goal-quality e2e profile (#19)** — [goal-quality-e2e-profile.md](../../goal-pipeline/references/goal-quality-e2e-profile.md) + `goal_quality_e2e_policy.py` + `test-quality-e2e-profile-tier.sh`
 - **CTB-44243 平面归因附录 (#22)** — [ctb-44243-guazi-flow-goal-rca.md](research/ctb-44243-guazi-flow-goal-rca.md) §8；draft Q12 closed
 
 | 工单 | 文件 | GitHub |
@@ -48,7 +50,7 @@ GitHub 主副本：[Wayfinder: Goal 交付质量与全链路效率优化（guazi
 | 16 | Phase-3b: AM waive + separation W2 漏出口径 HITL | https://github.com/sophiezel/goal/issues/16 | **C1 ratified 2026-08-01** |
 | 17 | Phase-3: four_planes_doctor handoff tier 回归门禁 | https://github.com/sophiezel/goal/issues/17 |
 | 18 | Phase-3: guazi-flow-postmerge 与 complete 平面衔接 | https://github.com/sophiezel/goal/issues/18 |
-| 19 | Phase-3: goal-quality e2e profile 与 tier 对齐 | https://github.com/sophiezel/goal/issues/19 |
+| 19 | Phase-3: goal-quality e2e profile 与 tier 对齐 | https://github.com/sophiezel/goal/issues/19 | **closed** — e2e profile SSOT + fixture |
 | 20 | Phase-3b: Part A.1 北星对外措辞（W1 vs W2） | https://github.com/sophiezel/goal/issues/20 | **C1 ratified 2026-08-01** |
 | 21 | ~~optimization-spec v0.2 → v1 升格~~ | closed duplicate of #12 |
 | 22 | Phase-3: CTB-44243 平面归因附录（#3 回写） | https://github.com/sophiezel/goal/issues/22 | **closed 2026-08-01** → RCA §8 |

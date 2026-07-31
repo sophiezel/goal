@@ -2,6 +2,7 @@
 # CI entry: all gate + observability fixture tests
 set -euo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+"$DIR/test-quality-e2e-profile-tier.sh"
 "$DIR/test-plan-quality-gate.sh"
 "$DIR/test-contract-gate.sh"
 "$DIR/test-split-handoff-ssot.sh"
@@ -40,6 +41,7 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 "$DIR/test-quality-plane-degraded.sh"
 "$DIR/test-quality-plane-l10-soft.sh"
 "$DIR/test-quality-plane-w2-matrix.sh"
+"$DIR/test-quality-plane-postmerge.sh"
 "$DIR/test-verify-completion.sh"
 "$DIR/test-ux-scan-v1.sh"
 "$DIR/test-review-strict-ux.sh"

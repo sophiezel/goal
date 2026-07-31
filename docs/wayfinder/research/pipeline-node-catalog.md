@@ -25,6 +25,8 @@
 | `quality_plane_check`（complete） | **不可 skip** | **不可 skip** | **不可 skip** |
 | PQ plan gate（PQ-01/02/05/07） | **不降级** | full PQ | full PQ |
 | `implement-qc-gate` `--skip-test-lint` | 是（与 UVO 分工） | 是 | 是 |
+| goal-quality validate / e2e（Agent） | 可选；e2e **默认 off** | 可选；e2e **默认 off** | 推荐；h5 e2e 证据 gate **BLOCK** 若缺失 |
+| `quality-gate` e2e 证据 | — | — | strict：h5 **BLOCK** / 其他 **WARN**（见 [goal-quality-e2e-profile.md](../../../goal-pipeline/references/goal-quality-e2e-profile.md)） |
 | UVO / IQ-10 / review preflight | **不可 skip** | **不可 skip** | **不可 skip** |
 
 ---
