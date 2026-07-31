@@ -202,6 +202,20 @@ else:
     → 输出: "[5/5] complete: ✅ (guazi-flow 不可用)"
 ```
 
+### postmerge ↔ complete（Goal 编排，#18）
+
+Guazi Flow 链：`review` →（`postmerge_policy=required` 时）`guazi-flow-postmerge` → `guazi-flow-complete`。Goal 五阶段标签仍 `[4/5] review` / `[5/5] complete`；**postmerge 为交付子阶段**，`goal-advance-stage` 在 review pass 后若 policy required 且缺 `evidence/postmerge.md` 则 `next_stage=postmerge`，`goal-stage-driver` 加载 `guazi-flow-postmerge`。
+
+```
+review gate --post pass
+  → resolve_postmerge_policy (optional | required)
+  → if required && !postmerge.md pass → next_stage=postmerge → guazi-flow-postmerge
+  → guazi-flow-complete + gate --post complete
+       → quality_plane_check --mode complete  # postmerge_required if required evidence missing
+```
+
+证据清单：[`goal-pipeline/references/postmerge-complete-evidence.md`](../../goal-pipeline/references/postmerge-complete-evidence.md)。Wayfinder：[`docs/wayfinder/research/postmerge-complete-plane.md`](../../docs/wayfinder/research/postmerge-complete-plane.md)。
+
 ## state.json guazi-flow 扩展字段
 
 ```json

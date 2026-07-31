@@ -70,6 +70,7 @@ STAGE_SKILL_COMPAT = {
     "quality": "goal-quality",
     "runtime_smoke": "goal-quality",
     "review": "guazi-flow-review",
+    "postmerge": "guazi-flow-postmerge",
     "complete": "guazi-flow-complete",
 }
 STAGE_SKILL_EVOLUTION = {
@@ -78,6 +79,7 @@ STAGE_SKILL_EVOLUTION = {
     "quality": "goal-quality",
     "runtime_smoke": "goal-quality",
     "review": "goal-review",
+    "postmerge": "guazi-flow-postmerge",
     "complete": "goal-complete",
 }
 
@@ -87,6 +89,7 @@ STAGE_PROGRESS = {
     "quality": "[3/5] quality",
     "runtime_smoke": "[3/5] quality",
     "review": "[4/5] review",
+    "postmerge": "[postmerge] delivery",
     "complete": "[5/5] complete",
     "done": "[5/5] complete",
 }
@@ -175,6 +178,13 @@ def build_mandatory(stage):
         if review_track == "single":
             cmds.insert(2, f"# single-track: load goal-review/SKILL.md only (NO guazi-flow-review Agent turn); rubric embedded in review-packet via assemble-review-packet.sh")
         return cmds
+    if stage == "postmerge":
+        return [
+            f"# postmerge_policy=required — review pass → postmerge → complete",
+            f"Load guazi-flow-postmerge/SKILL.md",
+            f"Write evidence/postmerge.md (stage=postmerge, result=pass, review_subject_hash fresh)",
+            f"{script_dir}/goal-advance-stage.sh --state-file {state_file!r} --task-dir {task_dir!r} --project-root {project_root!r}",
+        ]
     if stage == "complete":
         complete_skill = STAGE_SKILL.get("complete", "guazi-flow-complete")
         return [
@@ -228,7 +238,7 @@ work_order = {
         "把 review_undetermined / ADP-ERR / 网络超时当业务缺陷去改 write_set（应 switch_to_cursor_task / fix_channel）",
     ],
     "plan_before_code": True,
-    "code_writes_allowed": next_stage in ("implement", "quality", "runtime_smoke", "review", "complete", "done")
+    "code_writes_allowed": next_stage in ("implement", "quality", "runtime_smoke", "review", "postmerge", "complete", "done")
         and not (blocked or wrong_stage)
         and next_stage != "plan",
     "turn_exit_condition": (

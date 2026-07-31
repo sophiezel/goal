@@ -15,7 +15,7 @@
 | 空/假 diff 过 review | `packet_preflight_failed`, `review_forged` | packet preflight / review-run |
 | 自评伪装独立审 | `review_undetermined`, `review_degraded_as_pass`, `review_channel_missing` | ChannelPolicy |
 | secret / 保护分支 | `suspected_secret`, `protected_branch` | L0 / delivery |
-| 无证据合入 | `delivery_evidence_missing`, `review_stale`, `postmerge_required` | Delivery Gate |
+| 无证据合入 | `delivery_evidence_missing`, `review_stale`, `postmerge_required` | Delivery Gate / `quality_plane_check` complete |
 | 修复无效 | `noop_fix` | subject_hash ratchet |
 | 修复轮次耗尽 | `review_rounds_exhausted` | merge + review gate post (`GOAL_REVIEW_MAX_ROUNDS`) |
 | 状态分裂 | `project_id_mismatch`, `state_ambiguous` | 数据面 SSOT |
@@ -39,6 +39,6 @@
 |------|------|
 | `evidence/*-gate-fix-input.json` / `review-fix-input.json` | gate 失败后的**唯一**修复指令源 |
 | Kernel WO | `blocked` 时 `mandatory_commands` 指向读 fix-input；禁止未读乱修 |
-| quality_plane_check / complete | 禁止 silent pass；假 review / 跳 UVO 硬失败 |
+| quality_plane_check / complete | 禁止 silent pass；假 review / 跳 UVO 硬失败；`postmerge_policy=required` 时缺 `evidence/postmerge.md` pass → `postmerge_required` |
 
 完成侧：`gate --post complete` / `gate --assert-complete` / `goal-pipeline-kernel complete` 均强制 `quality_plane_check --mode complete`（禁止绕过 forged/degraded 检测）。

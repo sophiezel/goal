@@ -304,6 +304,25 @@ if [[ "$REVIEW_RESULT" != "pass" ]]; then
   exit 0
 fi
 
+# postmerge (outside five-phase label; between review pass and complete)
+POSTMERGE_RESOLVER="$SCRIPT_DIR/resolve_postmerge_policy.py"
+if [[ -f "$POSTMERGE_RESOLVER" && -n "$INDEX" && -f "$INDEX" ]]; then
+  _PM_ARGS=(--index "$INDEX" --format json)
+  [[ -n "$STATE_FILE" && -f "$STATE_FILE" ]] && _PM_ARGS+=(--state-file "$STATE_FILE")
+  [[ -n "$HANDOFF" ]] && _PM_ARGS+=(--handoff-dir "$HANDOFF")
+  _PM_JSON=$(python3 "$POSTMERGE_RESOLVER" "${_PM_ARGS[@]}" 2>/dev/null || echo '{"postmerge_policy":"optional"}')
+  PM_REQUIRED=$(echo "$_PM_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin).get('required',False))" 2>/dev/null || echo "False")
+  if [[ "$PM_REQUIRED" == "True" ]]; then
+    _PM_CHK_ARGS=(--index "$INDEX" --repo-evidence-dir "$EVIDENCE" --check-evidence --format json)
+    [[ -n "$STATE_FILE" && -f "$STATE_FILE" ]] && _PM_CHK_ARGS+=(--state-file "$STATE_FILE")
+    [[ -n "$HANDOFF" ]] && _PM_CHK_ARGS+=(--handoff-dir "$HANDOFF")
+    if ! python3 "$POSTMERGE_RESOLVER" "${_PM_CHK_ARGS[@]}" >/dev/null 2>&1; then
+      emit "postmerge" "" "false" '["Load guazi-flow-postmerge/SKILL.md","write docs/guazi-flow/<task>/evidence/postmerge.md result=pass","gate-guazi-flow-stage.sh --stage complete --pre only after postmerge evidence fresh"]'
+      exit 0
+    fi
+  fi
+fi
+
 # complete
 if ! grep -qE 'current_stage:\s*complete' "$INDEX" 2>/dev/null || ! handoff_ok "$HANDOFF/complete.json"; then
   emit "complete" "" "false" '["guazi-flow-complete","gate-guazi-flow-stage.sh --stage complete --post --mode guazi"]'

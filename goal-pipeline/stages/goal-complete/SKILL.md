@@ -20,7 +20,11 @@ Fork-and-Own 自 `guazi-flow-complete`。`complete` = 本地候选就绪，**不
 
 ## Stage Exit
 
+When `resolve_postmerge_policy` → `required` and `evidence/postmerge.md` is not `pass`, run **postmerge** before complete (`goal-stage-driver` `next_stage=postmerge`).
+
 ```bash
+# optional: confirm policy
+python3 goal-pipeline/scripts/resolve_postmerge_policy.py --index <task>/index.md --state-file <state> --handoff-dir <handoff>
 gate-guazi-flow-stage.sh --stage complete --pre
 # guazi-flow-complete 等价收口
 bash goal-metrics-calibrate.sh --task-dir <task> --state-file <state>

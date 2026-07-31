@@ -13,6 +13,7 @@ if str(_SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPT_DIR))
 
 from l10_w1_policy import l10_row_blocks_complete
+from resolve_postmerge_policy import postmerge_evidence_ok, resolve_postmerge_policy
 from w2_matrix_bookkeeping import (
     build_w2_matrix_leakage,
     matrix_satisfaction_plane_notes,
@@ -132,6 +133,23 @@ def main() -> int:
             )
 
         matrix_w2 = matrix_satisfaction_plane_notes(handoff_dir, goal_ev)
+
+        index_path = Path(args.task_dir) / "index.md"
+        pm_policy, pm_meta = resolve_postmerge_policy(
+            index_path=str(index_path) if index_path.is_file() else "",
+            state_file=args.state_file,
+            handoff_dir=str(handoff_dir),
+        )
+        if pm_policy == "required":
+            ok_pm, pm_detail = postmerge_evidence_ok(repo_ev)
+            if not ok_pm:
+                errors.append(
+                    {
+                        "failure_code": "postmerge_required",
+                        "summary": f"postmerge_policy=required but {pm_detail}",
+                        "meta": pm_meta,
+                    }
+                )
 
         manifest_path = handoff_dir / "argus-scenario-manifest.json"
         if manifest_path.is_file():

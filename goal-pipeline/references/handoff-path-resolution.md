@@ -40,7 +40,7 @@ Python entry points should call `handoff_path_resolver.resolve_handoff_dir()` / 
 | `contract-conformance-check.py` (IQ-10) | `resolve_plan_json_path` via `verification_oracle_core` |
 | `acceptance-matrix-ratchet.py` | plan load + optional write_set prune |
 | `ux_scan_v1.py` | `write_set` from `plan.json` |
-| `quality_plane_check.py` | `matrix_satisfaction`, Argus L10 manifest |
+| `quality_plane_check.py` | `matrix_satisfaction`, Argus L10 manifest, `postmerge_required` via `resolve_postmerge_policy` |
 | `argus_enrich_plan.py` | plan post manifest |
 | `verification_oracle_core.py` | plan handoff for UVO |
 

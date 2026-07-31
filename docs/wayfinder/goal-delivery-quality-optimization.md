@@ -49,7 +49,7 @@ GitHub 主副本：[Wayfinder: Goal 交付质量与全链路效率优化（guazi
 | 15 | Phase-3b: PQ / IQ 重复校验分层 HITL | https://github.com/sophiezel/goal/issues/15 | **C1 ratified 2026-08-01** |
 | 16 | Phase-3b: AM waive + separation W2 漏出口径 HITL | https://github.com/sophiezel/goal/issues/16 | **C1 ratified 2026-08-01** |
 | 17 | Phase-3: four_planes_doctor handoff tier 回归门禁 | https://github.com/sophiezel/goal/issues/17 |
-| 18 | Phase-3: guazi-flow-postmerge 与 complete 平面衔接 | https://github.com/sophiezel/goal/issues/18 |
+| 18 | Phase-3: guazi-flow-postmerge 与 complete 平面衔接 | https://github.com/sophiezel/goal/issues/18 | **closed** → [postmerge-complete-plane.md](research/postmerge-complete-plane.md) |
 | 19 | Phase-3: goal-quality e2e profile 与 tier 对齐 | https://github.com/sophiezel/goal/issues/19 | **closed** — e2e profile SSOT + fixture |
 | 20 | Phase-3b: Part A.1 北星对外措辞（W1 vs W2） | https://github.com/sophiezel/goal/issues/20 | **C1 ratified 2026-08-01** |
 | 21 | ~~optimization-spec v0.2 → v1 升格~~ | closed duplicate of #12 |
