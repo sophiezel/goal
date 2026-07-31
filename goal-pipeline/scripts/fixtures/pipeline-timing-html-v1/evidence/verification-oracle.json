@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "overall": "pass",
+  "duration_ms": 120000,
+  "smoke_required": false,
+  "steps": [
+    { "id": "scope", "pass": true, "duration_ms": 0 },
+    { "id": "secret", "pass": true, "duration_ms": 12 },
+    { "id": "lint", "pass": true, "duration_ms": 8000 },
+    { "id": "typecheck", "ok": true, "duration_ms": 15000 },
+    { "id": "test:unit", "ok": true, "duration_ms": 45000 },
+    {
+      "id": "build",
+      "ok": true,
+      "duration_ms": 0,
+      "output": "skipped — UVO cache hit"
+    }
+  ]
+}

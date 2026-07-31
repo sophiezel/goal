@@ -1,0 +1,5 @@
+{
+  "latency_ms": 42000,
+  "invocation_count": 1,
+  "provider": "fixture"
+}

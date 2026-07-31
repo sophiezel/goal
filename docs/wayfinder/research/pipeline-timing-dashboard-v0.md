@@ -138,7 +138,7 @@ latency_ms, invocations, channels
 ## 缺口与 v1
 
 1. Substep 默认未接线（catalog §耗时钩子缺口）— v0 报告 **有则展示，无则 N/A**。
-2. 无仓库内 HTML prototype 文件；v1 目标：`docs/wayfinder/prototypes/pipeline-timing-report.html` + `render-timing-report.py`。
+2. **HTML v1** — `render-pipeline-timing-report.py --format html` + [`pipeline-timing-report-input.md`](../../../goal-pipeline/references/pipeline-timing-report-input.md); fixture `goal-pipeline/scripts/fixtures/pipeline-timing-html-v1/`.
 3. 与 `optimization-spec-outline-v0.md` P1 合并时，增加「效率验收」检查项：单次 run 须能生成上述 Markdown。
 
 ## 使用说明（维护者）

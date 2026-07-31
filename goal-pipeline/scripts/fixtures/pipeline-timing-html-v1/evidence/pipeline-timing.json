@@ -1,0 +1,63 @@
+{
+  "schema_version": 1,
+  "timezone": "UTC",
+  "updated_at_utc": "2026-08-01T00:10:00Z",
+  "stages": {
+    "plan": {
+      "started_at_utc": "2026-08-01T00:00:00Z",
+      "last_timestamp_utc": "2026-08-01T00:02:00Z",
+      "duration_ms": 120000,
+      "events": [
+        { "event": "start", "timestamp_utc": "2026-08-01T00:00:00Z" },
+        {
+          "event": "mark",
+          "timestamp_utc": "2026-08-01T00:00:30Z",
+          "substep": "cwiki",
+          "duration_ms": 30000
+        },
+        {
+          "event": "end",
+          "timestamp_utc": "2026-08-01T00:02:00Z",
+          "duration_ms": 120000
+        }
+      ],
+      "substeps": {
+        "cwiki": {
+          "duration_ms": 30000,
+          "last_timestamp_utc": "2026-08-01T00:00:30Z",
+          "events": []
+        }
+      }
+    },
+    "implement": {
+      "duration_ms": 600000,
+      "events": [
+        { "event": "start", "timestamp_utc": "2026-08-01T00:02:00Z" },
+        { "event": "end", "timestamp_utc": "2026-08-01T00:12:00Z", "duration_ms": 600000 }
+      ]
+    },
+    "quality": {
+      "duration_ms": 45000,
+      "events": []
+    },
+    "review": {
+      "duration_ms": 90000,
+      "events": [
+        { "event": "start", "timestamp_utc": "2026-08-01T00:13:00Z" },
+        {
+          "event": "end",
+          "timestamp_utc": "2026-08-01T00:13:01Z",
+          "substep": "attempt",
+          "duration_ms": 900
+        }
+      ],
+      "substeps": {
+        "attempt": { "duration_ms": 900, "events": [] }
+      }
+    },
+    "complete": {
+      "duration_ms": 5000,
+      "events": []
+    }
+  }
+}
