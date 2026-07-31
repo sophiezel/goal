@@ -655,7 +655,7 @@ def main():
         ep = os.path.join(evidence, "verification-oracle.json") if evidence else ""
         if not ep:
             ep = os.path.join(args.task_dir, "evidence", "verification-oracle.json")
-        result = check_freshness(ep, repo)
+        result = check_freshness(ep, repo, args.task_dir)
     else:
         mode = args.oracle_mode or None
         result = run_oracle(
