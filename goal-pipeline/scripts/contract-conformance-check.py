@@ -28,6 +28,7 @@ def parse_args():
     p.add_argument("--profile", default="")
     p.add_argument("--json", action="store_true", dest="as_json")
     p.add_argument("--evidence", default="", help="write contract-conformance.json")
+    p.add_argument("--handoff-dir", default="", help="Tier-R handoff dir (split layout)")
     return p.parse_args()
 
 
@@ -93,15 +94,17 @@ def check_row(
     return issues
 
 
-def resolve_plan_path(task_dir: str) -> str:
-    """Mirror UVO / implement post: GOAL_HANDOFF_DIR when set, else task_dir/handoff."""
+def resolve_plan_path(task_dir: str, handoff_dir: str = "") -> str:
+    """Mirror UVO / implement post: explicit handoff dir, GOAL_HANDOFF_DIR, else task_dir/handoff."""
+    if handoff_dir and os.path.isdir(handoff_dir):
+        return os.path.join(handoff_dir, "plan.json")
     handoff_dir = resolve_handoff_dir(task_dir)
     return os.path.join(handoff_dir, "plan.json")
 
 
-def run_check(task_dir: str, repo_root: str, profile: str) -> dict:
+def run_check(task_dir: str, repo_root: str, profile: str, handoff_dir: str = "") -> dict:
     index_path = os.path.join(task_dir, "index.md")
-    plan_path = resolve_plan_path(task_dir)
+    plan_path = resolve_plan_path(task_dir, handoff_dir)
     if not os.path.isfile(index_path):
         return {
             "passed": False,
@@ -148,7 +151,7 @@ def run_check(task_dir: str, repo_root: str, profile: str) -> dict:
 
 def main():
     args = parse_args()
-    result = run_check(args.task_dir, args.repo_root, args.profile)
+    result = run_check(args.task_dir, args.repo_root, args.profile, args.handoff_dir)
     if args.evidence:
         ev_dir = os.path.dirname(args.evidence)
         if ev_dir:

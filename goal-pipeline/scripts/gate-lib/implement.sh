@@ -91,7 +91,7 @@ PYIQ
       if [[ -f "$CC" ]]; then
         CC_JSON=$(mktemp)
         CC_EVIDENCE="${GOAL_EVIDENCE_DIR}/contract-conformance.json"
-        if ! python3 "$CC" --task-dir "$IMPL_TASK_DIR" --repo-root "$REPO_FOR_UVO" --json --evidence "$CC_EVIDENCE" > "$CC_JSON" 2>/dev/null; then
+        if ! python3 "$CC" --task-dir "$IMPL_TASK_DIR" --repo-root "$REPO_FOR_UVO" --handoff-dir "$HANDOFF_DIR" --json --evidence "$CC_EVIDENCE" > "$CC_JSON" 2>/dev/null; then
           DH_PRE=$(diff_hash)
           CC_ISSUES=$(python3 - "$CC_JSON" << 'PYCC'
 import json, sys
