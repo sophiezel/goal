@@ -18,6 +18,7 @@ Fork-and-Own 自 `guazi-flow-implement`。
 2. **V# 覆盖声明**：在 index.md 执行记录声明已覆盖的 V# 列表（strict tier IQ-02）
 3. **write_set 合规**：diff ⊆ write_set
 4. **声明式契约**：`gate --post implement` 内强制执行 `contract-conformance-check.py`（IQ-10，当 index 含 API 映射表）；若存在 `handoff/integration-manifest.json` 则跑 `integration-contract-check.sh`（失败记 `integration_gap`）。见 [`declarative-contract-gates.md`](../../references/declarative-contract-gates.md)。
+5. **UX D2/D5 auto-fix（C1 P1-9）**：在 `write_set` 内由本阶段尝试 D2（`loading`/`disabled`）与 D5（`aria-label`/`aria-labelledby`）最小修复；Goal 无内置 codemod。`gate --post implement` 跑 `ux-auto-fix-audit.py`，留痕 `evidence/ux-autofix.json`；S+（`task_tier` M/L/XL）审计失败 block（`write_set_violation`），XS/S 仅 warn。见 [`ux-auto-fix-c1.md`](../../references/ux-auto-fix-c1.md)。
 
 ## Stage Exit
 

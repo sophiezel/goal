@@ -65,4 +65,4 @@ GitHub 主副本：[Wayfinder: Goal 交付质量与全链路效率优化（guazi
 | 阻断 implement | IQ-10 未读 Tier-R handoff → **已修**；全平面 SSOT → [#14](https://github.com/sophiezel/goal/issues/14) | timing 仅 gate 边界 | merge-review parity → [#23](https://github.com/sophiezel/goal/issues/23) |
 | 漏出/质量 | 平面归因附录 → [#22](https://github.com/sophiezel/goal/issues/22) | smoke vs quality 双轨 | preflight 必留；dual Agent 耗时 |
 | 效率 | noop_fix 掩盖 IQ-10 → **已修** | 子步骤 timing → [#9](https://github.com/sophiezel/goal/issues/9) | single track + detect cache（P2） |
-| UX (#5) | manifest L10 + ux-scan | implement post warn | review-first strict；D2/D5 → [#11](https://github.com/sophiezel/goal/issues/11) |
+| UX (#5) | manifest L10 + ux-scan | implement post warn + **ux-autofix audit** | review-first strict；D2/D5 **#11** ✅ |

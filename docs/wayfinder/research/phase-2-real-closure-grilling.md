@@ -83,7 +83,7 @@
 | **方案** | **Skill 执行、Gate 审计：** D2/D5 自动修复 **只** 在 `guazi-flow-implement`（或 review 回流 WO）内由 Agent 改 diff；Goal **不** 内置 codemod。implement post 增加 **可选** `ux-auto-fix-audit.py`：diff 仅 write_set、仅 D2/D5 模式（loading/disabled、`aria-label` 字面量）、无路由/service 变更 → pass；否则 `write_set_violation` 或 warn。XS/S 无额外 HITL；S+ 要求 `evidence/ux-autofix.json` 留痕。 | **C2 gate allowlist：** `gate-lib/implement.sh` 内嵌白名单脚本可自动 patch（确定性、难覆盖复杂 JSX）。**C2 纯 skill：** 无 gate 审计，仅靠 review（与 C1 narrow 授权弱一致）。 |
 | **HITL** | 自动修复失败是否 **noop_fix** 还是仅 fix-input。 | C2 gate 脚本维护成本与 profile 无关性。 |
 
-**现状：** 规格 C1 narrow 已 ratified；**无** gate 侧 auto-fix 实现，**无** audit 脚本。
+**现状：** 规格 C1 narrow 已 ratified；gate 侧 **`ux-auto-fix-audit.py`** + `implement.sh` post 已落地（[#11](https://github.com/sophiezel/goal/issues/11)）；执行仍 **skill-only**（无 codemod）。
 
 ---
 

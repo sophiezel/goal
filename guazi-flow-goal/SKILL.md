@@ -286,7 +286,7 @@ Phase 2 每个阶段**开头**亦须运行 `goal-pipeline-kernel next`（内含 
 **各阶段调度细节**:
 
 - **plan**: MUST 按关键执行协议 4 步执行（加载 → 执行 9 步流程 → 产物质量 GATE → 交叉验证(write_set vs Allowed Files) → 契约融入）
-- **implement**: MUST profile/contract/write_set 驱动
+- **implement**: MUST profile/contract/write_set 驱动；`write_set` 内 **D2/D5** UX 修复仅在本阶段尝试（无 Goal codemod）。`gate --post implement` 审计见 `goal-pipeline/references/ux-auto-fix-c1.md` → `evidence/ux-autofix.json`
 - **review**: Step 1.5 注入 guazi-flow-review → issues_gf[] 合并到独立审核结果
 - **complete**: MUST guazi-flow 收口检查
 

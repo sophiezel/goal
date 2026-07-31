@@ -122,8 +122,9 @@ if guazi_flow_available:
        3. 对比 Allowed Files: 全部在 Allowed Files 内? 超出 → warn
        4. 检查 Stop Conditions: 新增依赖? 修改接口协议? 命中 → 暂停
        5. 审计结果写入 evidence/implement.md scope_compliance 字段
+    → **D2/D5 auto-fix（C1）**：仅在 implement 阶段改 diff；`gate --post` 跑 `ux-auto-fix-audit.py` → `evidence/ux-autofix.json`（S+ strict block，XS/S warn）。见 `goal-pipeline/references/ux-auto-fix-c1.md`
     → 写入 evidence/implement.md（guazi-flow schema）
-    → gate --post(implement) → implement-qc-gate + **contract-conformance-check (IQ-10)** → goal-advance-stage.sh → **立即**进入 [3/5] quality
+    → gate --post(implement) → implement-qc-gate + **contract-conformance-check (IQ-10)** + **ux-auto-fix-audit** → goal-advance-stage.sh → **立即**进入 [3/5] quality
     → 输出: "[2/5] guazi-flow-implement: ✅ X files changed"
 else:
     → goal-pipeline 通用 implement

@@ -50,7 +50,7 @@
 
 见 draft Part B C1（双轨 D1/D2/D5、L10 manifest、strict review-first、D2/D5 narrow auto-fix）。
 
-**Deferred 实现:** [#11](https://github.com/sophiezel/goal/issues/11) implement D2/D5 audit；[#8](https://github.com/sophiezel/goal/issues/8) fe-argus skill orchestration（standard/strict plan post）。
+**实现:** [#11](https://github.com/sophiezel/goal/issues/11) ✅ `ux-auto-fix-audit.py` + implement post（见 `goal-pipeline/references/ux-auto-fix-c1.md`）。**Deferred:** [#8](https://github.com/sophiezel/goal/issues/8) fe-argus skill orchestration（standard/strict plan post）。
 
 ---
 
@@ -88,7 +88,7 @@
 | fe-argus v2 hybrid | 规则 manifest + 条件 fe-argus merge | rule v1 ✅；skill ② → **#8** |
 | strict UX 分层 | hard/blocker L10 + ux-scan blocker only | ✅ `review_strict_ux.py` |
 | matrix W2 | `matrix_rows_unsatisfied` + codes | 记账部分 ✅；waive 口径 **#16 已决**；自动化 **#10** |
-| P1-9 auto-fix | skill 执行 + gate audit | audit → **#11** |
+| P1-9 auto-fix | skill 执行 + gate audit | ✅ **#11** — `ux-auto-fix-c1.md` |
 | split handoff | IQ / AM / UX 同根 — [handoff-path-resolution.md](../../../goal-pipeline/references/handoff-path-resolution.md) | **#14** ✅ |
 | merge-review parity | kernel CLI ≡ shell chain | **#23** |
 | four_planes_doctor + handoff tier | [four-planes-handoff-tier.md](four-planes-handoff-tier.md) | **#17** ✅ |
