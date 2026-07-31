@@ -16,9 +16,9 @@ GitHub 主副本：[Wayfinder: Goal 交付质量与全链路效率优化（guazi
 | 工单 | 文件 | GitHub |
 | --- | --- | --- |
 | [#3 CTB-44243 复盘](https://github.com/sophiezel/goal/issues/3) | [ctb-44243-guazi-flow-goal-rca.md](research/ctb-44243-guazi-flow-goal-rca.md) | **closed** — RCA + P0/P1 goal 修复已落地 |
-| [#2 节点清单](https://github.com/sophiezel/goal/issues/2) | [pipeline-node-catalog.md](research/pipeline-node-catalog.md) | **closed** — 研究完成；节点裁剪 HITL defer → 规格 v1 |
+| [#2 节点清单](https://github.com/sophiezel/goal/issues/2) | [pipeline-node-catalog.md](research/pipeline-node-catalog.md) | **closed** — 研究完成；节点裁剪 HITL → [#13](https://github.com/sophiezel/goal/issues/13) |
 | [#6 review-chain](https://github.com/sophiezel/goal/issues/6) | [review-chain-bottlenecks.md](research/review-chain-bottlenecks.md) | **closed** — preflight / strict UX / `review_track` on `main` |
-| [#7 timing 看板 v0](https://github.com/sophiezel/goal/issues/7) | [pipeline-timing-dashboard-v0.md](research/pipeline-timing-dashboard-v0.md) | **closed** — v0 规格采纳；HTML v1 defer |
+| [#7 timing 看板 v0](https://github.com/sophiezel/goal/issues/7) | [pipeline-timing-dashboard-v0.md](research/pipeline-timing-dashboard-v0.md) | **closed** — v0 规格采纳；HTML v1 → [#9](https://github.com/sophiezel/goal/issues/9) |
 | [#4 0 漏出](https://github.com/sophiezel/goal/issues/4) | [draft-zero-leakage-and-ux-policy.md](research/draft-zero-leakage-and-ux-policy.md) Part A | **closed** — W1+W2、A.8 B3 ratified |
 | [#5 UX 边界](https://github.com/sophiezel/goal/issues/5) | 同上 Part B | **closed** — C1 ratified（见 issue CONFIRM） |
 
@@ -26,27 +26,40 @@ GitHub 主副本：[Wayfinder: Goal 交付质量与全链路效率优化（guazi
 
 **Phase-2 基线：** C1 ratified + T1–T5 on [`f91181b`](https://github.com/sophiezel/goal/commit/f91181b)。Grilling SSOT：[phase-2-real-closure-grilling.md](research/phase-2-real-closure-grilling.md)。
 
-| 轨道 | 工单 | 状态 |
+### Phase-3 / Phase-3b 工单（全表）
+
+| # | 标题 | URL |
 | --- | --- | --- |
-| fe-argus plan post 强制 skill 编排 | [#8](https://github.com/sophiezel/goal/issues/8) | open |
-| #7 timing 看板 HTML v1 | [#9](https://github.com/sophiezel/goal/issues/9) | open |
-| W2 L9 matrix satisfaction 自动化 | [#10](https://github.com/sophiezel/goal/issues/10) | open |
-| guazi-flow-implement D2/D5 auto-fix + audit 契约 | [#11](https://github.com/sophiezel/goal/issues/11) | open |
-| optimization-spec v1 正式稿 | [#12](https://github.com/sophiezel/goal/issues/12) | open |
+| 8 | Phase-3: fe-argus skill orchestration at plan post | https://github.com/sophiezel/goal/issues/8 |
+| 9 | Phase-3: #7 timing dashboard HTML v1 | https://github.com/sophiezel/goal/issues/9 |
+| 10 | Phase-3: W2 L9 matrix satisfaction automation | https://github.com/sophiezel/goal/issues/10 |
+| 11 | Phase-3: guazi-flow-implement D2/D5 auto-fix + audit contract | https://github.com/sophiezel/goal/issues/11 |
+| 12 | Phase-3: optimization-spec v1 formal | https://github.com/sophiezel/goal/issues/12 |
+| 13 | Phase-3b: lite profile 节点 skip 冻结表 HITL | https://github.com/sophiezel/goal/issues/13 |
+| 14 | Phase-3: split handoff SSOT（AM / UX / 全平面） | https://github.com/sophiezel/goal/issues/14 |
+| 15 | Phase-3b: PQ / IQ 重复校验分层 HITL | https://github.com/sophiezel/goal/issues/15 |
+| 16 | Phase-3b: AM waive + separation W2 漏出口径 HITL | https://github.com/sophiezel/goal/issues/16 |
+| 17 | Phase-3: four_planes_doctor handoff tier 回归门禁 | https://github.com/sophiezel/goal/issues/17 |
+| 18 | Phase-3: guazi-flow-postmerge 与 complete 平面衔接 | https://github.com/sophiezel/goal/issues/18 |
+| 19 | Phase-3: goal-quality e2e profile 与 tier 对齐 | https://github.com/sophiezel/goal/issues/19 |
+| 20 | Phase-3b: Part A.1 北星对外措辞（W1 vs W2） | https://github.com/sophiezel/goal/issues/20 |
+| 21 | ~~optimization-spec v0.2 → v1 升格~~ | closed duplicate of #12 |
+| 22 | Phase-3: CTB-44243 平面归因附录（#3 回写） | https://github.com/sophiezel/goal/issues/22 |
+| 23 | Phase-3: review kernel CLI merge-review 持续 parity | https://github.com/sophiezel/goal/issues/23 |
 
 | 阶段 | 状态 | 备注 |
 | --- | --- | --- |
 | **Phase-1** | **工程收口** | #2–#7 closed；P0/P1 在 `main` |
 | **Phase-2** | **C1 + T1–T5 landed** | `f91181b` |
-| **Phase-3** | **能力/规格真闭环** | 上表五轨；父地图 [#1](https://github.com/sophiezel/goal/issues/1) |
+| **Phase-3** | **能力/规格真闭环** | 上表；父地图 [#1](https://github.com/sophiezel/goal/issues/1) |
 
-**合并稿入口：** [optimization-spec-outline-v0.md](research/optimization-spec-outline-v0.md)（草稿 v0.2；P1-7/8 为 rule-based v1，非 fe-argus LLM）
+**合并稿入口：** [optimization-spec-outline-v0.md](research/optimization-spec-outline-v0.md)（草稿 v0.2；升格 → [#12](https://github.com/sophiezel/goal/issues/12)）
 
 ### Research 交叉结论（简）
 
 | 主题 | #3 RCA | #2 catalog | #6 review |
 | --- | --- | --- | --- |
-| 阻断 implement | IQ-10 未读 Tier-R handoff → **已修** | timing 仅 gate 边界 | — |
-| 漏出/质量 | UVO pass 但 IQ fail → **收紧** | smoke vs quality 双轨 | preflight 必留；dual Agent 耗时 |
-| 效率 | noop_fix 掩盖 IQ-10 → **已修** | 子步骤 timing 已部分接线 | single track + detect cache（P2） |
-| UX (#5) | manifest L10 + ux-scan | implement post warn | review-first strict；D2/D5 auto-fix |
+| 阻断 implement | IQ-10 未读 Tier-R handoff → **已修**；全平面 SSOT → [#14](https://github.com/sophiezel/goal/issues/14) | timing 仅 gate 边界 | merge-review parity → [#23](https://github.com/sophiezel/goal/issues/23) |
+| 漏出/质量 | 平面归因附录 → [#22](https://github.com/sophiezel/goal/issues/22) | smoke vs quality 双轨 | preflight 必留；dual Agent 耗时 |
+| 效率 | noop_fix 掩盖 IQ-10 → **已修** | 子步骤 timing → [#9](https://github.com/sophiezel/goal/issues/9) | single track + detect cache（P2） |
+| UX (#5) | manifest L10 + ux-scan | implement post warn | review-first strict；D2/D5 → [#11](https://github.com/sophiezel/goal/issues/11) |
