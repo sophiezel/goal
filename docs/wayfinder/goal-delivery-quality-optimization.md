@@ -22,16 +22,23 @@ GitHub 主副本：[Wayfinder: Goal 交付质量与全链路效率优化（guazi
 | [#4 0 漏出](https://github.com/sophiezel/goal/issues/4) | [draft-zero-leakage-and-ux-policy.md](research/draft-zero-leakage-and-ux-policy.md) Part A | **closed** — W1+W2、A.8 B3 ratified |
 | [#5 UX 边界](https://github.com/sophiezel/goal/issues/5) | 同上 Part B | **closed** — C1 ratified（见 issue CONFIRM） |
 
-## 当前 Frontier — Phase-2 实质闭环
+## 当前 Frontier — Phase-3 实质闭环
 
-**Grilling + backlog SSOT：** [phase-2-real-closure-grilling.md](research/phase-2-real-closure-grilling.md)（对账表、五项 C1/C2、T1–T5）
+**Phase-2 基线：** C1 ratified + T1–T5 on [`f91181b`](https://github.com/sophiezel/goal/commit/f91181b)。Grilling SSOT：[phase-2-real-closure-grilling.md](research/phase-2-real-closure-grilling.md)。
 
-| 轨道 | 状态 | 下一步 |
+| 轨道 | 工单 | 状态 |
 | --- | --- | --- |
-| **Phase-1** | **工程收口** | #2–#7 closed；P0/P1 主体在 `main`（`df4caf2`+） |
-| **Phase-2 grill** | **C1 ratified** | 见 [phase-2-real-closure-grilling.md](research/phase-2-real-closure-grilling.md) Ratified 节 |
-| **Phase-2 工程** | **T1–T5 landed** | argus v2 doc、eslint D5、strict UX warn、ux-auto-fix-audit、matrix W2 |
-| **规格升格** | **v0.2 → v1** | §未决 + Phase-2 决策冻结后升格 |
+| fe-argus plan post 强制 skill 编排 | [#8](https://github.com/sophiezel/goal/issues/8) | open |
+| #7 timing 看板 HTML v1 | [#9](https://github.com/sophiezel/goal/issues/9) | open |
+| W2 L9 matrix satisfaction 自动化 | [#10](https://github.com/sophiezel/goal/issues/10) | open |
+| guazi-flow-implement D2/D5 auto-fix + audit 契约 | [#11](https://github.com/sophiezel/goal/issues/11) | open |
+| optimization-spec v1 正式稿 | [#12](https://github.com/sophiezel/goal/issues/12) | open |
+
+| 阶段 | 状态 | 备注 |
+| --- | --- | --- |
+| **Phase-1** | **工程收口** | #2–#7 closed；P0/P1 在 `main` |
+| **Phase-2** | **C1 + T1–T5 landed** | `f91181b` |
+| **Phase-3** | **能力/规格真闭环** | 上表五轨；父地图 [#1](https://github.com/sophiezel/goal/issues/1) |
 
 **合并稿入口：** [optimization-spec-outline-v0.md](research/optimization-spec-outline-v0.md)（草稿 v0.2；P1-7/8 为 rule-based v1，非 fe-argus LLM）
 
