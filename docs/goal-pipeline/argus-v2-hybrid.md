@@ -13,7 +13,8 @@
 2. **fe-argus skill (conditional)** — Agent work order only  
    - Trigger when **any**: `write_set` contains `src/pages/`, profile/tier ≥ S, or `GOAL_ARGUS_SKILL_REQUIRED=1`.  
    - **Lite / XS (HITL #13):** skip step 2 unless `GOAL_ARGUS_SKILL_REQUIRED=1`.  
-   - Agent MUST load **fe-argus** skill, INDEX on-demand → Scenario Q, merge into manifest.  
+   - **推荐安装** fe-argus skill（可选依赖，不阻塞 pipeline 初始化）；见 `goal-pipeline/references/fe-argus-skill-recommendation.md`。  
+   - When triggered, Agent should load **fe-argus**, INDEX on-demand → Scenario Q, merge into manifest (`merged` or `partial` before leaving plan).  
    - Merge: dedupe by `scenario.id`; on conflict **rule wins**; argus-only rows get `source: argus`.  
    - Use `argus_enrich_plan.py --merge-fe-argus-file` or `merge_scenario_lists()` preserving schema v2.  
    - fe-argus failure → set `argus_enrich_status: partial` + PQ warn on `handoff/plan.json`; **do not** silent-pass plan post.
@@ -35,11 +36,12 @@
 ## Agent checklist (no LLM in shell)
 
 - [x] Step 1 ran and manifest exists before `gate --post plan` completes.  
-- [x] If triggered, fe-argus INDEX loaded and scenarios merged with `source` provenance.  
+- [x] If triggered, fe-argus INDEX loaded (or install per recommendation doc) and scenarios merged with `source` provenance.  
 - [x] If argus partial, document in plan PQ / index execution record; status `partial` on manifest.
 
 ## References
 
 - `goal-pipeline/scripts/argus_enrich_plan.py`  
 - `goal-pipeline/scripts/argus_plan_post_policy.py`  
+- `goal-pipeline/references/fe-argus-skill-recommendation.md`  
 - `docs/wayfinder/research/phase-2-real-closure-grilling.md` §2.1 Ratified C1

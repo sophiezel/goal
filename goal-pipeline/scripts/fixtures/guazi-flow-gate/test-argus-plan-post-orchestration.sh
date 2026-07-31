@@ -77,6 +77,32 @@ set -e
 [[ "$RC" -ne 0 ]] || { echo "FAIL expected block on rule_only"; exit 1; }
 echo "OK advance gate"
 
+echo "=== fe_argus_skill discover + WO hints ==="
+python3 - "$POL" "$FIX" << 'PY'
+import importlib.util
+import json
+import subprocess
+import sys
+from pathlib import Path
+pol, fix = sys.argv[1:3]
+spec = importlib.util.spec_from_file_location("appp", pol)
+mod = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(mod)
+disc = mod.fe_argus_skill_discover()
+assert "install_one_liner" in disc and "curl" in disc["install_one_liner"]
+assert disc["skill_name"] == "fe-argus"
+wo = json.loads(
+    subprocess.check_output(
+        ["python3", pol, "--work-order-json", "--task-dir", fix],
+        text=True,
+    )
+)
+assert wo["fe_argus_plan_post"]["required"] is True
+assert "fe_argus_skill" in wo
+assert wo["fe_argus_plan_post"].get("install_one_liner") == disc["install_one_liner"]
+print("OK discover WO")
+PY
+
 echo "=== stage driver WO injects fe-argus ==="
 DRIVER="$SCRIPTS/goal-stage-driver.sh"
 ADVANCE="$SCRIPTS/goal-advance-stage.sh"

@@ -2,7 +2,9 @@
 
 Plan gate `--post` invokes `argus-enrich-plan.sh` after `handoff/plan.json` is written (**step 1**, rule-only, zero LLM).
 
-When C1 triggers (see `docs/goal-pipeline/argus-v2-hybrid.md`), the Agent work order from `goal-stage-driver` / kernel `next` requires **step 2**:
+When C1 triggers (see `docs/goal-pipeline/argus-v2-hybrid.md`), the Agent work order from `goal-stage-driver` / kernel `next` requires **step 2** (manifest must reach `merged` or `partial` before advance — not `rule_only`):
+
+**推荐安装** `fe-argus` skill when missing (`fe-argus-skill-recommendation.md`); this does **not** block pipeline init or shell step 1.
 
 1. Load `fe-argus` skill; INDEX on-demand Scenario Q.
 2. Write `handoff/fe-argus-scenarios-pending.json` with `{ "scenarios": [...] }`.

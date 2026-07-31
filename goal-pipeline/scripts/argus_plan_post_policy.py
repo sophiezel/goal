@@ -13,6 +13,45 @@ from typing import Any
 TIER_RANK = {"XS": 0, "S": 1, "M": 2, "L": 3, "XL": 4}
 VALID_STATUSES = frozenset({"rule_only", "merged", "partial"})
 FE_ARGUS_SKILL = "fe-argus"
+FE_ARGUS_INSTALL_ONE_LINER = (
+    "curl -fsSL https://raw.githubusercontent.com/sophiezel/fe-argus/main/install.sh | bash"
+)
+FE_ARGUS_SKILL_RECOMMENDATION_DOC = (
+    "goal-pipeline/references/fe-argus-skill-recommendation.md"
+)
+
+
+def fe_argus_skill_discover() -> dict[str, Any]:
+    """Optional fe-argus skill install discovery (FE_ARGUS_DIR or default agents path)."""
+    candidates: list[Path] = []
+    env_dir = os.environ.get("FE_ARGUS_DIR", "").strip()
+    if env_dir:
+        candidates.append(Path(env_dir).expanduser())
+    candidates.append(Path.home() / ".agents" / "skills" / "fe-argus")
+    seen: set[str] = set()
+    for root in candidates:
+        key = str(root)
+        if key in seen:
+            continue
+        seen.add(key)
+        skill_md = root / "SKILL.md"
+        if skill_md.is_file():
+            return {
+                "installed": True,
+                "skill_dir": str(root.resolve()),
+                "install_recommended": False,
+                "install_one_liner": FE_ARGUS_INSTALL_ONE_LINER,
+                "skill_name": FE_ARGUS_SKILL,
+                "recommendation_doc": FE_ARGUS_SKILL_RECOMMENDATION_DOC,
+            }
+    return {
+        "installed": False,
+        "skill_dir": None,
+        "install_recommended": True,
+        "install_one_liner": FE_ARGUS_INSTALL_ONE_LINER,
+        "skill_name": FE_ARGUS_SKILL,
+        "recommendation_doc": FE_ARGUS_SKILL_RECOMMENDATION_DOC,
+    }
 
 
 def _env_truthy(name: str) -> bool:
@@ -106,6 +145,7 @@ def check_plan_post_complete(
         "fe_argus_skill_required": required,
         "trigger": trig,
         "pq_warn": [],
+        "fe_argus_skill": fe_argus_skill_discover(),
     }
     if manifest is None:
         out["ok"] = False
@@ -120,12 +160,27 @@ def check_plan_post_complete(
         return out
 
     status = str(manifest.get("argus_enrich_status") or "rule_only")
+    skill = fe_argus_skill_discover()
+    if required and not skill.get("installed"):
+        out["pq_warn"].append(
+            "fe-argus skill not found locally — recommended install: "
+            f"{skill.get('install_one_liner')} "
+            f"(see {skill.get('recommendation_doc')})"
+        )
     if required and status == "rule_only":
         out["ok"] = False
         out["failure_code"] = "argus_fe_skill_pending"
+        install_hint = ""
+        if skill.get("install_recommended"):
+            install_hint = (
+                f" Recommended install: {skill.get('install_one_liner')} "
+                f"({skill.get('recommendation_doc')})."
+            )
         out["message"] = (
             "fe-argus skill merge required before leaving plan "
-            "(load fe-argus, INDEX Scenario Q, merge manifest; see docs/goal-pipeline/argus-v2-hybrid.md)"
+            "(load fe-argus, INDEX Scenario Q, merge manifest to merged|partial; "
+            "see docs/goal-pipeline/argus-v2-hybrid.md)."
+            f"{install_hint}"
         )
         return out
 
@@ -147,14 +202,23 @@ def work_order_argus_block(
     py = os.path.join(script_dir, "argus_enrich_plan.py")
     manifest = os.path.join(handoff_dir, "argus-scenario-manifest.json")
     pending = os.path.join(handoff_dir, "fe-argus-scenarios-pending.json")
+    skill = fe_argus_skill_discover()
     if not required:
         return {
             "fe_argus_plan_post": {"required": False, "skill": None},
             "skills_to_load": [],
             "argus_mandatory_suffix": [],
+            "fe_argus_skill": skill,
         }
+    install_note = ""
+    if skill.get("install_recommended"):
+        install_note = (
+            f" (fe-argus skill not detected — recommended: {skill.get('install_one_liner')}; "
+            f"see {skill.get('recommendation_doc')})"
+        )
     cmds = [
-        f"Load {FE_ARGUS_SKILL}/SKILL.md — INDEX on-demand Scenario Q only (no full scenarios/ scan)",
+        f"Load {FE_ARGUS_SKILL}/SKILL.md — INDEX on-demand Scenario Q only (no full scenarios/ scan)"
+        f"{install_note}",
         f"Write fe-argus scenarios to {pending!r} then merge:",
         (
             f"python3 {py!r} --task-dir {task_dir!r} --handoff-dir {handoff_dir!r} "
@@ -173,10 +237,14 @@ def work_order_argus_block(
             "skill": FE_ARGUS_SKILL,
             "after": "gate_plan_post_shell_step1",
             "manifest_path": manifest,
+            "install_recommended": bool(skill.get("install_recommended")),
+            "install_one_liner": skill.get("install_one_liner"),
+            "recommendation_doc": skill.get("recommendation_doc"),
         },
         "skills_to_load": [FE_ARGUS_SKILL],
         "skill_to_load_co": FE_ARGUS_SKILL,
         "argus_mandatory_suffix": cmds,
+        "fe_argus_skill": skill,
     }
 
 

@@ -16,6 +16,12 @@ def check(name: str, ok: bool, detail: str = "") -> dict:
     return {"check": name, "status": "ok" if ok else "fail", "detail": detail, "plane": name.split(".", 1)[0] if "." in name else "meta"}
 
 
+def check_warn(name: str, ok: bool, detail: str = "") -> dict:
+    """Non-blocking advisory; never contributes to doctor failure."""
+    status = "ok" if ok else "warn"
+    return {"check": name, "status": status, "detail": detail, "plane": name.split(".", 1)[0] if "." in name else "meta"}
+
+
 def _handoff_tier_live_checks(task_dir: str, project_root: str, state_file: str) -> list[dict]:
     """Live split-layout: Tier-R resolution must match resolver SSOT (#17)."""
     out: list[dict] = []
@@ -243,6 +249,28 @@ def main() -> int:
         )
     )
 
+    if str(SCRIPT_DIR) not in sys.path:
+        sys.path.insert(0, str(SCRIPT_DIR))
+    from argus_plan_post_policy import fe_argus_skill_discover  # noqa: WPS433
+
+    fe_skill = fe_argus_skill_discover()
+    if fe_skill.get("installed"):
+        checks.append(
+            check_warn(
+                "meta.fe_argus_skill_recommended",
+                True,
+                fe_skill.get("skill_dir") or "installed",
+            )
+        )
+    else:
+        checks.append(
+            check_warn(
+                "meta.fe_argus_skill_recommended",
+                False,
+                f"optional skill missing — recommended: {fe_skill.get('install_one_liner')}",
+            )
+        )
+
     if args.state_file and args.project_root and (SCRIPT_DIR / "validate-state-path.sh").is_file():
         import subprocess
 
@@ -323,7 +351,7 @@ def main() -> int:
     else:
         checks.append(check("meta.install_drift", True, "repo root not found — drift check skipped"))
 
-    failed = [c for c in checks if c["status"] != "ok"]
+    failed = [c for c in checks if c["status"] == "fail"]
     by_plane: dict[str, list] = {}
     for c in checks:
         p = c["check"].split(".", 1)[0]
@@ -334,7 +362,7 @@ def main() -> int:
         "schema_version": 1,
         "host_guard": os.environ.get("GOAL_HOST_GUARD", "off"),
         "planes_summary": {
-            p: {"ok": all(x["status"] == "ok" for x in items), "checks": len(items)}
+            p: {"ok": all(x["status"] in ("ok", "warn") for x in items), "checks": len(items)}
             for p, items in by_plane.items()
         },
         "failed": failed,
