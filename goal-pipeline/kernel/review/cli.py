@@ -52,12 +52,31 @@ def cmd_run(args: argparse.Namespace) -> int:
         resolver = os.path.join(sd, "resolve-artifact-paths.py")
         out = subprocess.check_output(
             [sys.executable, resolver, "--task-dir", args.task_dir, "--format", "json"]
-            + (["--state-file", args.state_file] if args.state_file else []),
+            + (["--state-file", args.state_file] if args.state_file else [])
+            + (["--project-root", args.project_root] if args.project_root else []),
             text=True,
         )
         paths = __import__("json").loads(out)
         unified = os.path.join(paths["goal_evidence_dir"], "review-unified.json")
-    return subprocess.call(["bash", merge] + common + ["--unified-json", unified])
+    rc = subprocess.call(["bash", merge] + common + ["--unified-json", unified])
+    if rc != 0:
+        return rc
+    sync = os.path.join(sd, "sync_timing_substeps.py")
+    if os.path.isfile(sync):
+        sync_cmd = [
+            sys.executable,
+            sync,
+            "--task-dir",
+            args.task_dir,
+            "--source",
+            "review",
+        ]
+        if args.state_file:
+            sync_cmd += ["--state-file", args.state_file]
+        if args.project_root:
+            sync_cmd += ["--project-root", args.project_root]
+        subprocess.run(sync_cmd, check=False)
+    return 0
 
 
 def main() -> int:
