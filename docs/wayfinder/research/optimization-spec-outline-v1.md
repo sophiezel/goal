@@ -89,7 +89,7 @@
 | strict UX 分层 | hard/blocker L10 + ux-scan blocker only | ✅ `review_strict_ux.py` |
 | matrix W2 | `matrix_rows_unsatisfied` + codes | 记账部分 ✅；waive 口径 **#16 已决**；自动化 **#10** |
 | P1-9 auto-fix | skill 执行 + gate audit | audit → **#11** |
-| split handoff | IQ / AM / UX 同根 `GOAL_HANDOFF_DIR` | **#14**（工程优先） |
+| split handoff | IQ / AM / UX 同根 — [handoff-path-resolution.md](../../../goal-pipeline/references/handoff-path-resolution.md) | **#14** ✅ |
 | merge-review parity | kernel CLI ≡ shell chain | **#23** |
 | four_planes_doctor + handoff tier | 回归门禁 | **#17** |
 | timing HTML v1 | 看板 | **#9** |

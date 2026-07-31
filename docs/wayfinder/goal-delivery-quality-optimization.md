@@ -10,7 +10,7 @@ GitHub 主副本：[Wayfinder: Goal 交付质量与全链路效率优化（guazi
 - **漏出计数 W1 + W2** — [#4](https://github.com/sophiezel/goal/issues/4#issuecomment-5145730400)（**closed**）
 - **B3 L10 Argus manifest + L9 escalate-only** — [#4](https://github.com/sophiezel/goal/issues/4#issuecomment-5145856518)
 - **UX 双轨发现 + C1 auto-fix / strict / a11y** — [#5](https://github.com/sophiezel/goal/issues/5)（**closed**；见 issue CONFIRM 评论）
-- **IQ-10 handoff SSOT** — goal `d9bf079` 起 + implement 路径；jian-h5 CTB-44243 implement post **pass** — [run log](research/iq10-handoff-fix-run-log.md)
+- **Split handoff SSOT (#14)** — `handoff_path_resolver.py` + [handoff-path-resolution.md](../../goal-pipeline/references/handoff-path-resolution.md)；IQ-10 首验 `d9bf079` — [run log](research/iq10-handoff-fix-run-log.md)
 
 ## 研究产物（已落盘）
 
