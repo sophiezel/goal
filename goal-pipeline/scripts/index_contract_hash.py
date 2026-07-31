@@ -114,12 +114,38 @@ def is_write_set_contamination(entry: str) -> bool:
     return False
 
 
+def _is_api_path_not_repo_path(p: str) -> bool:
+    """HTTP API paths mistaken for repo paths (AM-07 / iter_write_set_files)."""
+    if p.startswith("/external/") or p.startswith("/api/"):
+        return True
+    if p.startswith("/") and not p.startswith("/Users") and "/" in p[1:]:
+        # Leading-slash path without src/docs/config — likely URI, not filesystem
+        if not p.startswith(("/src/", "/docs/", "/config/", "/public/")):
+            return True
+    return False
+
+
+_APP_ENTRY_ALIASES = {
+    "App.tsx": "src/App.tsx",
+    "pages/index.ts": "src/pages/index.ts",
+    "pages/index.tsx": "src/pages/index.tsx",
+}
+
+
 def normalize_write_set_entry(path: str) -> str:
     p = (path or "").strip().strip("`").strip()
     if not p:
         return ""
     if is_write_set_contamination(p):
         return ""
+    if _is_api_path_not_repo_path(p):
+        return ""
+    if p in _APP_ENTRY_ALIASES:
+        p = _APP_ENTRY_ALIASES[p]
+    elif p.endswith("App.tsx") and not p.startswith("src/"):
+        p = f"src/{p}"
+    elif p.startswith("pages/") and not p.startswith("src/"):
+        p = f"src/{p}"
     # src/foo/** → src/foo/
     if p.endswith("/**"):
         p = p[:-3] + "/"

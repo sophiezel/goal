@@ -25,6 +25,9 @@ assert "docs/guazi-flow/task/index.md" in out, out
 assert not any("排除" in x or "不做" in x or "exclude" in x.lower() for x in out), out
 assert mod.is_write_set_contamination("排除 RN")
 assert not mod.is_write_set_contamination("src/foo/")
+assert mod.normalize_write_set_entry("/external/delivery/foo/*") == ""
+assert mod.normalize_write_set_entry("App.tsx") == "src/App.tsx"
+assert mod.normalize_write_set_entry("pages/index.ts") == "src/pages/index.ts"
 print("write_set_contamination OK", out)
 PY
 
