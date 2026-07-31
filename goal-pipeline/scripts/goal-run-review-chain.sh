@@ -151,6 +151,13 @@ PY
 elif [[ -f "$REVIEW_CLI" ]]; then
   echo "review-chain [2/4] kernel.review.cli run --mode $MODE"
   _run_kernel_review
+  TIMING_SYNC="$SCRIPT_DIR/sync_timing_substeps.py"
+  if [[ -f "$TIMING_SYNC" ]]; then
+    SYNC_ARGS=(--task-dir "$REPO_TASK_DIR" --source review)
+    [[ -n "$STATE_FILE" ]] && SYNC_ARGS+=(--state-file "$STATE_FILE")
+    [[ -n "$PROJECT_ROOT" ]] && SYNC_ARGS+=(--project-root "$PROJECT_ROOT")
+    python3 "$TIMING_SYNC" "${SYNC_ARGS[@]}" >/dev/null 2>&1 || true
+  fi
   echo "review-chain [4/4] done — run gate --post review next"
   exit 0
 else

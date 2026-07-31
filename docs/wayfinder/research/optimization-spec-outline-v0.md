@@ -76,6 +76,6 @@
 
 ## 未决（阻塞规格定稿）
 
-- #4（残余）：`matrix_row_unsatisfied` **已入 failure-codes（W2 stub）**；AM waive 是否算漏出、Part A.1 北星措辞  
-- #5：**C1 / B3 / Q11 已 ratify** — 本稿 §7–11 为硬约束摘要；实现落点见 goal-pipeline 规格迭代  
-- #7：耗时看板 prototype（节点命名以 #2 catalog 为准）
+- #4（残余）：**`matrix_row_unsatisfied` C1 ratified** — W2 `matrix_rows_unsatisfied[]` + codes（`silent_pass_forbidden: false`）；**仍 open**：AM waive 是否算漏出、Part A.1 北星措辞  
+- #5：**Phase-2 C1 ratified** — fe-argus v2 hybrid、strict 分层、P1-9 audit、节点 skip 表；见 [phase-2-real-closure-grilling.md](phase-2-real-closure-grilling.md) Ratified 节  
+- #7：耗时看板 — **v0 Markdown** `render-pipeline-timing-report.py` ✅；HTML v1 defer

@@ -235,6 +235,15 @@ def main():
             ):
                 goal_idx += 1
                 flat.append(normalize_issue(raw, "goal", goal_idx))
+            for raw in mod.collect_strict_ux_warn_issues(
+                handoff_dir=handoff_dir,
+                goal_evidence_dir=goal_evidence,
+                state_file=state_file,
+            ):
+                goal_idx += 1
+                iss = normalize_issue(raw, "goal", goal_idx)
+                iss["severity"] = "warning"
+                flat.append(iss)
 
     blockers = [i for i in flat if i.get("severity") == "blocker"]
     infra_only = issues_are_infra_only(flat, unified_result)

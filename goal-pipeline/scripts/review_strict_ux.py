@@ -110,6 +110,63 @@ def collect_strict_ux_issues(
     return issues
 
 
+def collect_strict_ux_warn_issues(
+    *,
+    handoff_dir: str,
+    goal_evidence_dir: str,
+    state_file: str = "",
+) -> list[dict[str, Any]]:
+    """Strict tier: open soft L10 / ux-scan warn findings — issues with warn severity, not review blockers."""
+    if resolve_quality_tier(state_file) != "strict":
+        return []
+
+    issues: list[dict[str, Any]] = []
+    handoff = Path(handoff_dir)
+    goal_ev = Path(goal_evidence_dir)
+
+    manifest = _load_json(handoff / "argus-scenario-manifest.json")
+    for row in manifest.get("scenarios") or []:
+        status = str(row.get("w1_status") or "open").lower()
+        if status in _W1_CLOSED or l10_row_blocks_strict_review(row):
+            continue
+        sid = str(row.get("id") or "L10")
+        sev = str(row.get("severity") or "soft").lower()
+        issues.append(
+            {
+                "id": f"UX-STRICT-WARN-L10-{sid}",
+                "channel": "goal",
+                "severity": "warn",
+                "summary": f"strict tier: L10 manifest row '{sid}' ({sev}) open — track in W1 debt",
+                "root_cause": "ux_policy",
+                "suggestion": "waive/defer with evidence or fix before ship",
+            }
+        )
+
+    ux = _load_json(goal_ev / "ux-scan.json")
+    for f in ux.get("findings") or []:
+        if ux_finding_blocks_strict_review(f):
+            continue
+        status = str(f.get("w1_status") or "open").lower()
+        if status in _W1_CLOSED:
+            continue
+        severity = str(f.get("severity") or "warn").lower()
+        if severity not in _SOFT_SEVERITY:
+            continue
+        fid = str(f.get("id") or "UX")
+        issues.append(
+            {
+                "id": f"UX-STRICT-WARN-{fid}",
+                "channel": "goal",
+                "severity": "warn",
+                "summary": f"strict tier: ux-scan {fid} ({severity}) without disposition",
+                "root_cause": "ux_policy",
+                "suggestion": "resolve, waive, or defer — does not alone fail review",
+            }
+        )
+
+    return issues
+
+
 def main() -> int:
     import argparse
 

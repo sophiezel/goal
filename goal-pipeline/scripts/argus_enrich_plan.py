@@ -113,7 +113,7 @@ def build_manifest(task_dir: Path, handoff_dir: Path) -> dict[str, Any]:
                 "paths": rel_paths,
                 "verify_hint": hint,
                 "w1_status": "open",
-                "source": "argus-enrich-plan-v1",
+                "source": "rule",
                 "signal": "write_set_path",
             }
         )
@@ -131,7 +131,7 @@ def build_manifest(task_dir: Path, handoff_dir: Path) -> dict[str, Any]:
                 "paths": rel_paths,
                 "verify_hint": hint,
                 "w1_status": "open",
-                "source": "argus-enrich-plan-v1",
+                "source": "rule",
                 "signal": "index_keyword",
             }
         )
@@ -139,13 +139,46 @@ def build_manifest(task_dir: Path, handoff_dir: Path) -> dict[str, Any]:
     if not scenarios:
         default = dict(DEFAULT_SCENARIOS[0])
         default["paths"] = rel_paths
-        default["source"] = "argus-enrich-plan-v1"
+        default["source"] = "rule"
         scenarios.append(default)
 
     return {
-        "schema_version": 1,
-        "generated_by": "argus-enrich-plan.py v1 (rule-based; not fe-argus LLM)",
+        "schema_version": 2,
+        "generated_by": "argus_enrich_plan.py v1 (rule-based; fe-argus merge via Agent WO)",
+        "argus_enrich_status": "rule_only",
         "scenarios": scenarios,
+    }
+
+
+def merge_scenario_lists(
+    rule_scenarios: list[dict[str, Any]],
+    argus_scenarios: list[dict[str, Any]],
+    *,
+    argus_status: str = "partial",
+) -> dict[str, Any]:
+    """Merge Agent fe-argus scenarios by id; rule rows win on id conflict."""
+    by_id: dict[str, dict[str, Any]] = {}
+    for row in rule_scenarios:
+        rid = str(row.get("id") or "")
+        if not rid:
+            continue
+        merged = dict(row)
+        merged["source"] = merged.get("source") or "rule"
+        by_id[rid] = merged
+    for row in argus_scenarios:
+        rid = str(row.get("id") or "")
+        if not rid:
+            continue
+        if rid in by_id:
+            continue
+        merged = dict(row)
+        merged["source"] = "argus"
+        by_id[rid] = merged
+    return {
+        "schema_version": 2,
+        "generated_by": "argus_enrich_plan.py merge",
+        "argus_enrich_status": argus_status,
+        "scenarios": list(by_id.values()),
     }
 
 

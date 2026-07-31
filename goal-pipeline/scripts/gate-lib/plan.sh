@@ -83,10 +83,17 @@ JSON
       rm -f "$TMP"
       ARGUS="$SCRIPT_DIR/argus-enrich-plan.sh"
       if [[ -x "$ARGUS" ]]; then
-        bash "$ARGUS" --task-dir "$TASK_DIR" --handoff-dir "$HANDOFF_DIR" >/dev/null 2>&1 || true
+        if ! bash "$ARGUS" --task-dir "$TASK_DIR" --handoff-dir "$HANDOFF_DIR"; then
+          fail "argus-enrich-plan failed — rule manifest required at plan post"
+        fi
       elif [[ -f "$SCRIPT_DIR/argus_enrich_plan.py" ]]; then
-        python3 "$SCRIPT_DIR/argus_enrich_plan.py" --task-dir "$TASK_DIR" --handoff-dir "$HANDOFF_DIR" >/dev/null 2>&1 || true
+        if ! python3 "$SCRIPT_DIR/argus_enrich_plan.py" --task-dir "$TASK_DIR" --handoff-dir "$HANDOFF_DIR"; then
+          fail "argus_enrich_plan.py failed"
+        fi
+      else
+        fail "argus_enrich_plan.py missing — L10 manifest required at plan post"
       fi
+      [[ -f "$HANDOFF_DIR/argus-scenario-manifest.json" ]] || fail "handoff/argus-scenario-manifest.json missing after plan post"
       # Stamp task_tier (XS/S/M/L/XL) for SLO + parallel strategy
       if [[ -f "$SCRIPT_DIR/task_tier.py" ]]; then
         TT_JSON=$(python3 "$SCRIPT_DIR/task_tier.py" \
@@ -151,12 +158,6 @@ PYRT
             --auto-resolve-xs-s \
             --persist >/dev/null 2>&1 || true
         fi
-      fi
-      ARGUS="$SCRIPT_DIR/argus-enrich-plan.sh"
-      if [[ -x "$ARGUS" ]]; then
-        AARGS=(--task-dir "$TASK_DIR")
-        [[ -n "$HANDOFF_DIR" ]] && AARGS+=(--handoff-dir "$HANDOFF_DIR")
-        "$ARGUS" "${AARGS[@]}" >/dev/null 2>&1 || true
       fi
       update_state_gate "plan"
       sync_index_current_stage "$(stage_to_index_current plan)"

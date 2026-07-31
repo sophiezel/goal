@@ -1,6 +1,7 @@
 {
-  "schema_version": 1,
-  "generated_by": "argus-enrich-plan.py v1",
+  "schema_version": 2,
+  "generated_by": "argus_enrich_plan.py v1 (rule-based; fe-argus merge via Agent WO)",
+  "argus_enrich_status": "rule_only",
   "scenarios": [
     {
       "id": "submit-button-loading",
@@ -10,7 +11,7 @@
       ],
       "verify_hint": "primary CTA loading/disabled",
       "w1_status": "open",
-      "source": "argus-enrich-plan-v1",
+      "source": "rule",
       "signal": "index_keyword"
     }
   ]

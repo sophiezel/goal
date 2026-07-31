@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "generated_by": "ux_scan_v1.py",
+  "mode": "warn_only",
+  "coverage": [
+    "UX-D1",
+    "UX-D2",
+    "UX-D5"
+  ],
+  "d5_sources": [],
+  "finding_count": 1,
+  "findings": [
+    {
+      "id": "UX-D1",
+      "severity": "warn",
+      "path": "src/pages/sample/Page.tsx",
+      "summary": "async fetch without obvious skeleton/loading UI"
+    }
+  ]
+}

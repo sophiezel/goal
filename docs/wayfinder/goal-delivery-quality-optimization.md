@@ -5,7 +5,7 @@ GitHub 主副本：[Wayfinder: Goal 交付质量与全链路效率优化（guazi
 ## Decisions so far（镜像）
 
 - **Phase-1 engineering closure** — [`3ce9e6b`](https://github.com/sophiezel/goal/commit/3ce9e6b) Wayfinder P0/P1 bundle；[`c13431b`](https://github.com/sophiezel/goal/commit/c13431b) UVO `testPathPattern` 提示修复
-- **合并规格 v0.2** — [optimization-spec-outline-v0.md](research/optimization-spec-outline-v0.md)
+- **Phase-2 C1 ratified (all axes)** — [phase-2-real-closure-grilling.md](research/phase-2-real-closure-grilling.md) Ratified 节；fe-argus hybrid、strict UX、matrix W2、P1-9 audit、节点 skip 原则
 - **漏出计数 W1 + W2** — [#4](https://github.com/sophiezel/goal/issues/4#issuecomment-5145730400)（**closed**）
 - **B3 L10 Argus manifest + L9 escalate-only** — [#4](https://github.com/sophiezel/goal/issues/4#issuecomment-5145856518)
 - **UX 双轨发现 + C1 auto-fix / strict / a11y** — [#5](https://github.com/sophiezel/goal/issues/5)（**closed**；见 issue CONFIRM 评论）
@@ -29,8 +29,8 @@ GitHub 主副本：[Wayfinder: Goal 交付质量与全链路效率优化（guazi
 | 轨道 | 状态 | 下一步 |
 | --- | --- | --- |
 | **Phase-1** | **工程收口** | #2–#7 closed；P0/P1 主体在 `main`（`df4caf2`+） |
-| **Phase-2 grill** | **HITL 待拍板** | fe-argus v2 hybrid、strict 严重度、L9 matrix、auto-fix、节点 skip 表 |
-| **Phase-2 工程** | **T1→T5** | T1 W1 记账对齐 complete；T2–T5 见 grilling 稿 §4 |
+| **Phase-2 grill** | **C1 ratified** | 见 [phase-2-real-closure-grilling.md](research/phase-2-real-closure-grilling.md) Ratified 节 |
+| **Phase-2 工程** | **T1–T5 landed** | argus v2 doc、eslint D5、strict UX warn、ux-auto-fix-audit、matrix W2 |
 | **规格升格** | **v0.2 → v1** | §未决 + Phase-2 决策冻结后升格 |
 
 **合并稿入口：** [optimization-spec-outline-v0.md](research/optimization-spec-outline-v0.md)（草稿 v0.2；P1-7/8 为 rule-based v1，非 fe-argus LLM）

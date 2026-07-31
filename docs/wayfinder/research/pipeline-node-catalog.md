@@ -5,6 +5,10 @@
 > `goal-advance-stage.sh`、`goal-stage-driver.sh`、四平面 `*_plane_check.py` / `four_planes_doctor.py`。  
 > **用途**：Wayfinder #2 — 交付质量与效率优化的节点级规格骨架。
 
+**Ratified C1 裁剪原则（Phase-2 #1）：** 仅 **效率面** 节点可 skip（遗留 `gate stage smoke`、review `dual` track、`four_planes_doctor`、timing `substep`）。**不可** 因 lite 默认跳过：`quality_plane_check`、`IQ-10`、**UVO**、review preflight、`merge-review-issues`（`kernel.review.cli run` 内含 merge，与 shell chain 等价），除非 profile 显式降级 flag（如 `GOAL_ALLOW_LEGACY_SMOKE_STAGE=1`）。
+
+---
+
 ## 阶段序（控制面真相）
 
 `goal-advance-stage.sh` 对外五段：**plan → implement → quality → review → complete**（`next_stage=done` 当 verify/complete handoff 满足）。  
@@ -47,7 +51,7 @@ Agent 回合协议：`kernel next` → 执行 `FrozenWorkOrder.mandatory_command
 | **assemble-review-packet** | review | Data | index, handoff, diff, rubric | `handoff/review-packet.json` | `assemble-review-packet.sh` | — | No | `packet_preflight_failed` |
 | **run-independent-review** / `kernel.review.cli` | review | Quality | packet, 验收标准 | `review-run.json`, `review-unified.json` | `run-independent-review.sh` / `kernel/review/cli.py` | `review-run.json` latency / `invocation_count` | 0 channel 可 degraded（非 full pass） | `review_forged`, `review_undetermined`, `review_degraded_as_pass` |
 | **guazi-flow-review**（Step 1.5，dual track） | review | Control | `guazi-flow-review/SKILL.md` | `issues_gf[]` → merge | —（Agent） | — | **可跳过** — `review_track=single` | — |
-| **merge-review-issues** | review | Data | unified + gf issues | `evidence/review-fix-input.json` | `merge-review-issues.sh` | — | No（classic chain）；**kernel CLI 路径可能提前 exit 未 merge** | — |
+| **merge-review-issues** | review | Data | unified + gf issues | `evidence/review-fix-input.json` | `merge-review-issues.sh` / `kernel.review.cli run` | — | No | — |
 | **review gate --post** | review | Quality | `review.md`, `review-unified.json`, `review.json` handoff | `handoff/review.json` | `gate-lib/review.sh` | timing **end** | No | `review_forged`, `noop_fix`, `review_not_pass`, `review_rounds_exhausted`, `review_stagnant` |
 | **complete gate --pre** | complete | Control | `handoff/review.json` pass, index `current_stage` | pass | `gate-lib/complete.sh` | timing **start** `complete` | No | review not pass（除非 waiver） |
 | **guazi-flow-complete**（Agent） | complete | Control | complete SKILL, evidence fresh | index 执行记录, `evidence/complete.md` | — | — | No | `delivery_evidence_missing` |
@@ -97,7 +101,7 @@ Agent 回合协议：`kernel next` → 执行 `FrozenWorkOrder.mandatory_command
 2. **`runtime_smoke` next_stage 别名**：`goal-stage-driver` 将 `runtime_smoke` 与 `quality` 互别名，与 advance 仅输出 `quality` 并存。
 3. **纯模式 `goal-pipeline/gates/*.sh`** vs **guazi `gate-lib/*.sh`**：SKILL 文档两套门禁路径；guazi 生产路径以 `gate-guazi-flow-stage` 为准。
 4. **review-pre `verify-review.sh`** 与 **quality-gate / UVO**：scope/secret 分层重复（确定性 0-cost + 深度检查）；裁减需证明不增 silent pass。
-5. **`goal-run-review-chain.sh` kernel CLI 分支**：存在 `REVIEW_CLI` 时 **提前 exit**，可能 **跳过显式 `merge-review-issues`**（依赖 CLI 内部是否已 merge）— 与 SKILL 写的 Step 3 叙事不完全一致。
+5. **`goal-run-review-chain.sh` kernel CLI 分支**：`kernel.review.cli run` **已包含** `merge-review-issues`（与 shell Step 3 等价）；chain 在 CLI 成功路径提前 exit 前会 sync review timing substep。
 
 ### 耗时钩子缺口
 

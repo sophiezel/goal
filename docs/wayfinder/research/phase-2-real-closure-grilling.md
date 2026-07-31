@@ -5,6 +5,22 @@
 
 ---
 
+## Ratified C1（2026-08-01，#1）
+
+用户已拍板 **全部 Phase-2 grilling 项采用 C1**。实现落点：
+
+| 轴 | C1 摘要 | 落点 |
+|----|---------|------|
+| fe-argus v2 | 规则 manifest 必填 + 条件 fe-argus skill merge（`source: rule\|argus`）；partial → `argus_enrich_status: partial` | [argus-v2-hybrid.md](../../goal-pipeline/argus-v2-hybrid.md)、`argus_enrich_plan.py`、`gate-lib/plan.sh` |
+| strict tier | 仅 hard/blocker L10 + ux-scan blocker 升 review blocker；warn/soft → issues 警告，不 alone `not_pass` | `review_strict_ux.py`、`merge_review_core` |
+| matrix_row_unsatisfied | failure-codes（`silent_pass_forbidden: false`）；W2 `leakage.matrix_rows_unsatisfied[]`；complete 不新增硬拦 | `failure-codes.json`、`w1_leakage_bookkeeping.py`、`quality_plane_check.py` |
+| P1-9 auto-fix | skill 执行 D2/D5；`ux-auto-fix-audit.py` implement post | `gate-lib/implement.sh` |
+| #2 节点 skip | 仅效率面可 skip；质量面节点不可 lite 默认跳过 | [pipeline-node-catalog.md](../pipeline-node-catalog.md) 文首 C1 原则 |
+
+**工程 backlog T1–T5：** T1 W1 记账 ✅；T2 B.8 eslint D5 ✅；T3 kernel CLI merge parity ✅；T4 strict UX 分层 ✅；T5 timing substep/report ✅。
+
+---
+
 ## 1. 三条审计痛点 vs post-df4caf2 对账
 
 | # | 审计痛点（用户口径） | post-df4caf2 状态 | 证据 / 残余风险 |

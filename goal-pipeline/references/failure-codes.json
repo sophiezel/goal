@@ -22,6 +22,6 @@
     "declared_defect_silent_pass": {"plane": "quality", "summary": "W1 declared L10/UX class passed gate without disposition", "silent_pass_forbidden": true},
     "contract_conformance_open": {"plane": "quality", "summary": "IQ-10 contract-conformance not passed at complete/review", "silent_pass_forbidden": true},
     "packet_preflight_failed": {"plane": "quality", "summary": "review-packet PKT-01..04 preflight failed", "silent_pass_forbidden": true},
-    "matrix_row_unsatisfied": {"plane": "quality", "summary": "L9 acceptance matrix row unsatisfied (W2 bookkeeping; host handoff matrix_satisfaction)", "silent_pass_forbidden": true, "w2_note": "Business-semantics L9 — not a deterministic AM ratchet substitute"}
+    "matrix_row_unsatisfied": {"plane": "quality", "summary": "L9 acceptance matrix row unsatisfied (W2 bookkeeping; host handoff matrix_satisfaction)", "silent_pass_forbidden": false, "w2_note": "Business-semantics L9 — not a deterministic AM ratchet substitute; does not hard-block complete"}
   }
 }

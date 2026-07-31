@@ -14,7 +14,7 @@ python3 "$SCRIPTS/argus_enrich_plan.py" \
 python3 - "$OUT/argus-scenario-manifest.json" << 'PY'
 import json, sys
 doc = json.load(open(sys.argv[1], encoding="utf-8"))
-assert doc.get("schema_version") == 1
+assert doc.get("schema_version") in (1, 2)
 sc = doc.get("scenarios") or []
 assert len(sc) >= 1
 text = json.dumps(doc)

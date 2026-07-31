@@ -121,6 +121,23 @@ PYCC
         [[ -n "$PROJECT_ROOT" ]] && UX_ARGS+=(--project-root "$PROJECT_ROOT")
         python3 "$UX_SCAN" "${UX_ARGS[@]}" >/dev/null 2>&1 || true
       fi
+      UX_AF="$SCRIPT_DIR/ux-auto-fix-audit.py"
+      if [[ -f "$UX_AF" && -n "$GIT_ROOT" ]]; then
+        AF_STRICT=0
+        TT=$(python3 -c "import json; print(json.load(open('$HANDOFF_DIR/plan.json')).get('task_tier','') or '')" 2>/dev/null || echo "")
+        case "$TT" in M|L|XL) AF_STRICT=1 ;; esac
+        AF_ARGS=(--repo-root "$GIT_ROOT" --handoff-dir "$HANDOFF_DIR" --evidence "$GOAL_EVIDENCE_DIR/ux-autofix.json")
+        [[ "$AF_STRICT" == "1" ]] && AF_ARGS+=(--strict)
+        if ! python3 "$UX_AF" "${AF_ARGS[@]}" >/dev/null 2>&1; then
+          if [[ "$AF_STRICT" == "1" ]]; then
+            gate_fail_with_issues "implement" "$(diff_hash)" \
+              '[{"id":"AUTOFIX-01","severity":"blocker","summary":"ux-auto-fix-audit failed (diff outside D2/D5 or write_set)","root_cause":"write_set_violation"}]' \
+              "ux-auto-fix-audit blocked (S+ strict)"
+          else
+            echo "implement post: WARN ux-auto-fix-audit violations (non-strict)" >&2
+          fi
+        fi
+      fi
       TIMING_SYNC="$SCRIPT_DIR/sync_timing_substeps.py"
       if [[ -f "$TIMING_SYNC" && -f "$GOAL_EVIDENCE_DIR/verification-oracle.json" ]]; then
         SYNC_ARGS=(--task-dir "$IMPL_TASK_DIR" --source uvo)
