@@ -50,7 +50,7 @@
 
 见 draft Part B C1（双轨 D1/D2/D5、L10 manifest、strict review-first、D2/D5 narrow auto-fix）。
 
-**实现:** [#11](https://github.com/sophiezel/goal/issues/11) ✅ `ux-auto-fix-audit.py` + implement post（见 `goal-pipeline/references/ux-auto-fix-c1.md`）。**Deferred:** [#8](https://github.com/sophiezel/goal/issues/8) fe-argus skill orchestration（standard/strict plan post）。
+**实现:** [#11](https://github.com/sophiezel/goal/issues/11) ✅ `ux-auto-fix-audit.py` + implement post（见 `goal-pipeline/references/ux-auto-fix-c1.md`）。[#8](https://github.com/sophiezel/goal/issues/8) ✅ `argus_plan_post_policy.py` + plan post WO（见 [argus-v2-hybrid.md](../../../docs/goal-pipeline/argus-v2-hybrid.md)）。
 
 ---
 
@@ -85,7 +85,7 @@
 
 | 轴 | 规格 | 实现备注 |
 |----|------|----------|
-| fe-argus v2 hybrid | 规则 manifest + 条件 fe-argus merge | rule v1 ✅；skill ② → **#8** |
+| fe-argus v2 hybrid | 规则 manifest + 条件 fe-argus merge | ✅ **#8** — `argus_plan_post_policy.py` + `test-argus-plan-post-orchestration.sh` |
 | strict UX 分层 | hard/blocker L10 + ux-scan blocker only | ✅ `review_strict_ux.py` |
 | matrix W2 | `matrix_rows_unsatisfied` + codes | ✅ **#10** — `test-w2-matrix-leakage.sh`（#16 waive 口径） |
 | P1-9 auto-fix | skill 执行 + gate audit | ✅ **#11** — `ux-auto-fix-c1.md` |

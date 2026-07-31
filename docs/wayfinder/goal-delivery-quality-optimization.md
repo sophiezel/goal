@@ -19,6 +19,7 @@ GitHub 主副本：[Wayfinder: Goal 交付质量与全链路效率优化（guazi
 - **Postmerge ↔ complete plane (#18)** — [postmerge-complete-plane.md](research/postmerge-complete-plane.md) + `resolve_postmerge_policy.py` + `test-quality-plane-postmerge.sh`
 - **goal-quality e2e profile (#19)** — [goal-quality-e2e-profile.md](../../goal-pipeline/references/goal-quality-e2e-profile.md) + `goal_quality_e2e_policy.py` + `test-quality-e2e-profile-tier.sh`
 - **CTB-44243 平面归因附录 (#22)** — [ctb-44243-guazi-flow-goal-rca.md](research/ctb-44243-guazi-flow-goal-rca.md) §8；draft Q12 closed
+- **fe-argus plan post orchestration (#8)** — `8b47fd4`；`argus_plan_post_policy.py` + [argus-v2-hybrid.md](../../docs/goal-pipeline/argus-v2-hybrid.md)
 
 | 工单 | 文件 | GitHub |
 | --- | --- | --- |
@@ -39,7 +40,7 @@ GitHub 主副本：[Wayfinder: Goal 交付质量与全链路效率优化（guazi
 
 | # | 标题 | URL |
 | --- | --- | --- |
-| 8 | Phase-3: fe-argus skill orchestration at plan post | https://github.com/sophiezel/goal/issues/8 |
+| 8 | Phase-3: fe-argus skill orchestration at plan post | https://github.com/sophiezel/goal/issues/8 | **closed** → `argus_plan_post_policy.py` |
 | 9 | Phase-3: #7 timing dashboard HTML v1 | https://github.com/sophiezel/goal/issues/9 |
 | 10 | Phase-3: W2 L9 matrix satisfaction automation | https://github.com/sophiezel/goal/issues/10 |
 | 11 | Phase-3: guazi-flow-implement D2/D5 auto-fix + audit contract | https://github.com/sophiezel/goal/issues/11 |
