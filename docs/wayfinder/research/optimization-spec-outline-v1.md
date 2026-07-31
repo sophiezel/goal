@@ -91,7 +91,7 @@
 | P1-9 auto-fix | skill 执行 + gate audit | audit → **#11** |
 | split handoff | IQ / AM / UX 同根 — [handoff-path-resolution.md](../../../goal-pipeline/references/handoff-path-resolution.md) | **#14** ✅ |
 | merge-review parity | kernel CLI ≡ shell chain | **#23** |
-| four_planes_doctor + handoff tier | 回归门禁 | **#17** |
+| four_planes_doctor + handoff tier | [four-planes-handoff-tier.md](four-planes-handoff-tier.md) | **#17** ✅ |
 | timing HTML v1 | 看板 | **#9** |
 | postmerge ↔ complete | 平面衔接 | **#18** |
 | goal-quality e2e profile | tier 对齐 | **#19** |
