@@ -8,23 +8,11 @@ import re
 import sys
 from pathlib import Path
 
-_W1_CLOSED = frozenset({"pass", "waive", "deferred", "waived"})
-_SOFT_SEVERITY = frozenset({"soft", "warn", "info", "low"})
+_SCRIPT_DIR = Path(__file__).resolve().parent
+if str(_SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPT_DIR))
 
-
-def l10_row_blocks_complete(row: dict) -> bool:
-    """B3: default soft + open rows do not block complete; hard/escalated do."""
-    status = str(row.get("w1_status") or "open").lower()
-    if status in _W1_CLOSED:
-        return False
-    severity = str(row.get("severity") or "soft").lower()
-    if row.get("escalated_to_l9") or row.get("l9_escalated"):
-        return True
-    if severity in ("hard", "blocker", "block", "critical"):
-        return True
-    if severity in _SOFT_SEVERITY:
-        return False
-    return False
+from l10_w1_policy import l10_row_blocks_complete
 
 
 def load_json(p: Path) -> dict:
@@ -102,6 +90,7 @@ def main() -> int:
 
     repo_ev, goal_ev = resolve_dirs(args.task_dir, args.state_file, args.project_root)
     errors: list[dict] = []
+    matrix_w2: list[dict] = []
 
     review_md = repo_ev / "review.md"
     run = goal_ev / "review-run.json"
@@ -168,7 +157,7 @@ def main() -> int:
 
         task_path = Path(args.task_dir)
         handoff = task_path / "handoff"
-        errors.extend(matrix_satisfaction_errors(handoff))
+        matrix_w2 = matrix_satisfaction_errors(handoff)
 
         manifest_path = handoff / "argus-scenario-manifest.json"
         if manifest_path.is_file():
@@ -206,15 +195,22 @@ def main() -> int:
 
     ok = not errors
     leakage_silent: list[str] = []
+    matrix_rows_unsatisfied: list[str] = []
     for e in errors:
         if e.get("failure_code") == "declared_defect_silent_pass":
             leakage_silent.extend((e.get("leakage") or {}).get("declared_defect_classes_silent_pass") or [])
+    for e in matrix_w2 if args.mode == "complete" else []:
+        matrix_rows_unsatisfied.extend((e.get("leakage") or {}).get("w2_matrix_row_unsatisfied") or [])
+    leakage: dict = {"declared_defect_classes_silent_pass": leakage_silent}
+    if matrix_rows_unsatisfied:
+        leakage["matrix_rows_unsatisfied"] = matrix_rows_unsatisfied
     out = {
         "ok": ok,
         "plane": "quality",
         "errors": errors,
         "silent_pass_forbidden": True,
-        "leakage": {"declared_defect_classes_silent_pass": leakage_silent},
+        "leakage": leakage,
+        "w2_matrix_notes": matrix_w2 if matrix_w2 else [],
     }
     if args.format == "text":
         print(f"quality_plane_check ok={ok}")

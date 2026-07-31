@@ -22,20 +22,18 @@ GitHub 主副本：[Wayfinder: Goal 交付质量与全链路效率优化（guazi
 | [#4 0 漏出](https://github.com/sophiezel/goal/issues/4) | [draft-zero-leakage-and-ux-policy.md](research/draft-zero-leakage-and-ux-policy.md) Part A | **closed** — W1+W2、A.8 B3 ratified |
 | [#5 UX 边界](https://github.com/sophiezel/goal/issues/5) | 同上 Part B | **closed** — C1 ratified（见 issue CONFIRM） |
 
-## 当前 Frontier
+## 当前 Frontier — Phase-2 实质闭环
 
-| 工单 | 状态 | 下一步 |
+**Grilling + backlog SSOT：** [phase-2-real-closure-grilling.md](research/phase-2-real-closure-grilling.md)（对账表、五项 C1/C2、T1–T5）
+
+| 轨道 | 状态 | 下一步 |
 | --- | --- | --- |
-| #4 Grilling 0 漏出 | **closed** | Part A 开放题随 **规格 v1** 收尾 |
-| #5 Grilling UX 边界 | **closed** | 硬约束已回写 [optimization-spec-outline-v0.md](research/optimization-spec-outline-v0.md) §7–11 |
-| #3 CTB-44243 RCA | **closed** | 样本验收在业务仓；goal 侧 Phase-1 已收口 |
-| #6 review-chain | **closed** | P2 提速（并行 packet、detect cache）进规格 backlog |
-| #7 耗时看板 | **closed** | **HTML v1** 与 SLA 可视化 defer |
-| **规格升格** | **v0.2 草稿** | Part A 开放题、`matrix_row_unsatisfied` 等 → **规格 v1** |
-| **#2 节点裁剪** | **研究 closed** | gate NEVER-skip / 条件跳过 → **HITL + 规格 v1** |
-| **L10** | **manifest v1 已接线** | **L10 v2**（更广 UX/a11y 面）待 Grilling 或 v1 规格 |
+| **Phase-1** | **工程收口** | #2–#7 closed；P0/P1 主体在 `main`（`df4caf2`+） |
+| **Phase-2 grill** | **HITL 待拍板** | fe-argus v2 hybrid、strict 严重度、L9 matrix、auto-fix、节点 skip 表 |
+| **Phase-2 工程** | **T1→T5** | T1 W1 记账对齐 complete；T2–T5 见 grilling 稿 §4 |
+| **规格升格** | **v0.2 → v1** | §未决 + Phase-2 决策冻结后升格 |
 
-**合并稿入口：** [optimization-spec-outline-v0.md](research/optimization-spec-outline-v0.md)（草稿 v0.2；P0/P1 含 #4/#5 ratified UX/L10 硬约束）
+**合并稿入口：** [optimization-spec-outline-v0.md](research/optimization-spec-outline-v0.md)（草稿 v0.2；P1-7/8 为 rule-based v1，非 fe-argus LLM）
 
 ### Research 交叉结论（简）
 
