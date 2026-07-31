@@ -52,7 +52,7 @@
 
 9. **Auto-fix 授权（C1 narrow）** — **✅ 规格**（草案 C1）；实现：`ux_scan_v1` + write_set 内 auto-fix 策略由宿主 skill 消费，Goal 不硬编码业务路由。
 
-10. **Strict tier 与 fail 路由（review-first）** — **✅ 2026-08-01** `review_strict_ux.py` + `merge_review_core`：strict 下未处置 L10/ux-scan → review blocker；implement post 不因 L10 alone 硬 block（既有）。
+10. **Strict tier 与 fail 路由（review-first）** — **✅ 2026-08-01** `review_strict_ux.py` + `merge_review_core`：strict 下仅 **hard/escalated L10** 与 ux-scan **blocker/hard** 未处置 → review blocker；**soft/warn/info** 不 fail review（与 B3 L10 soft 一致）；implement post 不因 L10 alone 硬 block（既有）。
 
 11. **Complete / W1 收口** — **✅ 2026-08-01** 见 P0 §6 + `quality_plane_check` complete 路径。
 
@@ -76,6 +76,6 @@
 
 ## 未决（阻塞规格定稿）
 
-- #4（残余）：`matrix_row_unsatisfied` 是否入 `failure-codes.json`、AM waive 是否算漏出、Part A.1 北星措辞  
+- #4（残余）：`matrix_row_unsatisfied` **已入 failure-codes（W2 stub）**；AM waive 是否算漏出、Part A.1 北星措辞  
 - #5：**C1 / B3 / Q11 已 ratify** — 本稿 §7–11 为硬约束摘要；实现落点见 goal-pipeline 规格迭代  
 - #7：耗时看板 prototype（节点命名以 #2 catalog 为准）

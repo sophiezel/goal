@@ -36,6 +36,31 @@ def load_json(p: Path) -> dict:
         return {}
 
 
+def matrix_satisfaction_errors(handoff: Path) -> list[dict]:
+    """Optional host handoff matrix_satisfaction — no-op when field absent."""
+    errors: list[dict] = []
+    for name in ("plan.json", "review.json"):
+        doc = load_json(handoff / name)
+        ms = doc.get("matrix_satisfaction")
+        if not isinstance(ms, dict):
+            continue
+        if ms.get("ok") is True:
+            continue
+        rows = ms.get("unsatisfied_rows") or ms.get("unsatisfied_row_ids") or []
+        if not rows and ms.get("ok") is False:
+            rows = ["(unspecified)"]
+        if rows:
+            errors.append(
+                {
+                    "failure_code": "matrix_row_unsatisfied",
+                    "summary": f"acceptance matrix unsatisfied rows: {', '.join(str(r) for r in rows)}",
+                    "leakage": {"w2_matrix_row_unsatisfied": [str(r) for r in rows]},
+                }
+            )
+        break
+    return errors
+
+
 def resolve_dirs(task_dir: str, state_file: str, project_root: str) -> tuple[Path, Path]:
     script_dir = Path(__file__).resolve().parent
     resolver = script_dir / "resolve-artifact-paths.py"
@@ -143,6 +168,8 @@ def main() -> int:
 
         task_path = Path(args.task_dir)
         handoff = task_path / "handoff"
+        errors.extend(matrix_satisfaction_errors(handoff))
+
         manifest_path = handoff / "argus-scenario-manifest.json"
         if manifest_path.is_file():
             manifest = load_json(manifest_path)

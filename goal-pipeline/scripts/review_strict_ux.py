@@ -7,8 +7,9 @@ import os
 from pathlib import Path
 from typing import Any
 
-
 _W1_CLOSED = frozenset({"pass", "waive", "deferred", "waived"})
+_SOFT_SEVERITY = frozenset({"soft", "warn", "info", "low"})
+_UX_BLOCK_SEVERITY = frozenset({"block", "blocker", "hard", "critical"})
 
 
 def _load_json(path: Path) -> dict[str, Any]:
@@ -18,6 +19,34 @@ def _load_json(path: Path) -> dict[str, Any]:
         return json.loads(path.read_text(encoding="utf-8"))
     except json.JSONDecodeError:
         return {}
+
+
+def l10_row_blocks_strict_review(row: dict) -> bool:
+    """B3-aligned: soft+open L10 does not block review; hard/escalated open rows do."""
+    status = str(row.get("w1_status") or "open").lower()
+    if status in _W1_CLOSED:
+        return False
+    if row.get("escalated_to_l9") or row.get("l9_escalated"):
+        return True
+    severity = str(row.get("severity") or "soft").lower()
+    if severity in _UX_BLOCK_SEVERITY:
+        return True
+    if severity in _SOFT_SEVERITY:
+        return False
+    return False
+
+
+def ux_finding_blocks_strict_review(finding: dict) -> bool:
+    """Strict review: only blocker/hard open ux-scan findings are review blockers."""
+    status = str(finding.get("w1_status") or "open").lower()
+    if status in _W1_CLOSED:
+        return False
+    severity = str(finding.get("severity") or "warn").lower()
+    if severity in _UX_BLOCK_SEVERITY:
+        return True
+    if severity in _SOFT_SEVERITY:
+        return False
+    return False
 
 
 def resolve_quality_tier(state_file: str) -> str:
@@ -36,7 +65,7 @@ def collect_strict_ux_issues(
     goal_evidence_dir: str,
     state_file: str = "",
 ) -> list[dict[str, Any]]:
-    """When tier=strict, open L10 manifest / ux-scan items become review blockers (review-first)."""
+    """When tier=strict, open hard L10 / ux-scan blocker findings become review blockers (review-first)."""
     if resolve_quality_tier(state_file) != "strict":
         return []
 
@@ -46,16 +75,16 @@ def collect_strict_ux_issues(
 
     manifest = _load_json(handoff / "argus-scenario-manifest.json")
     for row in manifest.get("scenarios") or []:
-        status = str(row.get("w1_status") or "open").lower()
-        if status in _W1_CLOSED:
+        if not l10_row_blocks_strict_review(row):
             continue
         sid = str(row.get("id") or "L10")
+        sev = str(row.get("severity") or "hard").lower()
         issues.append(
             {
                 "id": f"UX-STRICT-L10-{sid}",
                 "channel": "goal",
                 "severity": "blocker",
-                "summary": f"strict tier: L10 manifest row '{sid}' not pass/waive/deferred (w1_status={status})",
+                "summary": f"strict tier: L10 manifest row '{sid}' ({sev}) without disposition",
                 "root_cause": "ux_policy",
                 "suggestion": "fix UX, waive with separation, or defer with evidence before review pass",
             }
@@ -63,11 +92,10 @@ def collect_strict_ux_issues(
 
     ux = _load_json(goal_ev / "ux-scan.json")
     for f in ux.get("findings") or []:
-        status = str(f.get("w1_status") or "open").lower()
-        if status in _W1_CLOSED:
+        if not ux_finding_blocks_strict_review(f):
             continue
         fid = str(f.get("id") or "UX")
-        sev = str(f.get("severity") or "warn").lower()
+        sev = str(f.get("severity") or "blocker").lower()
         issues.append(
             {
                 "id": f"UX-STRICT-{fid}",
@@ -75,7 +103,7 @@ def collect_strict_ux_issues(
                 "severity": "blocker",
                 "summary": f"strict tier: ux-scan {fid} ({sev}) without disposition",
                 "root_cause": "ux_policy",
-                "suggestion": "resolve finding, waive, or defer — do not hard-block implement post on L10 alone in standard tier",
+                "suggestion": "resolve finding, waive, or defer before review pass",
             }
         )
 
