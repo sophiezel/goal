@@ -1,5 +1,10 @@
 # gate-lib/smoke.sh — stage body for gate-guazi-flow-stage.sh (sourced in case)
 # Relies on parent functions/vars: fail/pass/INDEX/HANDOFF_DIR/PHASE/etc.
+    if [[ -f "$HANDOFF_DIR/quality.json" && "${GOAL_ALLOW_LEGACY_SMOKE_STAGE:-}" != "1" ]]; then
+      echo "gate WARN: --stage smoke is deprecated — advance path uses gate --post quality (runtime-smoke + quality-gate)" >&2
+      echo "gate: set GOAL_ALLOW_LEGACY_SMOKE_STAGE=1 to run legacy handoff/smoke.json" >&2
+      fail "duplicate smoke stage blocked (catalog P1-14) — use quality stage"
+    fi
     if [[ "$PHASE" == "pre" ]]; then
       [[ -f "$HANDOFF_DIR/implement.json" ]] || fail "implement handoff missing — run implement gate --post first"
     fi

@@ -1,6 +1,6 @@
 # 优化规格大纲 v0（Research 合并稿）
 
-**Status:** 草稿 v0.1 — [#4](https://github.com/sophiezel/goal/issues/4) / [#5](https://github.com/sophiezel/goal/issues/5) 核心策略已 ratified（2026-08-01）；本稿已回写 UX/L10 硬约束，待 Part A 开放题（L9 `failure_code` 等）收尾后升格正式规格。
+**Status:** 草稿 v0.2 — P0/P1/P2 Wayfinder 实现项已回写（2026-08-01）；Part A 开放题（`matrix_row_unsatisfied` 等）仍阻塞正式规格升格。
 
 **父地图:** [Wayfinder #1](https://github.com/sophiezel/goal/issues/1)
 
@@ -27,16 +27,11 @@
 
 ## P0 — 质量面（漏出风险）
 
-4. **声明缺陷类 silent pass**  
-   与草案 Part A 对齐：UVO pass + IQ-10 fail 仍算质量面未完成，不得进入 review（待 #4 confirm）。
+4. **声明缺陷类 silent pass** — **✅ 2026-08-01** `quality_plane_check.py`（L10 manifest `w1_status`、ux-scan blockers、`declared_defect_silent_pass`）；complete / assert-complete 强制；review-pre 校验 UVO overall + IQ-10 `contract-conformance.json`。
 
-5. **review preflight 不可跳过**  
-   PKT-01–04 与 packet 截断策略（[#6](review-chain-bottlenecks.md)）写入 review 规格硬约束。
+5. **review preflight 不可跳过** — **✅ 2026-08-01** PKT-01–04 规格：`goal-pipeline/references/review-packet-hard-constraints.md`；`assemble-review-packet.sh`、`gate-lib/review.sh`、`goal-run-review-chain.sh` 硬断言。
 
-6. **W1 + W2 漏出计数（#4 ratified）**  
-   - **W1**（单次 run）：L1–L8 + **已声明 L10 manifest 行**须 pass / waive / deferred，**禁止 silent pass**；`leakage.declared_defect_classes_silent_pass[]` 为空 + `quality_plane_check` 为「0 漏出」必要条件。  
-   - **W2**（MR 合入）：L9 / 验收矩阵 satisfied；Goal 只保证 W1 证据链完整。  
-   - **Q11（closed）：** 未 manifest 且未升 L9 的 UX **不算 W2 L9 违约**；**已 manifest 的 L10 在 W1 仍须记账** — 与「未声明不计漏出」不矛盾（见 [draft](draft-zero-leakage-and-ux-policy.md) A.3、open Q11）。
+6. **W1 + W2 漏出计数（#4 ratified）** — **✅ 2026-08-01（W1 记账）** `w1_leakage_bookkeeping.py` → `delivery-quality.json` `leakage.*`；complete post 与 `delivery_report.py` 汇总；W2/L9 仍宿主矩阵义务。
 
 ---
 
@@ -55,40 +50,27 @@
    - **UX-D3 / D4 / D6 → v2 defer**，不纳入 v1 自动扫描闸门。  
    - 与 plan post L10 manifest **并列消费**；IQ-10 **不**覆盖骨架屏形态（UX-D* 非契约漂移，除非矩阵/decisions 声明）。
 
-9. **Auto-fix 授权（C1 narrow）**  
-   - **仅 UX-D2、UX-D5**；diff **严格在 write_set 内**；禁止路由/新页/流程/API 语义变更。  
-   - **UX-D1**（如 skeleton 内 footer CTA）：recommend only，**禁止默认 auto-fix** → review-fix-input。  
-   - **Profile：** XS/S — D2/D5 auto-fix **无额外 HITL**；S+ / M+ 或显式配置可提高人工介入（见草案 B.5 表）。
+9. **Auto-fix 授权（C1 narrow）** — **✅ 规格**（草案 C1）；实现：`ux_scan_v1` + write_set 内 auto-fix 策略由宿主 skill 消费，Goal 不硬编码业务路由。
 
-10. **Strict tier 与 fail 路由（review-first）**  
-    - `quality` tier=**strict**：UX tag / manifest / ux-scan 违反 → **review 必 fail**（review-first）。  
-    - **禁止**仅凭 L10 或 manifest alone 在 implement post 硬 block。  
-    - Review fail（UX/L10）：**fix-input** 或显式 **waive**（带 separation）；**禁止**引擎自动写入矩阵 **C#** 或静默升格 L9。  
-    - **L9 阻断**仅人工升级：矩阵 C#/V# 行或 HITL confirm；未升级前按 L10 soft 路由。
+10. **Strict tier 与 fail 路由（review-first）** — **✅ 2026-08-01** `review_strict_ux.py` + `merge_review_core`：strict 下未处置 L10/ux-scan → review blocker；implement post 不因 L10 alone 硬 block（既有）。
 
-11. **Complete / W1 收口**  
-    - 已声明 **L10 行**在 complete 须 pass / waive / deferred 入账 measure / evidence（与 P0 §6 W1 对齐）。  
-    - a11y（D5）：信号优先 **业务仓 write_set 路径**上 `eslint` + `eslint-plugin-jsx-a11y`；Goal **汇总**入 `ux-scan.json`，不在 pipeline 内维护平行规则表（B.8）。
+11. **Complete / W1 收口** — **✅ 2026-08-01** 见 P0 §6 + `quality_plane_check` complete 路径。
 
 ---
 
 ## P1 — 效率面
 
-12. **timing 子步骤落盘**  
-   生产路径接线 UVO steps、review attempt、cwiki（catalog § timing 缺口）；支撑 [#7](https://github.com/sophiezel/goal/issues/7) 看板。
+12. **timing 子步骤落盘** — **✅**（`record-pipeline-timing.py` / `sync_timing_substeps.py`；见 548d1f7 区域）。
 
-13. **review 默认路径**  
-   XS/S 优先 `review_track=single` + detect cache；dual Agent 仅 M+ 或显式配置（#6 P0 瓶颈）。
+13. **review 默认路径** — **✅ 2026-08-01** plan post 写入 `plan.json` `review_policy` + state persist；`review_track.py` XS/S + `plan_profile=lite` → `single`（`--auto-resolve-xs-s`）。
 
-14. **gate 栈去重**  
-   评估废弃独立 `--stage smoke` 调用路径，与 advance-only `quality` 单一事实（catalog 冗余项 1–3）。
+14. **gate 栈去重** — **✅ 2026-08-01** 存在 `handoff/quality.json` 时 `--stage smoke` 默认拒绝（`GOAL_ALLOW_LEGACY_SMOKE_STAGE=1` 逃逸）；advance 仍用 quality。
 
 ---
 
 ## P2 — 契约提取
 
-15. **H5 `createRequest` 提取器**  
-   支持 `req({ uri })` 工厂模式，减少 `as never` 契约锚点（RCA §4 + #3）。
+15. **H5 `createRequest` 提取器** — **✅ 2026-08-01** `contract_parser.extract_h5_bindings` 第二遍 factory `req({ uri })`；fixture `contract-iq10-factory`。
 
 ---
 

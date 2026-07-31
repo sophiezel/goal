@@ -23,7 +23,7 @@
   "verification": {
     "build_command": "CI= yarn build:beta"
   },
-  "git_head": "b9148885e61cfbfd",
+  "git_head": "32388221941bd76d",
   "artifact_paths": [
     "index.md"
   ],
@@ -31,7 +31,7 @@
   "gate": {
     "script": "gate-guazi-flow-stage.sh",
     "version": 1,
-    "passed_at": "2026-07-31T18:00:33Z",
+    "passed_at": "2026-07-31T18:11:05Z",
     "post_exit_code": 0
   },
   "task_tier": "S",
@@ -62,5 +62,10 @@
       "shared_entry_serial": true,
       "note": "Shared entry files (App.tsx / pages/index.ts) MUST be merged serially by orchestrator"
     }
+  },
+  "review_policy": {
+    "track": "single",
+    "resolved_at": "auto_xs_s",
+    "task_tier": "S"
   }
 }

@@ -304,10 +304,12 @@ def extract_verification_hints(index_text: str) -> dict:
         hints["build_command"] = "CI= yarn build:beta"
     elif re.search(r"yarn\s+build\b", index_text):
         hints["build_command"] = "CI= yarn build"
-    # testPathPattern=...
-    m = re.search(r"testPathPattern[=:]?\s*[`\"]?([^`\"\\s|]+)", index_text)
+    # Prefer `--testPathPattern=` (jest CLI); avoid optional `=` before capture (would capture "=").
+    m = re.search(r"--testPathPattern=([A-Za-z0-9_.|'\\-]+)", index_text)
+    if not m:
+        m = re.search(r"(?<![-/])testPathPattern=(?:[`\"']?)([A-Za-z0-9_.|'\\-]+)", index_text)
     if m:
-        pat = m.group(1).strip()
+        pat = m.group(1).strip().strip("`\"'")
         if pat and pat not in ("=", "-", "—") and len(pat) >= 2:
             hints["test_pattern"] = pat
     return hints

@@ -59,4 +59,15 @@ unset GOAL_HANDOFF_DIR
 cp "$SPLIT_HO/plan.json" "$GOOD/handoff/plan.json"
 rm -rf "$SPLIT_HO"
 
+echo "IQ-10: createRequest factory pattern (key + req({ uri }))"
+FACTORY="$DIR/contract-iq10-factory"
+HASH_F=$(python3 -c "
+import sys
+sys.path.insert(0, '$SCRIPTS')
+from contract_parser import api_mapping_table_hash
+print(api_mapping_table_hash(open('$FACTORY/index.md', encoding='utf-8').read()))
+")
+python3 -c "import json; p=json.load(open('$FACTORY/handoff/plan.json')); p['api_mapping_table_hash']='$HASH_F'; json.dump(p, open('$FACTORY/handoff/plan.json','w'), indent=2)"
+python3 "$IQ" --task-dir "$FACTORY" --repo-root "$FACTORY" --json
+
 echo "contract gate tests passed"

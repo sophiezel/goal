@@ -99,11 +99,15 @@
         {
           "event": "start",
           "timestamp_utc": "2026-07-31T18:00:47Z"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-07-31T18:11:33Z"
         }
       ],
-      "started_at_utc": "2026-07-31T18:00:47Z",
-      "last_timestamp_utc": "2026-07-31T18:00:47Z"
+      "started_at_utc": "2026-07-31T18:11:33Z",
+      "last_timestamp_utc": "2026-07-31T18:11:33Z"
     }
   },
-  "updated_at_utc": "2026-07-31T18:00:47Z"
+  "updated_at_utc": "2026-07-31T18:11:33Z"
 }

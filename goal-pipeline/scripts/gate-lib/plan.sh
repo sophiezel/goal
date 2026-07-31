@@ -118,6 +118,40 @@ with open(plan_path, "w", encoding="utf-8") as f:
 PYTT
         fi
       fi
+      if [[ -f "$SCRIPT_DIR/review_track.py" && -f "$HANDOFF_DIR/plan.json" ]]; then
+        RT_JSON=$(python3 "$SCRIPT_DIR/review_track.py" \
+          --state-file "${STATE_FILE:-}" \
+          --plan-json "$HANDOFF_DIR/plan.json" \
+          --auto-resolve-xs-s \
+          --format json 2>/dev/null || echo "")
+        if [[ -n "$RT_JSON" ]]; then
+          python3 - "$HANDOFF_DIR/plan.json" "$RT_JSON" << 'PYRT'
+import json, sys
+plan_path, raw = sys.argv[1], sys.argv[2]
+try:
+    doc = json.loads(raw)
+except json.JSONDecodeError:
+    sys.exit(0)
+with open(plan_path, encoding="utf-8") as f:
+    plan = json.load(f)
+plan["review_policy"] = {
+    "track": doc.get("track", "dual"),
+    "resolved_at": doc.get("reason", ""),
+    "task_tier": doc.get("task_tier", plan.get("task_tier", "")),
+}
+with open(plan_path, "w", encoding="utf-8") as f:
+    json.dump(plan, f, indent=2, ensure_ascii=False)
+    f.write("\n")
+PYRT
+        fi
+        if [[ -n "$STATE_FILE" && -f "$STATE_FILE" ]]; then
+          python3 "$SCRIPT_DIR/review_track.py" \
+            --state-file "$STATE_FILE" \
+            --plan-json "$HANDOFF_DIR/plan.json" \
+            --auto-resolve-xs-s \
+            --persist >/dev/null 2>&1 || true
+        fi
+      fi
       ARGUS="$SCRIPT_DIR/argus-enrich-plan.sh"
       if [[ -x "$ARGUS" ]]; then
         AARGS=(--task-dir "$TASK_DIR")

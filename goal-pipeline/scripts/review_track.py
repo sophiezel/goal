@@ -62,7 +62,10 @@ def resolve_review_track(
     if state_track == "dual":
         return "dual", {"reason": "state_review_policy"}
 
-    # auto-resolve: XS/S → single (gated behind auto_resolve_xs_s flag; off by default in PR3)
+    # auto-resolve: XS/S → single when --auto-resolve-xs-s or plan_profile lite (manifest default)
+    plan_profile = str(state.get("plan_profile") or "").lower()
+    if not auto_resolve_xs_s and plan_profile == "lite" and task_tier in ("XS", "S"):
+        auto_resolve_xs_s = True
     if auto_resolve_xs_s and task_tier in ("XS", "S"):
         return "single", {"reason": "auto_xs_s", "task_tier": task_tier}
 
@@ -97,6 +100,14 @@ def main() -> int:
     args = p.parse_args()
 
     state = _load_state(args.state_file)
+    if args.plan_json and os.path.isfile(args.plan_json):
+        try:
+            plan_doc = json.load(open(args.plan_json, encoding="utf-8"))
+            state.setdefault("plan_profile", plan_doc.get("plan_profile", ""))
+            if not state.get("task_tier"):
+                state["task_tier"] = plan_doc.get("task_tier", "")
+        except (OSError, json.JSONDecodeError):
+            pass
     task_tier = (args.task_tier or _load_task_tier(state, args.plan_json)).upper()
     track, meta = resolve_review_track(
         task_tier, state=state, auto_resolve_xs_s=args.auto_resolve_xs_s

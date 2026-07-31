@@ -220,6 +220,22 @@ def main():
             goal_idx += 1
             flat.append(normalize_issue(iss, "goal", goal_idx))
 
+    strict_ux_mod = os.path.join(SCRIPT_DIR, "review_strict_ux.py")
+    if os.path.isfile(strict_ux_mod):
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location("review_strict_ux", strict_ux_mod)
+        if spec and spec.loader:
+            mod = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(mod)
+            for raw in mod.collect_strict_ux_issues(
+                handoff_dir=handoff_dir,
+                goal_evidence_dir=goal_evidence,
+                state_file=state_file,
+            ):
+                goal_idx += 1
+                flat.append(normalize_issue(raw, "goal", goal_idx))
+
     blockers = [i for i in flat if i.get("severity") == "blocker"]
     infra_only = issues_are_infra_only(flat, unified_result)
     # Keep merged_result gate-compatible (pass|not_pass) but annotate infra_undetermined via action.

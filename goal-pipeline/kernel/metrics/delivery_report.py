@@ -197,6 +197,18 @@ def build_delivery_report(
 
     gate_evidence_rollup = _gate_evidence_rollup(goal_evidence, os.path.join(repo_task, "evidence"))
 
+    leakage_w1: dict[str, Any] = {}
+    scripts_root = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "scripts"))
+    w1_mod = os.path.join(scripts_root, "w1_leakage_bookkeeping.py")
+    if os.path.isfile(w1_mod):
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location("w1_leakage_bookkeeping", w1_mod)
+        if spec and spec.loader:
+            w1 = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(w1)
+            leakage_w1 = w1.build_w1_leakage(handoff_dir=handoff, goal_evidence_dir=goal_evidence)
+
     report: dict[str, Any] = {
         "schema_version": 2,
         "pipeline_id": pipeline_id,
@@ -219,6 +231,9 @@ def build_delivery_report(
         },
         "gate_evidence_rollup": gate_evidence_rollup,
     }
+    if leakage_w1:
+        report.setdefault("leakage", {})
+        report["leakage"].update(leakage_w1)
     warnings = v2_completeness_warnings(report)
     if warnings:
         report["incomplete_metrics"] = warnings

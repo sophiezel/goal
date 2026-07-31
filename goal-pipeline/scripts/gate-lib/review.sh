@@ -51,6 +51,13 @@ PYFRESH
       if ! "$UVO" "${UVO_CHECK_ARGS[@]}" >/dev/null 2>&1; then
         fail "verification-oracle evidence missing or stale — rerun gate --post implement"
       fi
+      UVO_OVERALL=$(python3 -c "import json; print(json.load(open('$GOAL_EVIDENCE_DIR/verification-oracle.json')).get('overall',''))" 2>/dev/null || echo "")
+      [[ "$UVO_OVERALL" == "pass" ]] || fail "verification-oracle overall not pass — cannot enter review (quality plane incomplete)"
+      CC_EVIDENCE="$GOAL_EVIDENCE_DIR/contract-conformance.json"
+      if [[ -f "$CC_EVIDENCE" ]]; then
+        CC_PASS=$(python3 -c "import json; print('pass' if json.load(open('$CC_EVIDENCE')).get('passed') else 'fail')" 2>/dev/null || echo "fail")
+        [[ "$CC_PASS" == "pass" ]] || fail "contract-conformance (IQ-10) not pass — fix implement post before review"
+      fi
       WS=$(python3 -c "import json; print(','.join(json.load(open('$HANDOFF_DIR/plan.json')).get('write_set',[])))" 2>/dev/null || echo "")
       export GOAL_SKIP_TEST=1 GOAL_SKIP_BUILD=1 GOAL_SKIP_LINT=1
       VOUT=$("$VERIFY_REV" "$TASK_DIR" "$WS" json 2>/dev/null || echo '{"overall":"not_pass"}')

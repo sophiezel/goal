@@ -103,6 +103,26 @@ def main() -> int:
                     }
                 )
 
+        uvo_doc = load_json(uvo) if uvo.is_file() else {}
+        overall = str(uvo_doc.get("overall", "")).lower() if uvo_doc else ""
+        if overall and overall != "pass":
+            errors.append(
+                {
+                    "failure_code": "uvo_not_pass",
+                    "summary": f"verification-oracle overall={uvo_doc.get('overall')} at complete",
+                }
+            )
+
+        cc = goal_ev / "contract-conformance.json"
+        if cc.is_file() and not load_json(cc).get("passed"):
+            errors.append(
+                {
+                    "failure_code": "contract_conformance_open",
+                    "summary": "contract-conformance (IQ-10) not passed at complete",
+                    "leakage": {"declared_defect_classes_silent_pass": ["IQ-10"]},
+                }
+            )
+
         task_path = Path(args.task_dir)
         handoff = task_path / "handoff"
         manifest_path = handoff / "argus-scenario-manifest.json"

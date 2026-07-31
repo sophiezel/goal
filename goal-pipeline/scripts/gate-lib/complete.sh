@@ -35,6 +35,13 @@
         [[ -n "$STATE_FILE" ]] && WDQ_ARGS+=(--state-file "$STATE_FILE")
         [[ -n "$PROJECT_ROOT" ]] && WDQ_ARGS+=(--project-root "$PROJECT_ROOT")
         "$WDQ" "${WDQ_ARGS[@]}" >/dev/null || fail "delivery-quality.json write failed"
+        W1BK="$SCRIPT_DIR/w1_leakage_bookkeeping.py"
+        if [[ -f "$W1BK" ]]; then
+          python3 "$W1BK" \
+            --handoff-dir "$HANDOFF_DIR" \
+            --goal-evidence-dir "$GOAL_EVIDENCE_DIR" \
+            --delivery-quality "$HANDOFF_DIR/delivery-quality.json" >/dev/null 2>&1 || true
+        fi
         KERNEL_ROOT="$SCRIPT_DIR/.."
         if [[ -d "$KERNEL_ROOT/kernel/metrics" ]]; then
           ADR_RC=0

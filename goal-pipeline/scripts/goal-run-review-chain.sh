@@ -71,6 +71,20 @@ _run_independent_review() {
   fi
 }
 
+assert_review_packet_preflight() {
+  local packet="$HANDOFF_DIR/review-packet.json"
+  local uvo="$GOAL_EVIDENCE_DIR/verification-oracle.json"
+  local pf="$SCRIPT_DIR/review_packet_preflight.py"
+  [[ -f "$packet" ]] || { echo "review-chain: review-packet.json missing after assemble" >&2; return 1; }
+  [[ -f "$pf" ]] || return 0
+  if ! python3 "$pf" --packet "$packet" --uvo "$uvo" >/dev/null 2>&1; then
+    python3 "$pf" --packet "$packet" --uvo "$uvo" --json 2>&1 | head -20 >&2 || true
+    echo "review-chain: packet preflight failed (PKT-01..04) — see goal-pipeline/references/review-packet-hard-constraints.md" >&2
+    return 1
+  fi
+  return 0
+}
+
 _run_kernel_review() {
   python3 "$REVIEW_CLI" run --task-dir "$REPO_TASK_DIR" --mode "$MODE" \
     ${STATE_FILE:+--state-file "$STATE_FILE"} \
@@ -89,12 +103,14 @@ UNREACH=$(echo "$CHANNEL_JSON" | python3 -c "import json,sys; print('1' if json.
 if [[ "${GOAL_REVIEW_FORCE_DETERMINISTIC:-}" == "1" ]]; then
   echo "review-chain [2/4] assemble-review-packet (forced deterministic)"
   bash "$ASSEMBLE" "${COMMON_ARGS[@]}"
+  assert_review_packet_preflight || exit 1
   python3 "$GUARD" --check --force-det 1 --provider deterministic
   bash "$REVIEW" "${COMMON_ARGS[@]}" --mode goal --provider deterministic
 elif [[ "$UNREACH" == "1" ]]; then
   echo "review-chain: WARN — review APIs configured but unreachable (short probe); skipping cascade" >&2
   echo "review-chain: use GOAL_REVIEW_CURSOR_TASK=1 / Cursor Task — do NOT treat as business not_pass" >&2
   bash "$ASSEMBLE" "${COMMON_ARGS[@]}"
+  assert_review_packet_preflight || exit 1
   mkdir -p "$GOAL_EVIDENCE_DIR"
   python3 - "$GOAL_EVIDENCE_DIR/review-channel-degraded.json" <<'PY'
 import json, sys
@@ -117,6 +133,7 @@ elif [[ "$HAS_CH" != "1" ]]; then
   echo "review-chain: WARN — 0 usable review channels; skipping L2 API cascade (separation=degraded)" >&2
   echo "review-chain: using deterministic_scope_only — confidence lowered; not a full independent review" >&2
   bash "$ASSEMBLE" "${COMMON_ARGS[@]}"
+  assert_review_packet_preflight || exit 1
   mkdir -p "$GOAL_EVIDENCE_DIR"
   python3 - "$GOAL_EVIDENCE_DIR/review-channel-degraded.json" <<'PY'
 import json, sys
@@ -138,6 +155,7 @@ elif [[ -f "$REVIEW_CLI" ]]; then
   exit 0
 else
   bash "$ASSEMBLE" "${COMMON_ARGS[@]}"
+  assert_review_packet_preflight || exit 1
   _run_independent_review "$MODE"
 fi
 

@@ -252,8 +252,40 @@ class HttpBinding:
     snippet: str = ""
 
 
+def _binding_key_from_object_body(body: str) -> str | None:
+    key_m = H5_KEY_RE.search(body)
+    if not key_m:
+        return None
+    return key_m.group(1).upper()
+
+
+def _append_binding(
+    bindings: list[HttpBinding],
+    seen: set[tuple[str, str]],
+    *,
+    request_key: str,
+    uri: str,
+    file_path: str,
+    snippet: str,
+) -> None:
+    pair = (request_key, uri)
+    if pair in seen:
+        return
+    seen.add(pair)
+    bindings.append(
+        HttpBinding(
+            request_key=request_key,
+            uri=uri,
+            source_file=file_path,
+            snippet=snippet[:200],
+        )
+    )
+
+
 def extract_h5_bindings(file_path: str, content: str) -> list[HttpBinding]:
     bindings: list[HttpBinding] = []
+    seen: set[tuple[str, str]] = set()
+    # Pass 1: key + uri in same createRequest({ ... }) window
     for m in re.finditer(r"createRequest\s*\(\s*\{", content):
         start = m.start()
         end = min(len(content), start + 800)
@@ -261,13 +293,39 @@ def extract_h5_bindings(file_path: str, content: str) -> list[HttpBinding]:
         key_m = H5_KEY_RE.search(chunk)
         uri_m = H5_URI_RE.search(chunk)
         if key_m and uri_m:
-            bindings.append(
-                HttpBinding(
-                    request_key=key_m.group(1).upper(),
-                    uri=uri_m.group(1),
-                    source_file=file_path,
-                    snippet=chunk[:200],
-                )
+            _append_binding(
+                bindings,
+                seen,
+                request_key=key_m.group(1).upper(),
+                uri=uri_m.group(1),
+                file_path=file_path,
+                snippet=chunk,
+            )
+    # Pass 2: factory `const req = createRequest({ key })` then `req({ uri })`
+    factory_re = re.compile(
+        r"(?:const|let|var)\s+(\w+)\s*=\s*(?:\w+\.)?createRequest\s*\(\s*\{([^}]{0,500})\}\s*\)",
+        re.DOTALL,
+    )
+    for m in factory_re.finditer(content):
+        var_name = m.group(1)
+        body = m.group(2)
+        request_key = _binding_key_from_object_body(body)
+        if not request_key:
+            continue
+        tail = content[m.end() : min(len(content), m.end() + 1200)]
+        uri_m = re.search(
+            rf"\b{re.escape(var_name)}\s*\(\s*\{{[^}}]*\buri\s*:\s*['\"]([^'\"]+)['\"]",
+            tail,
+            re.DOTALL,
+        )
+        if uri_m:
+            _append_binding(
+                bindings,
+                seen,
+                request_key=request_key,
+                uri=uri_m.group(1),
+                file_path=file_path,
+                snippet=content[m.start() : m.end() + min(200, len(tail))],
             )
     return bindings
 
