@@ -48,4 +48,15 @@ export function fetchDetail() {
   return createRequest({ key: 'CSP_GOOD', uri: '/external/demo/detail', source: 100 });
 }
 TS
+
+echo "IQ-10: Tier-R handoff via GOAL_HANDOFF_DIR when repo handoff/plan.json absent"
+SPLIT_HO=$(mktemp -d)
+cp "$GOOD/handoff/plan.json" "$SPLIT_HO/plan.json"
+rm -f "$GOOD/handoff/plan.json"
+export GOAL_HANDOFF_DIR="$SPLIT_HO"
+python3 "$IQ" --task-dir "$GOOD" --repo-root "$GOOD" --json
+unset GOAL_HANDOFF_DIR
+cp "$SPLIT_HO/plan.json" "$GOOD/handoff/plan.json"
+rm -rf "$SPLIT_HO"
+
 echo "contract gate tests passed"

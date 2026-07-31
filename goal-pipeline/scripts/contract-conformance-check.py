@@ -18,6 +18,7 @@ from contract_parser import (
     iter_write_set_files,
     parse_api_mapping_table,
 )
+from verification_oracle_core import resolve_handoff_dir
 
 
 def parse_args():
@@ -92,9 +93,15 @@ def check_row(
     return issues
 
 
+def resolve_plan_path(task_dir: str) -> str:
+    """Mirror UVO / implement post: GOAL_HANDOFF_DIR when set, else task_dir/handoff."""
+    handoff_dir = resolve_handoff_dir(task_dir)
+    return os.path.join(handoff_dir, "plan.json")
+
+
 def run_check(task_dir: str, repo_root: str, profile: str) -> dict:
     index_path = os.path.join(task_dir, "index.md")
-    plan_path = os.path.join(task_dir, "handoff", "plan.json")
+    plan_path = resolve_plan_path(task_dir)
     if not os.path.isfile(index_path):
         return {
             "passed": False,
