@@ -113,6 +113,20 @@ PYCC
         fi
         rm -f "$CC_JSON"
       fi
+      UX_SCAN="$SCRIPT_DIR/ux_scan_v1.py"
+      if [[ -f "$UX_SCAN" ]]; then
+        UX_ARGS=(--task-dir "$TASK_DIR" --repo-root "$REPO_FOR_UVO")
+        [[ -n "$STATE_FILE" ]] && UX_ARGS+=(--state-file "$STATE_FILE")
+        [[ -n "$PROJECT_ROOT" ]] && UX_ARGS+=(--project-root "$PROJECT_ROOT")
+        python3 "$UX_SCAN" "${UX_ARGS[@]}" >/dev/null 2>&1 || true
+      fi
+      TIMING_SYNC="$SCRIPT_DIR/sync_timing_substeps.py"
+      if [[ -f "$TIMING_SYNC" && -f "$GOAL_EVIDENCE_DIR/verification-oracle.json" ]]; then
+        SYNC_ARGS=(--task-dir "$TASK_DIR" --source uvo)
+        [[ -n "$STATE_FILE" ]] && SYNC_ARGS+=(--state-file "$STATE_FILE")
+        [[ -n "$PROJECT_ROOT" ]] && SYNC_ARGS+=(--project-root "$PROJECT_ROOT")
+        python3 "$TIMING_SYNC" "${SYNC_ARGS[@]}" >/dev/null 2>&1 || true
+      fi
       INT_MANIFEST="$HANDOFF_DIR/integration-manifest.json"
       INT_CHECK="$SCRIPT_DIR/integration-contract-check.sh"
       if [[ -f "$INT_MANIFEST" && -f "$INT_CHECK" ]]; then
