@@ -53,7 +53,7 @@ skill-up run evals/eval.yaml --iteration 1 --output-dir ../goal-pipeline-workspa
 
 - [x] [`declarative-contract-gates.md`](declarative-contract-gates.md)
 - [x] README / `dual-track-contract` / `guazi-flow-integration` 引用
-- [ ] 本清单全部 PR 完成后，在 CHANGELOG 或 release note 写一行「声明式契约门禁 + integration manifest barrier」
+- [x] 本清单全部 PR 完成后，在 CHANGELOG 或 release note 写一行「声明式契约门禁 + integration manifest barrier」（见 [`docs/RELEASE-v1.0.3.md`](../../docs/RELEASE-v1.0.3.md)）
 
 ## 完成定义
 
