@@ -248,6 +248,10 @@ lines[0] += ")."
 
 if skill:
     lines.append(f"Load skill: {skill}")
+extra = wo.get("skills_to_load") or []
+for s in extra:
+    if s and s != skill:
+        lines.append(f"Also load skill: {s}")
 for i, c in enumerate(cmds[:3], 1):
     lines.append(f"cmd{i}: {c}")
 if never:

@@ -206,10 +206,65 @@ if attempt and next_stage not in ("done", "blocked") and attempt != next_stage:
 
 mandatory = build_mandatory(next_stage) if next_stage != "done" else build_mandatory("done")
 
+fe_argus_plan_post = {"required": False, "skill": None}
+skills_to_load: list[str] = []
+if next_stage == "plan":
+    pol = os.path.join(script_dir, "argus_plan_post_policy.py")
+    if os.path.isfile(pol):
+        import subprocess
+        import sys as _sys
+
+        try:
+            tr = json.loads(
+                subprocess.check_output(
+                    [_sys.executable, pol, "--resolve-from-task-dir", "--task-dir", task_dir],
+                    text=True,
+                    timeout=30,
+                )
+            )
+            required = bool(tr.get("fe_argus_skill_required"))
+            handoff_dir = os.path.join(task_dir, "handoff")
+            block = json.loads(
+                subprocess.check_output(
+                    [
+                        _sys.executable,
+                        pol,
+                        "--work-order-json",
+                        "--task-dir",
+                        task_dir,
+                        "--handoff-dir",
+                        handoff_dir,
+                        "--script-dir",
+                        script_dir,
+                    ],
+                    text=True,
+                    timeout=30,
+                )
+            )
+            fe_argus_plan_post = block.get("fe_argus_plan_post") or fe_argus_plan_post
+            suffix = block.get("argus_mandatory_suffix") or []
+            if required and suffix:
+                injected: list[str] = []
+                for c in mandatory:
+                    injected.append(c)
+                    if "--stage plan" in c and "--post" in c:
+                        injected.extend(suffix)
+                mandatory = injected
+                skills_to_load = list(block.get("skills_to_load") or [])
+        except (subprocess.CalledProcessError, json.JSONDecodeError, OSError):
+            pass
+
 # Review single-track: skill_to_load=goal-review (skip guazi-flow-review Agent turn)
 resolved_skill = STAGE_SKILL.get(next_stage)
 if next_stage == "review" and review_track == "single":
     resolved_skill = "goal-review"
+
+primary_skills: list[str] = []
+if resolved_skill:
+    primary_skills.append(resolved_skill)
+for s in skills_to_load:
+    if s and s not in primary_skills:
+        primary_skills.append(s)
 
 work_order = {
     "schema_version": 1,
@@ -218,6 +273,8 @@ work_order = {
     "blocked_reason": blocked_reason,
     "wrong_stage": wrong_stage,
     "skill_to_load": resolved_skill,
+    "skills_to_load": primary_skills,
+    "fe_argus_plan_post": fe_argus_plan_post,
     "review_track": review_track,
     "progress": STAGE_PROGRESS.get(next_stage, f"[?] {next_stage}"),
     "mandatory_commands": mandatory,
@@ -228,6 +285,7 @@ work_order = {
         "在未读 evidence/<stage>-gate-fix-input.json 时修复 plan/implement gate 失败",
         "gate 失败时由 Judge 会话直接改 index.md 或 diff（须读 fix-input 后由 Executor 修）",
         "gate --post 未 exit 0 时输出阶段 ✅",
+        "plan post 触发 fe-argus 时跳过 fe-argus INDEX merge（须 merge manifest 且 argus_enrich_status≠rule_only）",
         "手写 handoff/*.json",
         "在 gate --post plan 之前写 src/** 或 write_set 业务代码（failure_code: plan_code_order）",
         "将 plan Todo 与 implement/写代码 Todo 并列；仅 [1/5] plan ✅ 后才可新增写代码 Todo",

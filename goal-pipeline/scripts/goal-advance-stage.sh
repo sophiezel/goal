@@ -226,6 +226,20 @@ if ! handoff_ok "$HANDOFF/plan.json" && ! gate_passed_in_state "plan"; then
   exit 0
 fi
 
+# C1 fe-argus: block leaving plan while skill merge pending (shell step 1 only).
+ARGUS_POL="$SCRIPT_DIR/argus_plan_post_policy.py"
+if [[ -f "$ARGUS_POL" && -f "$HANDOFF/plan.json" ]]; then
+  MANIFEST="$HANDOFF/argus-scenario-manifest.json"
+  MARG=""
+  [[ -f "$MANIFEST" ]] && MARG="$MANIFEST"
+  if ! python3 "$ARGUS_POL" --check-advance --plan-json "$HANDOFF/plan.json" --manifest-json "$MARG" >/dev/null 2>&1; then
+    REQ=$(python3 "$ARGUS_POL" --work-order-json --task-dir "$TASK_DIR" --handoff-dir "$HANDOFF" --script-dir "$SCRIPT_DIR" 2>/dev/null \
+      | python3 -c "import json,sys; b=json.load(sys.stdin); print(json.dumps(b.get('argus_mandatory_suffix') or []))" 2>/dev/null || echo '[]')
+    emit "plan" "argus_fe_skill_pending" "false" "$REQ"
+    exit 0
+  fi
+fi
+
 # implement
 if ! handoff_ok "$HANDOFF/implement.json" && ! gate_passed_in_state "implement"; then
   IMPL_GATE_PENDING=false

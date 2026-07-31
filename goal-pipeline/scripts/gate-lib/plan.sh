@@ -94,6 +94,29 @@ JSON
         fail "argus_enrich_plan.py missing — L10 manifest required at plan post"
       fi
       [[ -f "$HANDOFF_DIR/argus-scenario-manifest.json" ]] || fail "handoff/argus-scenario-manifest.json missing after plan post"
+      if [[ -f "$SCRIPT_DIR/argus_plan_post_policy.py" && -f "$HANDOFF_DIR/plan.json" ]]; then
+        ARGUS_CHK=$(python3 "$SCRIPT_DIR/argus_plan_post_policy.py" \
+          --check-plan-post \
+          --plan-json "$HANDOFF_DIR/plan.json" \
+          --manifest-json "$HANDOFF_DIR/argus-scenario-manifest.json" \
+          --quality-tier "$TIER" 2>/dev/null || echo '{"ok":false}')
+        PARTIAL_WARN=$(echo "$ARGUS_CHK" | python3 -c "import json,sys; d=json.load(sys.stdin); print(';'.join(d.get('pq_warn') or []))" 2>/dev/null || echo "")
+        if [[ -n "$PARTIAL_WARN" ]]; then
+          python3 - "$HANDOFF_DIR/plan.json" "$PARTIAL_WARN" << 'PYWARN'
+import json, sys
+plan_path, msg = sys.argv[1], sys.argv[2]
+with open(plan_path, encoding="utf-8") as f:
+    plan = json.load(f)
+warnings = list(plan.get("warnings") or [])
+if msg and msg not in warnings:
+    warnings.append(msg)
+plan["warnings"] = warnings
+with open(plan_path, "w", encoding="utf-8") as f:
+    json.dump(plan, f, indent=2, ensure_ascii=False)
+    f.write("\n")
+PYWARN
+        fi
+      fi
       # Stamp task_tier (XS/S/M/L/XL) for SLO + parallel strategy
       if [[ -f "$SCRIPT_DIR/task_tier.py" ]]; then
         TT_JSON=$(python3 "$SCRIPT_DIR/task_tier.py" \

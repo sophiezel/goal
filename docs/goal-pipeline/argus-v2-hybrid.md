@@ -12,11 +12,13 @@
 
 2. **fe-argus skill (conditional)** — Agent work order only  
    - Trigger when **any**: `write_set` contains `src/pages/`, profile/tier ≥ S, or `GOAL_ARGUS_SKILL_REQUIRED=1`.  
-   - **Lite / XS**: skip step 2 unless `GOAL_ARGUS_SKILL_REQUIRED=1`.  
+   - **Lite / XS (HITL #13):** skip step 2 unless `GOAL_ARGUS_SKILL_REQUIRED=1`.  
    - Agent MUST load **fe-argus** skill, INDEX on-demand → Scenario Q, merge into manifest.  
    - Merge: dedupe by `scenario.id`; on conflict **rule wins**; argus-only rows get `source: argus`.  
-   - Use `argus_enrich_plan.merge_scenario_lists()` or equivalent hand-edit preserving schema v2.  
-   - fe-argus failure → set `argus_enrich_status: partial` + PQ warn; **do not** silent-pass plan post.
+   - Use `argus_enrich_plan.py --merge-fe-argus-file` or `merge_scenario_lists()` preserving schema v2.  
+   - fe-argus failure → set `argus_enrich_status: partial` + PQ warn on `handoff/plan.json`; **do not** silent-pass plan post.
+
+**Orchestration (implemented #8):** `goal-stage-driver` / `goal-pipeline-kernel next` inject `fe_argus_plan_post`, `skills_to_load`, and mandatory commands **after** `gate --post plan` (shell step 1). `goal-advance-stage` blocks leaving plan while `argus_fe_skill_pending`. Policy: `argus_plan_post_policy.py`.
 
 ## Manifest schema (v2)
 
@@ -32,11 +34,12 @@
 
 ## Agent checklist (no LLM in shell)
 
-- [ ] Step 1 ran and manifest exists before `gate --post plan` completes.  
-- [ ] If triggered, fe-argus INDEX loaded and scenarios merged with `source` provenance.  
-- [ ] If argus partial, document in plan PQ / index execution record; status `partial` on manifest.
+- [x] Step 1 ran and manifest exists before `gate --post plan` completes.  
+- [x] If triggered, fe-argus INDEX loaded and scenarios merged with `source` provenance.  
+- [x] If argus partial, document in plan PQ / index execution record; status `partial` on manifest.
 
 ## References
 
 - `goal-pipeline/scripts/argus_enrich_plan.py`  
+- `goal-pipeline/scripts/argus_plan_post_policy.py`  
 - `docs/wayfinder/research/phase-2-real-closure-grilling.md` §2.1 Ratified C1

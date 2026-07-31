@@ -182,12 +182,33 @@ def merge_scenario_lists(
     }
 
 
+def apply_fe_argus_merge(
+    handoff_dir: Path,
+    *,
+    pending_file: Path,
+    merge_status: str = "merged",
+) -> dict[str, Any]:
+    manifest_path = handoff_dir / "argus-scenario-manifest.json"
+    if not manifest_path.is_file():
+        raise FileNotFoundError(f"missing rule manifest: {manifest_path}")
+    rule_doc = json.loads(manifest_path.read_text(encoding="utf-8"))
+    rule_rows = list(rule_doc.get("scenarios") or [])
+    pending = json.loads(pending_file.read_text(encoding="utf-8"))
+    argus_rows = pending.get("scenarios") if isinstance(pending, dict) else pending
+    if not isinstance(argus_rows, list):
+        raise ValueError("fe-argus pending file must contain scenarios list or {scenarios: []}")
+    status = merge_status if merge_status in ("merged", "partial") else "partial"
+    return merge_scenario_lists(rule_rows, argus_rows, argus_status=status)
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--task-dir", required=True)
     ap.add_argument("--handoff-dir", default="")
     ap.add_argument("--out", default="")
     ap.add_argument("--format", choices=("json", "text"), default="json")
+    ap.add_argument("--merge-fe-argus-file", default="")
+    ap.add_argument("--merge-status", choices=("merged", "partial"), default="merged")
     args = ap.parse_args()
 
     task_dir = Path(args.task_dir).resolve()
@@ -197,8 +218,31 @@ def main() -> int:
         uvo = _load_uvo_helper()
         handoff_dir = Path(uvo.resolve_handoff_dir(str(task_dir)))
 
-    doc = build_manifest(task_dir, handoff_dir)
     out_path = Path(args.out) if args.out else handoff_dir / "argus-scenario-manifest.json"
+
+    if args.merge_fe_argus_file:
+        pending = Path(args.merge_fe_argus_file).resolve()
+        doc = apply_fe_argus_merge(
+            handoff_dir, pending_file=pending, merge_status=args.merge_status
+        )
+    else:
+        doc = build_manifest(task_dir, handoff_dir)
+        if out_path.is_file():
+            try:
+                old = json.loads(out_path.read_text(encoding="utf-8"))
+                if old.get("argus_enrich_status") in ("merged", "partial"):
+                    argus_only = [
+                        s for s in (old.get("scenarios") or []) if s.get("source") == "argus"
+                    ]
+                    if argus_only:
+                        doc = merge_scenario_lists(
+                            doc["scenarios"],
+                            argus_only,
+                            argus_status=str(old.get("argus_enrich_status") or "merged"),
+                        )
+            except json.JSONDecodeError:
+                pass
+
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(json.dumps(doc, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
