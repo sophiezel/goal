@@ -103,6 +103,7 @@
 
 | Date | Version | Action |
 |------|---------|--------|
+| 2026-08-01 | v1.0.2 | **Wayfinder Phase-3 工程收口** — [#8](https://github.com/sophiezel/goal/issues/8)–[#23](https://github.com/sophiezel/goal/issues/23) closed on `main`；见 [PHASE-3-CLOSURE.md](../PHASE-3-CLOSURE.md)；P2 → [tech-debt-p2.md](../tech-debt-p2.md) |
 | 2026-08-01 | v1.0 | Phase-3b HITL 全 C1 收口；关闭 v0 §未决；实现 deferred 链 Phase-3 表 |
 | 2026-08-01 | v1.0.1 | **#19** goal-quality e2e profile × tier SSOT + `goal_quality_e2e_policy.py` |
 | 2026-08-01 | v1.0 | #22：CTB-44243 平面归因附录写入 RCA §8 |
