@@ -103,8 +103,55 @@ def main() -> int:
                     }
                 )
 
+        task_path = Path(args.task_dir)
+        handoff = task_path / "handoff"
+        manifest_path = handoff / "argus-scenario-manifest.json"
+        if manifest_path.is_file():
+            manifest = load_json(manifest_path)
+            silent_l10: list[str] = []
+            for row in manifest.get("scenarios") or []:
+                status = (row.get("w1_status") or "open").lower()
+                if status not in ("pass", "waive", "deferred", "waived"):
+                    silent_l10.append(str(row.get("id") or "unknown"))
+            if silent_l10:
+                errors.append(
+                    {
+                        "failure_code": "declared_defect_silent_pass",
+                        "summary": f"L10 manifest rows without pass/waive/deferred: {', '.join(silent_l10)}",
+                        "leakage": {"declared_defect_classes_silent_pass": silent_l10},
+                    }
+                )
+
+        ux_scan = goal_ev / "ux-scan.json"
+        if ux_scan.is_file():
+            ux = load_json(ux_scan)
+            unresolved = [
+                f.get("id", "UX")
+                for f in ux.get("findings") or []
+                if (f.get("severity") or "").lower() in ("block", "blocker")
+                and (f.get("w1_status") or "open").lower() not in ("pass", "waive", "deferred", "waived")
+            ]
+            if unresolved:
+                errors.append(
+                    {
+                        "failure_code": "declared_defect_silent_pass",
+                        "summary": f"ux-scan blocker findings without disposition: {', '.join(unresolved)}",
+                        "leakage": {"declared_defect_classes_silent_pass": unresolved},
+                    }
+                )
+
     ok = not errors
-    out = {"ok": ok, "plane": "quality", "errors": errors, "silent_pass_forbidden": True}
+    leakage_silent: list[str] = []
+    for e in errors:
+        if e.get("failure_code") == "declared_defect_silent_pass":
+            leakage_silent.extend((e.get("leakage") or {}).get("declared_defect_classes_silent_pass") or [])
+    out = {
+        "ok": ok,
+        "plane": "quality",
+        "errors": errors,
+        "silent_pass_forbidden": True,
+        "leakage": {"declared_defect_classes_silent_pass": leakage_silent},
+    }
     if args.format == "text":
         print(f"quality_plane_check ok={ok}")
         for e in errors:
