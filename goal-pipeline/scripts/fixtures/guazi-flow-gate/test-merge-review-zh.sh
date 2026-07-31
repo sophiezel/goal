@@ -8,6 +8,7 @@ TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 
 cp -R "$FIX/." "$TMP/"
+export GOAL_ARTIFACT_MODE=repo_full
 # merge in place on temp copy (avoid mutating fixture)
 python3 "$SCRIPTS/merge_review_core.py" "$TMP" "$TMP/evidence/review-unified.json"
 

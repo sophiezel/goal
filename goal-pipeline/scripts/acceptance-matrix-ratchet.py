@@ -84,10 +84,9 @@ def run_ratchet(
                 }
             )
     if prune_prefixes:
-        plan_path = os.path.join(task_dir, "handoff", "plan.json")
-        env_ho = os.environ.get("GOAL_HANDOFF_DIR", "")
-        if not os.path.isfile(plan_path) and env_ho:
-            plan_path = os.path.join(env_ho, "plan.json")
+        from handoff_path_resolver import resolve_plan_json_path
+
+        plan_path = resolve_plan_json_path(task_dir)
         if os.path.isfile(plan_path):
             try:
                 with open(plan_path, encoding="utf-8") as pf:
@@ -241,14 +240,15 @@ def main():
     p.add_argument("--json", action="store_true", dest="as_json")
     args = p.parse_args()
 
+    from handoff_path_resolver import goal_evidence_dir, resolve_plan_json_path
+
     task_dir = os.path.abspath(args.task_dir)
     repo_root = os.path.abspath(args.repo_root or os.getcwd())
-    handoff = os.path.join(task_dir, "handoff", "plan.json")
-    if not os.path.isfile(handoff):
-        handoff = os.path.join(os.environ.get("GOAL_HANDOFF_DIR", ""), "plan.json")
+    state_file = (os.environ.get("GOAL_STATE_FILE") or "").strip()
+    handoff = resolve_plan_json_path(task_dir, state_file=state_file, project_root=repo_root)
     plan = json.load(open(handoff, encoding="utf-8")) if os.path.isfile(handoff) else {}
 
-    evidence_dir = args.evidence_dir or os.path.join(task_dir, "evidence")
+    evidence_dir = args.evidence_dir or goal_evidence_dir(task_dir, project_root=repo_root)
     uvo_path = os.path.join(evidence_dir, "verification-oracle.json")
     uvo = json.load(open(uvo_path, encoding="utf-8")) if os.path.isfile(uvo_path) else None
 

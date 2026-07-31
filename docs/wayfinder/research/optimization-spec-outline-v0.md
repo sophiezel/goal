@@ -15,7 +15,7 @@
 
 ## P0 — 数据面 + 控制面（阻断 CTB-44243 类 run）
 
-1. **IQ-10 handoff SSOT 与 split layout 对齐** — **✅ 已验证**（goal `d9bf079`；CTB-44243 implement post gate exit 0；见 [iq10-handoff-fix-run-log.md](iq10-handoff-fix-run-log.md)）
+1. **Handoff SSOT（split / AM / UX / 全平面）** — **✅** [#14](https://github.com/sophiezel/goal/issues/14)：`handoff_path_resolver.py` + [handoff-path-resolution.md](../../../goal-pipeline/references/handoff-path-resolution.md)；IQ-10 首验见 [iq10-handoff-fix-run-log.md](iq10-handoff-fix-run-log.md)（`d9bf079`）。
 
 2. **plan `write_set` 规范化** — **✅** `normalize_write_set_json` + `index_contract_hash.normalize_write_set`（plan post `plan.json`）。
 
@@ -81,4 +81,4 @@
 - ~~#4 残余~~：`matrix_row_unsatisfied`、AM waive、Part A.1 北星 → **closed**
 - ~~#5 Phase-2 C1~~ → v1 Part B / Phase-2 ratified 节
 - ~~#13 / #15 / #16 / #20~~ → v1 Part C / D / A
-- **仍 open（实现）：** split handoff [#14](https://github.com/sophiezel/goal/issues/14)；W2 自动化 [#10](https://github.com/sophiezel/goal/issues/10)；#7 HTML → [#9](https://github.com/sophiezel/goal/issues/9)
+- **仍 open（实现）：** ~~split handoff [#14](https://github.com/sophiezel/goal/issues/14)~~ → **closed 2026-08-01**（见 `goal-pipeline/references/handoff-path-resolution.md`）；W2 自动化 [#10](https://github.com/sophiezel/goal/issues/10)；#7 HTML → [#9](https://github.com/sophiezel/goal/issues/9)

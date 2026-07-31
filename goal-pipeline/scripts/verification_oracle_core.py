@@ -40,13 +40,14 @@ def _load_module(name: str, path: str):
 
 
 def resolve_handoff_dir(task_dir: str) -> str:
-    env = os.environ.get("GOAL_HANDOFF_DIR") or os.environ.get("HANDOFF_DIR")
-    if env and os.path.isdir(env):
-        return env
-    repo = os.path.join(task_dir, "handoff")
-    if os.path.isdir(repo):
-        return repo
-    return repo
+    sd = _script_dir()
+    if sd not in sys.path:
+        sys.path.insert(0, sd)
+    from handoff_path_resolver import resolve_handoff_dir as _ssot_handoff_dir
+
+    state_file = os.environ.get("GOAL_STATE_FILE", "")
+    project_root = os.environ.get("GOAL_REPO_ROOT", "")
+    return _ssot_handoff_dir(task_dir, state_file=state_file, project_root=project_root)
 
 
 def load_plan_handoff(task_dir: str) -> dict[str, Any]:

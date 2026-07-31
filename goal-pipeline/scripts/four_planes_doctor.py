@@ -73,7 +73,31 @@ def main() -> int:
     checks.append(check("data.hash_policy", (SCRIPT_DIR / "index_contract_hash.py").is_file()))
     checks.append(check("data.refresh_cascade", (SCRIPT_DIR / "refresh-handoffs-after-index.sh").is_file()))
     rap = (SCRIPT_DIR / "resolve-artifact-paths.py").read_text(encoding="utf-8") if (SCRIPT_DIR / "resolve-artifact-paths.py").is_file() else ""
-    checks.append(check("data.branch_scoped_discover", "state_branch_matches" in rap))
+    checks.append(check("data.handoff_path_resolver", (SCRIPT_DIR / "handoff_path_resolver.py").is_file()))
+    am_txt = (SCRIPT_DIR / "acceptance-matrix-ratchet.py").read_text(encoding="utf-8") if (SCRIPT_DIR / "acceptance-matrix-ratchet.py").is_file() else ""
+    checks.append(
+        check(
+            "data.am_ratchet_handoff_ssot",
+            "handoff_path_resolver" in am_txt or "resolve_plan_json_path" in am_txt,
+            "acceptance-matrix-ratchet.py",
+        )
+    )
+    qpc = (SCRIPT_DIR / "quality_plane_check.py").read_text(encoding="utf-8") if (SCRIPT_DIR / "quality_plane_check.py").is_file() else ""
+    checks.append(
+        check(
+            "data.quality_plane_handoff_ssot",
+            "handoff_dir" in qpc and "matrix_satisfaction_errors(handoff_dir)" in qpc,
+            "quality_plane_check.py",
+        )
+    )
+    uvo_txt = (SCRIPT_DIR / "verification_oracle_core.py").read_text(encoding="utf-8") if (SCRIPT_DIR / "verification_oracle_core.py").is_file() else ""
+    checks.append(
+        check(
+            "data.uvo_handoff_ssot",
+            "handoff_path_resolver" in uvo_txt,
+            "verification_oracle_core.resolve_handoff_dir",
+        )
+    )
 
     codes = REF_DIR / "failure-codes.json"
     checklist = REF_DIR / "four-planes-checklist.json"

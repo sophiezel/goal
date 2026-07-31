@@ -49,22 +49,18 @@ def matrix_satisfaction_errors(handoff: Path) -> list[dict]:
     return errors
 
 
-def resolve_dirs(task_dir: str, state_file: str, project_root: str) -> tuple[Path, Path]:
-    script_dir = Path(__file__).resolve().parent
-    resolver = script_dir / "resolve-artifact-paths.py"
-    if resolver.is_file():
-        import subprocess
+def resolve_dirs(task_dir: str, state_file: str, project_root: str) -> tuple[Path, Path, Path]:
+    from handoff_path_resolver import resolve_artifact_paths, resolve_handoff_dir
 
-        args = [sys.executable, str(resolver), "--task-dir", task_dir, "--format", "json"]
-        if state_file:
-            args.extend(["--state-file", state_file])
-        if project_root:
-            args.extend(["--project-root", project_root])
-        r = subprocess.run(args, capture_output=True, text=True, check=True)
-        d = json.loads(r.stdout)
-        return Path(d["repo_evidence_dir"]), Path(d["goal_evidence_dir"])
+    d = resolve_artifact_paths(task_dir, state_file=state_file, project_root=project_root)
+    if d:
+        return (
+            Path(d["repo_evidence_dir"]),
+            Path(d["goal_evidence_dir"]),
+            Path(d.get("handoff_dir") or resolve_handoff_dir(task_dir, state_file, project_root)),
+        )
     t = Path(task_dir)
-    return t / "evidence", t / "evidence"
+    return t / "evidence", t / "evidence", Path(resolve_handoff_dir(task_dir, state_file, project_root))
 
 
 def review_frontmatter(text: str) -> dict:
@@ -88,7 +84,7 @@ def main() -> int:
     ap.add_argument("--format", choices=("json", "text"), default="json")
     args = ap.parse_args()
 
-    repo_ev, goal_ev = resolve_dirs(args.task_dir, args.state_file, args.project_root)
+    repo_ev, goal_ev, handoff_dir = resolve_dirs(args.task_dir, args.state_file, args.project_root)
     errors: list[dict] = []
     matrix_w2: list[dict] = []
 
@@ -155,11 +151,9 @@ def main() -> int:
                 }
             )
 
-        task_path = Path(args.task_dir)
-        handoff = task_path / "handoff"
-        matrix_w2 = matrix_satisfaction_errors(handoff)
+        matrix_w2 = matrix_satisfaction_errors(handoff_dir)
 
-        manifest_path = handoff / "argus-scenario-manifest.json"
+        manifest_path = handoff_dir / "argus-scenario-manifest.json"
         if manifest_path.is_file():
             manifest = load_json(manifest_path)
             silent_l10: list[str] = []

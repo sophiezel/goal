@@ -28,15 +28,17 @@ def resolve_paths(task_dir: str, state_file: str, project_root: str) -> tuple[Pa
     return t / "evidence", t / "evidence", Path(project_root or ".")
 
 
-def load_write_set(task_dir: Path) -> list[str]:
-    import importlib.util
-
+def load_write_set(task_dir: Path, state_file: str = "", project_root: str = "") -> list[str]:
     script_dir = Path(__file__).resolve().parent
-    spec = importlib.util.spec_from_file_location("uvo", script_dir / "verification_oracle_core.py")
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    plan = mod.load_plan_handoff(str(task_dir))
-    return list(plan.get("write_set") or [])
+    if str(script_dir) not in sys.path:
+        sys.path.insert(0, str(script_dir))
+    from handoff_path_resolver import resolve_plan_json_path
+
+    plan_path = resolve_plan_json_path(str(task_dir), state_file=state_file, project_root=project_root)
+    if os.path.isfile(plan_path):
+        plan = json.loads(Path(plan_path).read_text(encoding="utf-8"))
+        return list(plan.get("write_set") or [])
+    return []
 
 
 def iter_tsx_files(repo_root: Path, write_set: list[str]) -> list[Path]:
@@ -226,7 +228,7 @@ def main() -> int:
     if args.repo_root:
         repo_root = Path(args.repo_root).resolve()
 
-    write_set = load_write_set(task_dir)
+    write_set = load_write_set(task_dir, args.state_file, args.project_root or args.repo_root)
     findings: list[dict[str, Any]] = []
     tsx_files = iter_tsx_files(repo_root, write_set)
     eslint_d5 = load_eslint_findings(repo_root, write_set, tsx_files)

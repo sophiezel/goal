@@ -18,7 +18,21 @@ from contract_parser import (
     iter_write_set_files,
     parse_api_mapping_table,
 )
-from verification_oracle_core import resolve_handoff_dir
+
+
+def resolve_plan_path(
+    task_dir: str,
+    handoff_dir: str = "",
+    repo_root: str = "",
+    project_root: str = "",
+) -> str:
+    from handoff_path_resolver import resolve_plan_json_path
+
+    if handoff_dir and os.path.isdir(handoff_dir):
+        return os.path.join(handoff_dir, "plan.json")
+    state_file = os.environ.get("GOAL_STATE_FILE", "")
+    pr = (project_root or repo_root or os.environ.get("GOAL_REPO_ROOT") or "").strip()
+    return resolve_plan_json_path(task_dir, state_file=state_file, project_root=pr)
 
 
 def parse_args():
@@ -29,6 +43,11 @@ def parse_args():
     p.add_argument("--json", action="store_true", dest="as_json")
     p.add_argument("--evidence", default="", help="write contract-conformance.json")
     p.add_argument("--handoff-dir", default="", help="Tier-R handoff dir (split layout)")
+    p.add_argument(
+        "--project-root",
+        default="",
+        help="Git project root for handoff/Tier-R resolution (defaults to --repo-root)",
+    )
     return p.parse_args()
 
 
@@ -94,17 +113,15 @@ def check_row(
     return issues
 
 
-def resolve_plan_path(task_dir: str, handoff_dir: str = "") -> str:
-    """Mirror UVO / implement post: explicit handoff dir, GOAL_HANDOFF_DIR, else task_dir/handoff."""
-    if handoff_dir and os.path.isdir(handoff_dir):
-        return os.path.join(handoff_dir, "plan.json")
-    handoff_dir = resolve_handoff_dir(task_dir)
-    return os.path.join(handoff_dir, "plan.json")
-
-
-def run_check(task_dir: str, repo_root: str, profile: str, handoff_dir: str = "") -> dict:
+def run_check(
+    task_dir: str,
+    repo_root: str,
+    profile: str,
+    handoff_dir: str = "",
+    project_root: str = "",
+) -> dict:
     index_path = os.path.join(task_dir, "index.md")
-    plan_path = resolve_plan_path(task_dir, handoff_dir)
+    plan_path = resolve_plan_path(task_dir, handoff_dir, repo_root, project_root)
     if not os.path.isfile(index_path):
         return {
             "passed": False,
@@ -151,7 +168,17 @@ def run_check(task_dir: str, repo_root: str, profile: str, handoff_dir: str = ""
 
 def main():
     args = parse_args()
-    result = run_check(args.task_dir, args.repo_root, args.profile, args.handoff_dir)
+    repo_root = os.path.abspath(args.repo_root)
+    project_root = os.path.abspath(args.project_root or args.repo_root)
+    if project_root:
+        os.environ.setdefault("GOAL_REPO_ROOT", project_root)
+    result = run_check(
+        args.task_dir,
+        repo_root,
+        args.profile,
+        args.handoff_dir,
+        project_root,
+    )
     if args.evidence:
         ev_dir = os.path.dirname(args.evidence)
         if ev_dir:
