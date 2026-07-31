@@ -48,4 +48,4 @@ print('plan', p, 'exists', os.path.isfile(p))
 ## Notes
 
 - If repo `task_dir/handoff/` is empty but Tier-R has `plan.json`, **split SSOT is healthy** after #14.
-- Escalate to [#17](https://github.com/sophiezel/goal/issues/17) if `four_planes_doctor` handoff tier checks fail in CI.
+- Escalate to [#17](https://github.com/sophiezel/goal/issues/17) if `four_planes_doctor` handoff tier checks fail in CI — see [four-planes-handoff-tier.md](../four-planes-handoff-tier.md).

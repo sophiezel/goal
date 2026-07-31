@@ -142,7 +142,7 @@ fi
 INDEX="$TASK_DIR/index.md"
 # Resolve profile (h5 vs others) for Phase A2 e2e BLOCK gating
 PROFILE=""
-PLAN_HOFF="$TASK_DIR/handoff/plan.json"
+PLAN_HOFF="${HANDOFF_DIR:-$TASK_DIR/handoff}/plan.json"
 if [[ -f "$PLAN_HOFF" ]]; then
   PROFILE=$(python3 -c "import json; print(json.load(open('$PLAN_HOFF')).get('profile',''))" 2>/dev/null || echo "")
 fi

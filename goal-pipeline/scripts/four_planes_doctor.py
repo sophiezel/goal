@@ -16,6 +16,102 @@ def check(name: str, ok: bool, detail: str = "") -> dict:
     return {"check": name, "status": "ok" if ok else "fail", "detail": detail, "plane": name.split(".", 1)[0] if "." in name else "meta"}
 
 
+def _handoff_tier_live_checks(task_dir: str, project_root: str, state_file: str) -> list[dict]:
+    """Live split-layout: Tier-R resolution must match resolver SSOT (#17)."""
+    out: list[dict] = []
+    if str(SCRIPT_DIR) not in sys.path:
+        sys.path.insert(0, str(SCRIPT_DIR))
+    from handoff_path_resolver import (  # noqa: WPS433
+        resolve_artifact_paths,
+        resolve_handoff_dir,
+        resolve_plan_json_path,
+    )
+
+    td = os.path.abspath(task_dir)
+    pr = project_root or td
+    sf = state_file
+    paths = resolve_artifact_paths(td, state_file=sf, project_root=pr)
+    rap_ho = (paths.get("handoff_dir") or "").strip()
+    resolver_ho = resolve_handoff_dir(td, state_file=sf, project_root=pr)
+    rap_norm = str(Path(rap_ho).resolve()) if rap_ho else ""
+    res_norm = str(Path(resolver_ho).resolve()) if resolver_ho else ""
+    agree = rap_norm == res_norm if rap_norm and res_norm else bool(rap_norm or res_norm)
+    out.append(
+        check(
+            "data.handoff_tier_rap_resolver",
+            agree,
+            f"rap={rap_norm or '∅'} resolver={res_norm or '∅'}",
+        )
+    )
+
+    plan_path = resolve_plan_json_path(td, state_file=sf, project_root=pr)
+    plan_ok = os.path.isfile(plan_path)
+    out.append(
+        check(
+            "data.handoff_tier_plan_json",
+            plan_ok,
+            plan_path if plan_ok else f"missing {plan_path}",
+        )
+    )
+
+    mode = ""
+    layout = paths.get("artifact_layout") if isinstance(paths.get("artifact_layout"), dict) else {}
+    if layout:
+        mode = (layout.get("mode") or "").strip()
+    if not mode and sf and os.path.isfile(sf):
+        try:
+            st = json.loads(Path(sf).read_text(encoding="utf-8"))
+            al = st.get("artifact_layout") if isinstance(st.get("artifact_layout"), dict) else {}
+            mode = (al.get("mode") or "").strip()
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    repo_plan = os.path.join(td, "handoff", "plan.json")
+    tier_r_plan = plan_path if plan_ok else ""
+    drift = False
+    drift_detail = ""
+    if mode == "split":
+        if plan_ok and os.path.isfile(repo_plan):
+            if os.path.samefile(repo_plan, tier_r_plan):
+                drift_detail = "split: repo handoff/plan.json duplicates Tier-R (ok if synced)"
+            else:
+                drift = True
+                drift_detail = f"split: repo {repo_plan} != Tier-R {tier_r_plan}"
+        elif plan_ok and res_norm and res_norm == str(Path(td, "handoff").resolve()):
+            drift = True
+            drift_detail = "split: resolver points at repo handoff without Tier-R runtime"
+    out.append(
+        check(
+            "data.handoff_ssot_drift",
+            not drift,
+            drift_detail or f"mode={mode or 'unknown'}",
+        )
+    )
+    return out
+
+
+def _shell_handoff_ssot_checks() -> list[dict]:
+    """Static: implement-post shell gates must not hardcode task_dir/handoff only."""
+    out: list[dict] = []
+    qg = SCRIPT_DIR / "quality-gate.sh"
+    qg_txt = qg.read_text(encoding="utf-8") if qg.is_file() else ""
+    qg_ok = (
+        "resolve-artifact-paths.py" in qg_txt
+        and (
+            "${HANDOFF_DIR" in qg_txt
+            or 'HANDOFF_DIR:-' in qg_txt
+            or "HANDOFF_DIR}/plan.json" in qg_txt
+        )
+    )
+    out.append(check("data.qg_shell_handoff_ssot", qg_ok, "quality-gate.sh plan.json path"))
+
+    verify = SCRIPT_DIR / "verify.sh"
+    v_txt = verify.read_text(encoding="utf-8") if verify.is_file() else ""
+    v_ok = "resolve-artifact-paths.py" in v_txt and "HANDOFF_DIR" in v_txt
+    out.append(check("data.verify_shell_handoff_ssot", v_ok, "verify.sh handoff_status_json"))
+    return out
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--project-root", default="")
@@ -98,6 +194,7 @@ def main() -> int:
             "verification_oracle_core.resolve_handoff_dir",
         )
     )
+    checks.extend(_shell_handoff_ssot_checks())
 
     codes = REF_DIR / "failure-codes.json"
     checklist = REF_DIR / "four-planes-checklist.json"
@@ -165,6 +262,21 @@ def main() -> int:
         )
         checks.append(check("data.canonical_state", r.returncode == 0, (r.stderr or r.stdout)[:200]))
 
+    tier_env = os.environ.get("GOAL_RUN_FOUR_PLANES_DOCTOR", "").strip() in ("1", "true", "yes")
+    tier_task = (args.task_dir or os.environ.get("GOAL_TASK_DIR") or "").strip()
+    tier_state = (args.state_file or os.environ.get("GOAL_STATE_FILE") or "").strip()
+    tier_project = (args.project_root or os.environ.get("GOAL_REPO_ROOT") or "").strip()
+    if tier_task and tier_state and (tier_env or args.state_file):
+        checks.extend(_handoff_tier_live_checks(tier_task, tier_project, tier_state))
+    elif tier_env and not (tier_task and tier_state):
+        checks.append(
+            check(
+                "data.handoff_tier_live",
+                False,
+                "GOAL_RUN_FOUR_PLANES_DOCTOR=1 requires --task-dir and --state-file",
+            )
+        )
+
     # install-drift (v3 W1d): compare GOAL_STATE_HOME/scripts SHAs vs repo source
     import hashlib
     checkout_root = SCRIPT_DIR.parent.parent
@@ -196,7 +308,8 @@ def main() -> int:
                      "acceptance-matrix-ratchet.py", "write-delivery-quality.sh",
                      "validate-stage-port.py", "gf-stage-driver.sh", "gate-gf-stage.sh",
                      "leak-rate-panel.py", "benchmark-ci.sh", "escape-to-eval.py",
-                     "contract_parser.py", "contract-conformance-check.py"):
+                     "contract_parser.py", "contract-conformance-check.py",
+                     "handoff_path_resolver.py", "resolve-artifact-paths.py"):
             installed = installed_dir / name
             source = repo_scripts / name
             if not installed.is_file() or not source.is_file():

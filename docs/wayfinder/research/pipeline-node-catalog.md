@@ -78,7 +78,7 @@ Agent 回合协议：`kernel next` → 执行 `FrozenWorkOrder.mandatory_command
 | **complete gate --post** | complete | Quality+Efficiency | review.md, handoff 链 | `handoff/complete.json`, `delivery-quality.json` | `gate-lib/complete.sh` + `write-delivery-quality.sh` + `quality_plane_check.py` | timing **end** | No | `review_forged`, `uvo_skipped_illegally`, `delivery_evidence_missing` |
 | `kernel complete` | complete | Quality | 同上 | exit 0 | `quality_plane_check.py` + `gate --assert-complete` | — | No | 同上 |
 | `gate --assert-complete` | complete | Control | `state.json`, handoff 链 | `status=complete` 写回 | `gate-guazi-flow-stage.sh --assert-complete` | — | No | pipeline incomplete → exit 2 |
-| `four_planes_doctor` | meta | All | repo scripts + 可选 state | doctor JSON | `four_planes_doctor.py` | — | 推荐（Wave 验收） | install drift（meta） |
+| `four_planes_doctor` | meta | All | repo scripts + 可选 state | doctor JSON | `four_planes_doctor.py` | — | 推荐（Wave 验收） | install drift（meta）；handoff tier live（#17，`--state-file`） |
 | `data_plane_check` | meta | Data | task, project_root, state | JSON | `data_plane_check.py` | — | 可选（kernel doctor 附带） | `project_id_mismatch`, `contract_stale`, `execution_cascade_plan_rejected` |
 | `quality_plane_check` | complete / audit | Quality | evidence review + UVO | JSON | `quality_plane_check.py` | — | No on complete 路径 | `review_forged`, `review_degraded_as_pass`, `uvo_skipped_illegally` |
 | `efficiency_plane_check` | meta | Efficiency | scripts 静态 + 可选 `pipeline-timing.json` | JSON | `efficiency_plane_check.py` | 校验 `timezone==UTC` | 可选（doctor） | `duplicate_verify`, `missing_state_file_context`, `noop_fix` |
