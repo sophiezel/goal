@@ -12,6 +12,7 @@ GitHub 主副本：[Wayfinder: Goal 交付质量与全链路效率优化（guazi
 - **UX 双轨发现 + C1 auto-fix / strict / a11y** — [#5](https://github.com/sophiezel/goal/issues/5)（**closed**；见 issue CONFIRM 评论）
 - **Split handoff SSOT (#14)** — `handoff_path_resolver.py` + [handoff-path-resolution.md](../../goal-pipeline/references/handoff-path-resolution.md)；IQ-10 首验 `d9bf079` — [run log](research/iq10-handoff-fix-run-log.md)
 - **Four-planes handoff tier (#17)** — `649abae`；[four-planes-handoff-tier.md](research/four-planes-handoff-tier.md) + `test-four-planes-handoff-tier.sh`
+- **Pipeline timing HTML v1 (#9)** — `ee1ef04`；`pipeline_timing_report_core.py` + [pipeline-timing-report-input.md](../../goal-pipeline/references/pipeline-timing-report-input.md)
 
 | 工单 | 文件 | GitHub |
 | --- | --- | --- |

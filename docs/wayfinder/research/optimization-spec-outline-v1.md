@@ -92,7 +92,7 @@
 | split handoff | IQ / AM / UX 同根 — [handoff-path-resolution.md](../../../goal-pipeline/references/handoff-path-resolution.md) | **#14** ✅ |
 | merge-review parity | kernel CLI ≡ shell chain | **#23** |
 | four_planes_doctor + handoff tier | [four-planes-handoff-tier.md](four-planes-handoff-tier.md) | **#17** ✅ |
-| timing HTML v1 | 看板 | **#9** |
+| timing HTML v1 | [pipeline-timing-report-input.md](../../../goal-pipeline/references/pipeline-timing-report-input.md) + `render-pipeline-timing-report.py --format html` | **#9** ✅ |
 | postmerge ↔ complete | 平面衔接 | **#18** |
 | goal-quality e2e profile | tier 对齐 | **#19** |
 | CTB 附录 | #3 回写 | **#22** |
