@@ -1,6 +1,6 @@
 # Draft: 「0 漏出」度量 + UX 自动发现/修复边界
 
-**Status:** HITL draft — **部分已拍板**（A.3 W1+W2、**A.8 B3** 已 ratified，见各节标注）。其余仍为草案。For grilling on [Grilling: 如何度量「业务需求/缺陷 0 漏出」](https://github.com/sophiezel/goal/issues/4) and [Grilling: 隐藏 UX 问题自动发现与自动修复的授权边界](https://github.com/sophiezel/goal/issues/5).
+**Status:** **Part A**（#4）与 **Part B**（#5）核心策略已 ratified（2026-08-01, C1 defaults）；Part A 开放题 L9 failure_code、AM waive、PQ/IQ 等仍待 HITL。For [issue #4](https://github.com/sophiezel/goal/issues/4) / [issue #5](https://github.com/sophiezel/goal/issues/5) grilling record.
 
 **Parent map:** [Wayfinder: Goal 交付质量与全链路效率优化](https://github.com/sophiezel/goal/issues/1)
 
@@ -99,7 +99,7 @@
 
 - W1 的「声明缺陷类」在 B3 下 **包含** manifest 中已声明的 **L10 行**（与 L1–L8 并列记账面，层语义仍分 L9/L10）。
 - 每一 L10 行在当次 run 须 **pass / waive / deferred** 之一写入 measure / evidence；**禁止 silent pass**。
-- **L9 阻断**仅当人工 **升级**：在验收矩阵写入对应 **C# / V#** 行，或 HITL 在 issue/decisions 中 **confirm 升级** 某 manifest 行为 L9；未升级前，即使 review 标 fail，也按 L10 soft 策略路由，**不**默认升格为 implement post 硬 block（strict tier 另议，见 Part B open questions）。
+- **L9 阻断**仅当人工 **升级**：在验收矩阵写入对应 **C# / V#** 行，或 HITL 在 issue/decisions 中 **confirm 升级** 某 manifest 行为 L9；未升级前，即使 review 标 fail，也按 L10 soft 策略路由，**不**默认升格为 implement post 硬 block（**strict tier = review-first**，见 Part B **B.4** ratified）。
 
 **与 #5 边界：** Part B 的 UX-D* 检测与自动修复授权不变；B3 解决的是 **plan 阶段如何把 Argus 场景债显式化**，避免「未声明 = 漏出口径不清」。UX 未写入 manifest 且未升 L9 → 仍 **不计 W2 L9 违约**（与 A.3 Rule 一致）。
 
@@ -162,18 +162,20 @@
 
 ---
 
-## Part B — Issue #5: UX 自动发现与自动修复（草案）
+## Part B — Issue #5: UX 自动发现与自动修复（Ratified 2026-08-01, C1）
+
+**North star:** **双轨发现** — (1) plan post **A.8 B3** `argus-scenario-manifest.json`（L10 记账面）；(2) implement post 可选 UX 扫描 **UX-D1 / D2 / D5**（v1）。**UX-D3 / D4 / D6 → v2 defer**。
 
 ### B.1 Scope boundary (CTB-44243)
 
-**Proposal — in scope for detection discourse:**
+**Ratified — in scope for detection (v1):**
 
 - 列表/详情 **loading**：骨架屏 vs spinner；与 [`h5-loading-state-checklist.md`](../../goal-pipeline/references/h5-loading-state-checklist.md) 对齐。
 - **按钮 async**：提交/审批类主按钮在请求进行中 disabled + loading，防重复提交。
 - **空态 / 错误态**：接口失败是否有可理解文案（非空白页）。
-- **a11y 基线**：主按钮可聚焦、图标按钮 `aria-label`（**基线清单待扩**）。
+- **a11y 基线**：主按钮可聚焦、图标按钮 `aria-label`（见 **B.2** D5 + **B.8** 业务仓 eslint）。
 
-**Explicit out of scope (confirm):**
+**Ratified — explicit out of scope:**
 
 - **`viewingResults` / 带看成功页** 拦截与入口 — 样本任务 README 已划给其他页面；自动 UX 扫描 **不得** 为实现该路由开 write_set 外改动。
 - 像素级视觉还原、文案润色、复杂动效。
@@ -183,14 +185,16 @@
 
 ### B.2 Detection categories
 
-| Cat | 检测目标 | 信号（草案） | 默认可自动化？ |
-|-----|----------|--------------|----------------|
-| **UX-D1 Loading shell** | 首屏/区块 skeleton | 有 async fetch 无 pending UI；违反 `ui.loading[]` tag | 部分（静态启发式 + 单测快照） |
-| **UX-D2 Button in-flight** | 主 CTA 重复点击 | 无 `loading`/`disabled` 绑定 mutation | 部分（AST/testid 模式） |
-| **UX-D3 Empty state** | 列表 0 条 | 无 Empty 组件/文案 | 弱（需路由上下文） |
-| **UX-D4 Error surfacing** | API fail | catch 无 Toast/inline error | 弱 |
-| **UX-D5 a11y baseline** | 可访问性 | 无 label 的 icon-only button | 部分（eslint-plugin-jsx-a11y 类） |
-| **UX-D6 Toast 一致性** | 错误提示口径 | 与仓库既有 Toast 模式不一致 | 人工/review 为主 |
+| Cat | 检测目标 | 信号 | v1 扫描？ | 默认可自动化？ |
+|-----|----------|------|-----------|----------------|
+| **UX-D1 Loading shell** | 首屏/区块 skeleton | 有 async fetch 无 pending UI；违反 `ui.loading[]` tag | **yes** | 部分（静态启发式 + 单测快照） |
+| **UX-D2 Button in-flight** | 主 CTA 重复点击 | 无 `loading`/`disabled` 绑定 mutation | **yes** | 部分（AST/testid 模式） |
+| **UX-D3 Empty state** | 列表 0 条 | 无 Empty 组件/文案 | **v2 defer** | 弱（需路由上下文） |
+| **UX-D4 Error surfacing** | API fail | catch 无 Toast/inline error | **v2 defer** | 弱 |
+| **UX-D5 a11y baseline** | 可访问性 | 无 label 的 icon-only button | **yes** | 部分（宿主 `eslint-plugin-jsx-a11y`，见 B.8） |
+| **UX-D6 Toast 一致性** | 错误提示口径 | 与仓库既有 Toast 模式不一致 | **v2 defer** | 人工/review 为主 |
+
+**Ratified (C1 dual-track):** v1 implement post 扫描覆盖 **D1/D2/D5**，并与 plan post **L10 manifest**（A.8）并列消费；D3/D4/D6 不纳入 v1 自动扫描闸门。
 
 **Note:** [`declarative-contract-gates.md`](../../goal-pipeline/references/declarative-contract-gates.md) 已明确 IQ-10 **不**覆盖骨架屏形态 → UX-D* 不属于契约漂移，除非矩阵/decisions 声明。
 
@@ -198,36 +202,45 @@
 
 ### B.3 Auto-fix vs HITL
 
-**Proposal — decision table:**
+**Ratified (C1 narrow) — decision table:**
 
 | 类别 | 自动检测 | 自动修复 | 条件 |
 |------|----------|----------|------|
 | UX-D1 tag 违反（如 skeleton 内 footer CTA） | recommend | **禁止默认 auto-fix** | 改布局易越界；产出 review-fix-input |
-| UX-D2 button loading 缺省 | recommend | **允许 XS 自动补** | 仅当：单文件、已有同类模式、不改 API 语义；须仍在 write_set |
-| UX-D3 empty | warn | HITL | 需产品文案 |
-| UX-D4 error toast | warn | HITL | |
-| UX-D5 a11y label | recommend | **允许** 仅补 `aria-label` 字面量 | 不改 DOM 结构 |
+| UX-D2 button loading 缺省 | recommend | **允许**（write_set 内） | 单文件、已有同类模式、不改 API 语义 |
+| UX-D3 empty | v2 | HITL | 需产品文案 |
+| UX-D4 error toast | v2 | HITL | |
+| UX-D5 a11y label | recommend | **允许** 仅补 `aria-label` 字面量 | 不改 DOM 结构；write_set 内 |
 | 交互流程变更 | — | **禁止** | 必须 plan + grill |
+
+**自动修复白名单（C1）：** 仅 **UX-D2、UX-D5**，且 diff 严格在 **write_set** 内；禁止路由/新页/流程/API 语义变更。
+
+**Profile 授权:**
+
+| Profile | UX-D2/D5 auto-fix | 额外 HITL |
+|---------|-------------------|-----------|
+| **XS / S** | **允许** | **不需要** 额外 HITL checkbox |
+| **S+**（M/L 等） | 允许（同上约束） | **须** review 证据留痕（谁改了什么、为何） |
 
 **「规划不实现」:** 自动修复 **不得** 在 plan 阶段写入业务 `src`；仅允许在 **implement** 或 **review 回流 implement** 且 WO 明确 `mandatory_commands` 时执行。
 
-**XS/S 任务 review 自动修复:** issue #1 «Not yet specified» — **本草案倾向**：XS 可自动 UX-D2/D5 微修复；S 及以上需 review 记录或 HITL checkbox。**待确认。**
+**Review fail 路由（C1）：** UX/L10 项 review fail → **fix-input** 或显式 **waive**（带 separation）；**禁止** 引擎自动写入验收矩阵 **C#** 行或静默升格 L9。
 
 ---
 
 ### B.4 Plane placement
 
-**Proposal:**
+**Ratified:**
 
 | 阶段 / 平面 | 做什么 | 不做什么 |
 |-------------|--------|----------|
-| **Plan** | 可选写 `decisions.json` → `ui.loading[]`、矩阵 UX 行 | 不跑扫描、不改代码 |
-| **Implement post (quality)** | 可选 **UX scan**（非 blocker 默认）：输出 `evidence/ux-scan.json` warnings | 不替代 UVO；默认不 block complete |
-| **Quality gate tier=strict** | UX-D1 tag 违反 → **block** 或 review 必 fail（**二选一待确认**） | |
-| **Review packet** | rubric 段：对照 checklist + ux-scan | 独立通道判 fail |
-| **Complete** | 仅消费 evidence；无 scan 不 silent pass UX **若** plan 声明了 strict UX policy | |
+| **Plan post** | **A.8 B3** → `handoff/argus-scenario-manifest.json`（L10）；可选 `decisions.json` → `ui.loading[]`、矩阵 UX 行 | 不改业务 `src` |
+| **Implement post (quality)** | 可选 **UX scan v1**（D1/D2/D5）：`evidence/ux-scan.json`，默认 **warn** | 不替代 UVO；**不因 L10/manifest  alone** hard-block implement post |
+| **Quality gate tier=strict** | UX tag / manifest 违反 → **review 必 fail**（review-first） | **禁止** 仅凭 L10 在 implement post 硬 block |
+| **Review packet** | rubric：checklist + ux-scan + manifest 行 | 独立通道判 fail；fail → fix-input/waive（B.3） |
+| **Complete** | 消费 evidence；**已声明 L10 行**须 pass/waive/deferred（A.3） | W1 **禁止** 对已声明 L10 silent pass |
 
-**与 #4 关系:** UX 漏出默认 **L10**（**A.8 B3**：plan post `argus-scenario-manifest.json`）；仅当矩阵/decisions **人工升级** 后才计入 **L9** 硬阻断面。strict tier 与 review fail 路由见 Part B open questions。
+**与 #4 关系:** UX 漏出默认 **L10**（**A.8 B3**）；仅矩阵/decisions **人工升级** 后计入 **L9** 硬阻断。**未 manifest 且未升 L9 的 UX → 不算 W2 L9 违约**；**已 manifest 的 L10 → W1 须记账，禁止 silent pass**（与 A.3、open Q11 一致）。
 
 ---
 
@@ -242,22 +255,31 @@
 
 ---
 
-### B.6 Default policy summary (draft)
+### B.6 Default policy summary (ratified C1)
 
 | 策略 | 推荐 | 禁止 |
 |------|------|------|
-| 默认 tier | UX scan = **warn** in implement post | 静默跳过声明的 `ui.loading[]` |
-| 自动修复 | aria-label；button loading 模式克隆（XS） | 流程/路由/新页；viewingResults |
-| 证据 | `ux-scan.json` + review 提及 | 无 evidence 宣称 UX pass |
-| 升级 strict | 产品显式 decisions + 矩阵行 | 引擎默认全局 strict |
+| 发现双轨 | plan post L10 manifest + implement **D1/D2/D5** | v1 扫描 D3/D4/D6 |
+| 默认 tier | UX scan = **warn** in implement post | 对已声明 L10 **silent pass**（W1） |
+| 自动修复 | write_set 内 D2/D5；XS/S 无额外 HITL | 流程/路由/新页；viewingResults；自动写 C# |
+| strict | **review-first** fail | implement post 仅凭 L10 硬 block |
+| 证据 | `ux-scan.json` + manifest + review | 无 evidence 宣称 UX pass |
 
 ---
 
-### B.7 Spec snippet ready for optimization doc (pending confirm)
+### B.7 Spec snippet ready for optimization doc (ratified)
 
-> **UX 自动发现：** implement 后可选扫描 UX-D1–D5，产物 `evidence/ux-scan.json`，默认 warn。声明 `ui.loading[]` 或矩阵 UX 行时，违反项进入 review 必查项。
+> **UX 自动发现（双轨）：** plan post 写入 `argus-scenario-manifest.json`（L10，A.8）；implement 后可选扫描 **UX-D1/D2/D5**，产物 `evidence/ux-scan.json`，默认 warn。D3/D4/D6 留 v2。声明 `ui.loading[]`、manifest 行或矩阵 UX 行时，违反项进入 review 必查；strict = review fail，非 implement 硬拦。
 >
-> **自动修复：** 仅限 write_set 内、无流程变更的微修复（D2/D5）；其余输出 fix-input 走 HITL。viewingResults 等 scope 外页面永不自动修复。
+> **自动修复：** 仅限 write_set 内 **D2/D5**；XS/S 可无额外 HITL；S+ 须 review 留痕。review fail → fix-input/waive，不自动升 C#。viewingResults 等 scope 外永不自动修复。
+>
+> **a11y：** 在 write_set 路径上 **消费宿主业务仓** 既有 `eslint` / `jsx-a11y` 配置（见 B.8），Goal 不另起全局 a11y 规则集。
+
+---
+
+### B.8 a11y — consume host ESLint (ratified)
+
+**Decision:** **CONFIRM** — UX-D5 信号优先来自 **业务仓（如 jian-h5）** 在 **write_set 路径** 上已启用的 `eslint` + `eslint-plugin-jsx-a11y`（及同类 CI 规则），Goal UX scan **读取/汇总** 其结果写入 `ux-scan.json`，**不**在 goal-pipeline 内维护平行 a11y 规则表。扫描可读全仓；修复与 eslint 报告归因仍受 B.5 write_set 约束。
 
 ---
 
@@ -273,16 +295,16 @@
 
 ### From #5
 
-6. **strict tier：** UX tag 违反 block implement 还是仅 review fail？
-7. **XS/S 自动 UX 修复：** 是否允许无 HITL？与 review 分流如何一致？
-8. **UX-D3/D4：** 是否纳入 v1 扫描，还是 v2？
-9. **L10 与 L9：** ~~隐藏 UX 未声明时是否单独计数~~ → **B3 已决（A.8）：** plan post manifest 声明的 L10 在 W1 记账；未 manifest 且未升 L9 不算 L9 漏出；阻断仅升级路径。
-10. **eslint/a11y：** 复用业务仓 CI 还是 goal 自带轻量规则？
+6. ~~**strict tier**~~ → **Ratified (C1):** **review-first**；不因 L10/manifest alone 在 implement post 硬 block。
+7. ~~**XS/S 自动 UX 修复**~~ → **Ratified:** XS/S 允许 D2/D5 无额外 HITL；**S+** 须 review 留痕。
+8. ~~**UX-D3/D4/D6**~~ → **Ratified:** **v2 defer**；v1 仅 D1/D2/D5 + L10 manifest。
+9. **L10 与 L9：** **B3 已决（A.8）** + **#5 ratified：** plan post manifest 的 L10 在 W1 记账（pass/waive/deferred，**禁止 silent pass**）；未 manifest 且未升 L9 **不算 W2 L9 违约**。
+10. ~~**eslint/a11y**~~ → **Ratified (B.8):** 消费业务仓 write_set 路径上既有 eslint/jsx-a11y。
 
 ### Cross-cutting
 
-11. **#5 blocked on #4 最终拍板：** 是否接受「UX 未声明 = 不计漏出」即可关闭依赖？
-12. **CTB-44243 复盘 (#3)：** 是否将上述草案回写为 #3 的「建议归属平面」附录？
+11. ~~**#5 blocked on #4**~~ → **CONFIRM (2026-08-01):** 接受 **未 manifest 且未升 L9 的 UX 不计 W2 L9 违约**；与 B3 一致。**已声明 L10（manifest）在 W1 禁止 silent pass** — 与「未声明不计漏出」不矛盾。
+12. **CTB-44243 复盘 (#3)：** 是否将上述草案回写为 #3 的「建议归属平面」附录？（仍 open）
 
 ---
 
@@ -292,3 +314,4 @@
 |------|--------|
 | 2026-08-01 | Initial HITL draft for issues #4 and #5 |
 | 2026-08-01 | Ratified A.8 B3（L10 Argus manifest + L9 escalate-only）；A.3 W1+W2 交叉引用 L10 W1 记账 |
+| 2026-08-01 | Ratified Part B C1（#5）：双轨发现 D1/D2/D5 v1；D2/D5 narrow auto-fix；XS/S 无额外 HITL；strict review-first；review fail fix-input/waive；B.8 宿主 eslint；close open Q11 |
