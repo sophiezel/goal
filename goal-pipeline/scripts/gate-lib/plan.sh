@@ -81,6 +81,12 @@ PYVER
 JSON
       py_write_handoff plan "$TMP" >/dev/null
       rm -f "$TMP"
+      ARGUS="$SCRIPT_DIR/argus-enrich-plan.sh"
+      if [[ -x "$ARGUS" ]]; then
+        bash "$ARGUS" --task-dir "$TASK_DIR" --handoff-dir "$HANDOFF_DIR" >/dev/null 2>&1 || true
+      elif [[ -f "$SCRIPT_DIR/argus_enrich_plan.py" ]]; then
+        python3 "$SCRIPT_DIR/argus_enrich_plan.py" --task-dir "$TASK_DIR" --handoff-dir "$HANDOFF_DIR" >/dev/null 2>&1 || true
+      fi
       # Stamp task_tier (XS/S/M/L/XL) for SLO + parallel strategy
       if [[ -f "$SCRIPT_DIR/task_tier.py" ]]; then
         TT_JSON=$(python3 "$SCRIPT_DIR/task_tier.py" \
@@ -111,6 +117,12 @@ with open(plan_path, "w", encoding="utf-8") as f:
     f.write("\n")
 PYTT
         fi
+      fi
+      ARGUS="$SCRIPT_DIR/argus-enrich-plan.sh"
+      if [[ -x "$ARGUS" ]]; then
+        AARGS=(--task-dir "$TASK_DIR")
+        [[ -n "$HANDOFF_DIR" ]] && AARGS+=(--handoff-dir "$HANDOFF_DIR")
+        "$ARGUS" "${AARGS[@]}" >/dev/null 2>&1 || true
       fi
       update_state_gate "plan"
       sync_index_current_stage "$(stage_to_index_current plan)"

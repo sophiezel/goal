@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "generated_by": "argus-enrich-plan.py v1",
+  "scenarios": [
+    {
+      "id": "page-domain",
+      "severity": "soft",
+      "paths": [
+        "src/pages/DiscrepancyVideoAudit/"
+      ],
+      "verify_hint": "page domain paths under src/pages/",
+      "w1_status": "open",
+      "source": "argus-enrich-plan-v1",
+      "signal": "write_set_path"
+    },
+    {
+      "id": "service-layer",
+      "severity": "soft",
+      "paths": [
+        "src/pages/DiscrepancyVideoAudit/"
+      ],
+      "verify_hint": "service layer paths (API bindings surface)",
+      "w1_status": "open",
+      "source": "argus-enrich-plan-v1",
+      "signal": "write_set_path"
+    },
+    {
+      "id": "submit-button-loading",
+      "severity": "soft",
+      "paths": [
+        "src/pages/DiscrepancyVideoAudit/"
+      ],
+      "verify_hint": "primary CTA loading/disabled",
+      "w1_status": "open",
+      "source": "argus-enrich-plan-v1",
+      "signal": "index_keyword"
+    }
+  ]
+}

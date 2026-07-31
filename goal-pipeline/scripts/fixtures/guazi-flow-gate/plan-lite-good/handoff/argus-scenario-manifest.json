@@ -1,0 +1,17 @@
+{
+  "schema_version": 1,
+  "generated_by": "argus-enrich-plan.py v1",
+  "scenarios": [
+    {
+      "id": "submit-button-loading",
+      "severity": "soft",
+      "paths": [
+        "src/constants/buttons.ts"
+      ],
+      "verify_hint": "primary CTA loading/disabled",
+      "w1_status": "open",
+      "source": "argus-enrich-plan-v1",
+      "signal": "index_keyword"
+    }
+  ]
+}
