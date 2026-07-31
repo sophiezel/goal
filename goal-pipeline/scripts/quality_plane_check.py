@@ -8,6 +8,24 @@ import re
 import sys
 from pathlib import Path
 
+_W1_CLOSED = frozenset({"pass", "waive", "deferred", "waived"})
+_SOFT_SEVERITY = frozenset({"soft", "warn", "info", "low"})
+
+
+def l10_row_blocks_complete(row: dict) -> bool:
+    """B3: default soft + open rows do not block complete; hard/escalated do."""
+    status = str(row.get("w1_status") or "open").lower()
+    if status in _W1_CLOSED:
+        return False
+    severity = str(row.get("severity") or "soft").lower()
+    if row.get("escalated_to_l9") or row.get("l9_escalated"):
+        return True
+    if severity in ("hard", "blocker", "block", "critical"):
+        return True
+    if severity in _SOFT_SEVERITY:
+        return False
+    return False
+
 
 def load_json(p: Path) -> dict:
     if not p.is_file():
@@ -130,8 +148,7 @@ def main() -> int:
             manifest = load_json(manifest_path)
             silent_l10: list[str] = []
             for row in manifest.get("scenarios") or []:
-                status = (row.get("w1_status") or "open").lower()
-                if status not in ("pass", "waive", "deferred", "waived"):
+                if l10_row_blocks_complete(row):
                     silent_l10.append(str(row.get("id") or "unknown"))
             if silent_l10:
                 errors.append(

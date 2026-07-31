@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Rule-based v1 Argus scenario manifest from plan.json write_set + optional index keywords."""
+"""Rule-based v1 Argus scenario manifest from plan.json write_set + optional index keywords.
+
+v1 uses path/keyword heuristics only — not fe-argus Scenario Q / LLM retrieval.
+"""
 from __future__ import annotations
 
 import argparse
@@ -141,7 +144,7 @@ def build_manifest(task_dir: Path, handoff_dir: Path) -> dict[str, Any]:
 
     return {
         "schema_version": 1,
-        "generated_by": "argus-enrich-plan.py v1",
+        "generated_by": "argus-enrich-plan.py v1 (rule-based; not fe-argus LLM)",
         "scenarios": scenarios,
     }
 

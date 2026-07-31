@@ -27,7 +27,7 @@
 
 ## P0 — 质量面（漏出风险）
 
-4. **声明缺陷类 silent pass** — **✅ 2026-08-01** `quality_plane_check.py`（L10 manifest `w1_status`、ux-scan blockers、`declared_defect_silent_pass`）；complete / assert-complete 强制；review-pre 校验 UVO overall + IQ-10 `contract-conformance.json`。
+4. **声明缺陷类 silent pass** — **✅ 2026-08-01** `quality_plane_check.py`（L10 **hard/升级** 与 ux-scan **blocker**、`declared_defect_silent_pass`；默认 **soft+open 不拦 complete**）；complete / assert-complete 强制；review-pre 校验 UVO overall + IQ-10 `contract-conformance.json`。
 
 5. **review preflight 不可跳过** — **✅ 2026-08-01** PKT-01–04 规格：`goal-pipeline/references/review-packet-hard-constraints.md`；`assemble-review-packet.sh`、`gate-lib/review.sh`、`goal-run-review-chain.sh` 硬断言。
 
@@ -39,15 +39,15 @@
 
 > SSOT：[draft-zero-leakage-and-ux-policy.md](draft-zero-leakage-and-ux-policy.md) Part A §A.8、Part B C1；[goal-delivery-quality-optimization.md](../goal-delivery-quality-optimization.md) Frontier。
 
-7. **Plan post — L10 Argus manifest（B3）**  
-   - 输入：`index.md`、`write_set`、页面域路径等 plan 已冻结工件；**fe-argus Scenario Q** INDEX on-demand（禁止全量 `scenarios/` 扫描）。  
+7. **Plan post — L10 Argus manifest（B3）** — **✅ v1 rule-based（非 fe-argus LLM）**  
+   - 输入：`index.md`、`write_set`、页面域路径等 plan 已冻结工件；**v1** 由 `argus_enrich_plan.py` 路径/关键词启发式生成（**非** fe-argus Scenario Q INDEX on-demand；该检索留后续迭代）。  
    - 产物：`<task>/handoff/argus-scenario-manifest.json`（scenario id、默认 `soft`、关联路径、建议 verify）；SSOT 为 handoff，index 附录可选摘要。  
    - 下游：implement / review / complete **只读消费**，作 UX-D*、rubric、fix-input 指导清单；**不得**在无 manifest 行时凭空新增 L9 矩阵义务。  
-   - 默认 **L10 = soft**：implement post 仅 warn / UX debt，**不因 L10 alone** hard-block implement post。
+   - 默认 **L10 = soft**：implement post 仅 warn / UX debt，**不因 L10 alone** hard-block implement post；complete 仅 **hard/升级** 行阻断。
 
-8. **Implement post — UX 扫描 v1（双轨发现之二）**  
-   - **v1 覆盖 UX-D1 / D2 / D5**；产物 `evidence/ux-scan.json`，默认 **warn**，不替代 UVO。  
-   - **UX-D3 / D4 / D6 → v2 defer**，不纳入 v1 自动扫描闸门。  
+8. **Implement post — UX 扫描 v1（双轨发现之二）** — **✅ v1 rule-based（`ux_scan_v1.py`）**  
+   - **v1 覆盖 UX-D1 / D2 / D5**（write_set 内启发式）；产物 `evidence/ux-scan.json`，默认 **warn**，不替代 UVO。  
+   - **非** fe-argus / LLM 视觉审查；**UX-D3 / D4 / D6 → v2 defer**，不纳入 v1 自动扫描闸门。  
    - 与 plan post L10 manifest **并列消费**；IQ-10 **不**覆盖骨架屏形态（UX-D* 非契约漂移，除非矩阵/decisions 声明）。
 
 9. **Auto-fix 授权（C1 narrow）** — **✅ 规格**（草案 C1）；实现：`ux_scan_v1` + write_set 内 auto-fix 策略由宿主 skill 消费，Goal 不硬编码业务路由。

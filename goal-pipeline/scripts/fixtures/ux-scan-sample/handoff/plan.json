@@ -1,0 +1,6 @@
+{
+  "stage": "plan",
+  "schema_version": 1,
+  "write_set": ["src/pages/sample/Page.tsx"],
+  "profile": "generic"
+}

@@ -51,18 +51,37 @@ parse_yaml_frontmatter() {
           in_block=true
         fi
       else
-        # Check if still in block (indented or empty)
-        if [ -z "$line" ] || echo "$line" | grep -q "^  "; then
-          if echo "$line" | grep -q "^  ${sub_key}:"; then
-            echo "$line" | sed "s/^  ${sub_key}: *//"
+        # Still inside block: blank line or any indented child (2+ spaces or tabs)
+        if [ -z "$line" ] || echo "$line" | grep -qE '^[[:space:]]'; then
+          if echo "$line" | grep -qE "^[[:space:]]+${sub_key}:"; then
+            echo "$line" | sed -E "s/^[[:space:]]+${sub_key}:[[:space:]]*//" | tr -d '"' | tr -d "'"
             return 0
           fi
         else
-          # Left the indented block
+          # Left the indented block (next top-level key)
           return 0
         fi
       fi
     done <<< "$fm_text"
+  fi
+}
+
+read_state_current_stage() {
+  local state_file="${GOAL_STATE_FILE:-${VERIFY_STATE_FILE:-}}"
+  if [ -z "$state_file" ] && has_python; then
+    local resolver_dir
+    resolver_dir="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" 2>/dev/null && pwd || echo "")"
+    if [[ -n "$resolver_dir" && -f "$resolver_dir/resolve-artifact-paths.py" && -n "${TASK_DIR:-}" ]]; then
+      local _args=(--task-dir "$TASK_DIR" --format json)
+      [[ -n "${GIT_ROOT:-}" ]] && _args+=(--project-root "$GIT_ROOT")
+      state_file=$(python3 "$resolver_dir/resolve-artifact-paths.py" "${_args[@]}" 2>/dev/null \
+        | python3 -c "import json,sys; print(json.load(sys.stdin).get('state_file',''))" 2>/dev/null || echo "")
+    fi
+  fi
+  if [ -n "$state_file" ] && [ -f "$state_file" ] && has_python; then
+    python3 -c "import json; print(json.load(open('$state_file')).get('current_stage',''))" 2>/dev/null || echo ""
+  else
+    echo ""
   fi
 }
 
@@ -78,6 +97,7 @@ get_git_head() {
 # === 主逻辑 ===
 main() {
   local task_dir="${TASK_DIR:-${GOAL_TASK_DIR:-}}"
+  export TASK_DIR="$task_dir"
   local root="${GIT_ROOT:-.}"
   
   # 查找任务目录
@@ -97,8 +117,14 @@ main() {
   local current_stage=""
   current_stage=$(parse_yaml_frontmatter "$index_file" "flow.current_stage" 2>/dev/null || echo "")
   if [ -z "$current_stage" ]; then
-    current_stage=$(parse_yaml_frontmatter "$index_file" "current_stage" 2>/dev/null || echo "unknown")
+    current_stage=$(parse_yaml_frontmatter "$index_file" "current_stage" 2>/dev/null || echo "")
   fi
+  local state_stage
+  state_stage=$(read_state_current_stage 2>/dev/null || echo "")
+  if [ -z "$current_stage" ] || [ "$current_stage" = "unknown" ]; then
+    [ -n "$state_stage" ] && current_stage="$state_stage"
+  fi
+  [ -z "$current_stage" ] && current_stage="unknown"
   
   local git_head
   git_head=$(get_git_head)
@@ -175,7 +201,9 @@ main() {
   done
   
   # 检查是否全部完成
-  if [ "$current_stage" = "complete" ] && [ "$(parse_json_field "$complete_evidence" "result")" = "pass" ]; then
+  local complete_result
+  complete_result=$(parse_json_field "$complete_evidence" "result")
+  if [ "$current_stage" = "complete" ] && [ "$complete_result" = "pass" ]; then
     completion_met="true"
     active_stage="complete"
     next_action="goal achieved"
@@ -239,8 +267,8 @@ handoff_status_json() {
     local _args=(--task-dir "$task_dir" --format shell)
     [[ -n "$state_file" ]] && _args+=(--state-file "$state_file")
     [[ -n "${GIT_ROOT:-}" ]] && _args+=(--project-root "$GIT_ROOT")
-    eval "$(python3 "$resolver_dir/resolve-artifact-paths.py" "${_args[@]}")"
-    handoff_dir="$HANDOFF_DIR"
+    eval "$(python3 "$resolver_dir/resolve-artifact-paths.py" "${_args[@]}")" 2>/dev/null || true
+    handoff_dir="${HANDOFF_DIR:-$task_dir/handoff}"
   fi
   if [ ! -d "$handoff_dir" ]; then
     echo '{"present":false,"stages":{}}'
