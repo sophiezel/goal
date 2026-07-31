@@ -625,7 +625,9 @@ def check_freshness(evidence_path: str, repo_root: str, task_dir: str = "") -> d
     if stored_gh and stored_gh not in ("unknown", "") and gh not in ("unknown", "") and stored_gh != gh:
         return {"fresh": False, "reason": "git_head_mismatch", "expected": gh, "stored": stored_gh}
     ref_branch = data.get("reference_branch") or _plan_ref_branch(task_dir) or "main...HEAD"
-    dh = code_subject_hash(repo_root, data.get("write_set") or [], ref_branch)
+    plan = load_plan_handoff(task_dir) if task_dir else {}
+    write_set = _write_set_from_plan(plan, task_dir) if plan else (data.get("write_set") or [])
+    dh = code_subject_hash(repo_root, write_set, ref_branch)
     stored_dh = data.get("code_subject_hash") or data.get("candidate_diff_hash") or ""
     if stored_dh and stored_dh not in ("unknown", "") and dh not in ("unknown", "") and stored_dh != dh:
         return {"fresh": False, "reason": "diff_hash_mismatch", "expected": dh, "stored": stored_dh}
