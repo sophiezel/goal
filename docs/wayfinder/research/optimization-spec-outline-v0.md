@@ -17,11 +17,11 @@
 
 1. **IQ-10 handoff SSOT 与 split layout 对齐** — **✅ 已验证**（goal `d9bf079`；CTB-44243 implement post gate exit 0；见 [iq10-handoff-fix-run-log.md](iq10-handoff-fix-run-log.md)）
 
-2. **plan `write_set` 规范化**  
-   gate post plan 写入 Tier-R `plan.json` 时剥离 API 路径、补全 `src/` 前缀（AM-07 / iter_write_set_files）。
+2. **plan `write_set` 规范化** — **✅** `normalize_write_set_json` + `index_contract_hash.normalize_write_set`（plan post `plan.json`）。
 
-3. **noop_fix 因果链**  
-   implement post 失败时 fix-input 应优先暴露 **末位 blocker**（如 IQ-10），避免仅 G000 掩盖根因（RCA C-2）。
+3. **noop_fix 因果链** — **✅** gate fix-input 合并上轮 blocker 并排序（实质 blocker 优先于 G000）；见 `gate-guazi-flow-stage.sh` `check_noop_ratchet` / `write_gate_fix_input`。
+
+**实现约束：** goal-pipeline / guazi-flow-goal 脚本与门禁须保持 **profile / 业务仓无关**——路径来自 `GOAL_TASK_DIR`、`GOAL_REPO_ROOT`、`GOAL_HANDOFF_DIR` 与 manifest/profile JSON；样本任务仅出现在 `docs/wayfinder/research/*`，不得被脚本 import 或硬编码。
 
 ---
 

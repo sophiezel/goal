@@ -5,7 +5,7 @@
   "classification": "none",
   "dev_cmd": "",
   "duration_ms": 0,
-  "git_head": "c6c986bcd339a078",
+  "git_head": "b9148885e61cfbfd",
   "artifact_paths": [],
   "runtime_artifact_paths": [
     "evidence/runtime-smoke.md"
@@ -13,7 +13,7 @@
   "gate": {
     "script": "gate-guazi-flow-stage.sh",
     "version": 1,
-    "passed_at": "2026-07-30T12:51:24Z",
+    "passed_at": "2026-07-31T18:00:40Z",
     "post_exit_code": 0
   }
 }

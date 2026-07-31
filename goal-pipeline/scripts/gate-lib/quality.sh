@@ -84,6 +84,13 @@ PYSR2
 JSON
       py_write_handoff quality "$TMP" >/dev/null
       rm -f "$TMP"
+      TIMING_SYNC="$SCRIPT_DIR/sync_timing_substeps.py"
+      if [[ -f "$TIMING_SYNC" ]]; then
+        SYNC_ARGS=(--task-dir "$TASK_DIR" --source smoke)
+        [[ -n "$STATE_FILE" ]] && SYNC_ARGS+=(--state-file "$STATE_FILE")
+        [[ -n "$PROJECT_ROOT" ]] && SYNC_ARGS+=(--project-root "$PROJECT_ROOT")
+        python3 "$TIMING_SYNC" "${SYNC_ARGS[@]}" >/dev/null 2>&1 || true
+      fi
       update_state_gate "quality"
       sync_index_current_stage "$(stage_to_index_current quality)"
       assert_pipeline_chain

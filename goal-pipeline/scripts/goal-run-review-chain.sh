@@ -145,5 +145,13 @@ UNIFIED_JSON="$GOAL_EVIDENCE_DIR/review-unified.json"
 echo "review-chain [3/4] merge-review-issues -> $UNIFIED_JSON"
 bash "$MERGE" "${COMMON_ARGS[@]}" --unified-json "$UNIFIED_JSON"
 
+TIMING_SYNC="$SCRIPT_DIR/sync_timing_substeps.py"
+if [[ -f "$TIMING_SYNC" ]]; then
+  SYNC_ARGS=(--task-dir "$REPO_TASK_DIR" --source review)
+  [[ -n "$STATE_FILE" ]] && SYNC_ARGS+=(--state-file "$STATE_FILE")
+  [[ -n "$PROJECT_ROOT" ]] && SYNC_ARGS+=(--project-root "$PROJECT_ROOT")
+  python3 "$TIMING_SYNC" "${SYNC_ARGS[@]}" >/dev/null 2>&1 || true
+fi
+
 echo "review-chain [4/4] done — run gate --post review next"
 exit 0

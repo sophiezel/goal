@@ -211,11 +211,27 @@
         {
           "event": "end",
           "timestamp_utc": "2026-07-30T12:51:15Z"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-07-31T18:00:00Z"
+        },
+        {
+          "event": "end",
+          "timestamp_utc": "2026-07-31T18:00:01Z"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-07-31T18:00:32Z"
+        },
+        {
+          "event": "end",
+          "timestamp_utc": "2026-07-31T18:00:33Z"
         }
       ],
-      "started_at_utc": "2026-07-30T12:51:15Z",
-      "last_timestamp_utc": "2026-07-30T12:51:15Z"
+      "started_at_utc": "2026-07-31T18:00:32Z",
+      "last_timestamp_utc": "2026-07-31T18:00:33Z"
     }
   },
-  "updated_at_utc": "2026-07-30T12:51:15Z"
+  "updated_at_utc": "2026-07-31T18:00:33Z"
 }

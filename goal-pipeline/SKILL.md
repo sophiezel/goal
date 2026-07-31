@@ -52,6 +52,7 @@ Goal 是一个持久化的工程目标。Agent 接到 goal 后持续执行，不
 - **NEVER 在 plan gate 通过前写业务代码**——`goal-pipeline-kernel next` 的 `code_writes_allowed=false` / `plan_code_order`；须 `handoff/plan.json` **gate --post plan** exit 0
 - **NEVER 并列 plan 与写代码 Todo**——阶段机强制 `[1/5] plan` → gate exit 0 → 才进入 `[2/5] implement`
 - **NEVER noop_fix 盲重试**——subject_hash 未变时禁止重跑同一 gate
+- **NEVER 在 goal-pipeline 脚本中硬编码业务仓名、Jira、任务目录或 API 路由**——路径与 profile 仅来自环境变量（`GOAL_TASK_DIR`、`GOAL_REPO_ROOT`、`GOAL_HANDOFF_DIR` 等）与 handoff/manifest；`docs/wayfinder/research/*` 仅为样本说明，不得 import
 - **NEVER 跨分支 auto-discover 错 state**——`find_state_file` 必须匹配当前 git branch；`project_id===sha256(project_root)[:12]`
 - **NEVER 跨分支 stop-hook 误催**——`goal-pipeline-stop-hook` 只绑定当前 `git branch` 的 active/blocked goal；kernel 无 `next_stage` 时静默
 - **NEVER 谎报全任务 ≤20m**——按 `task_tier`（XS/S/M/L/XL）分层墙钟，见 `references/task-tier-matrix.md`

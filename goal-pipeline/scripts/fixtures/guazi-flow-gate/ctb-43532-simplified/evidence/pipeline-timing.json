@@ -103,11 +103,19 @@
         {
           "event": "start",
           "timestamp_utc": "2026-07-30T12:51:23Z"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-07-31T18:00:09Z"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-07-31T18:00:39Z"
         }
       ],
-      "started_at_utc": "2026-07-30T12:51:23Z",
-      "last_timestamp_utc": "2026-07-30T12:51:23Z"
+      "started_at_utc": "2026-07-31T18:00:39Z",
+      "last_timestamp_utc": "2026-07-31T18:00:39Z"
     }
   },
-  "updated_at_utc": "2026-07-30T12:51:23Z"
+  "updated_at_utc": "2026-07-31T18:00:39Z"
 }
