@@ -524,7 +524,7 @@ def _looks_like_path(p: str) -> bool:
     p = (p or "").strip().strip("`")
     if not p or _excl.search(p):
         return False
-    if any(x in p for x in ("排除", "除外", "不做", "：", "。")):
+    if any(x in p for x in ("排除", "除外", "不做", "：", "。", "（", "）")):
         return False
     return ("/" in p) or p.endswith((".ts", ".tsx", ".js", ".jsx", ".scss", ".css", ".json", ".md")) or p.startswith(("src", "docs", "e2e", "config"))
 
