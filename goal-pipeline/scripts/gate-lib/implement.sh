@@ -34,13 +34,14 @@
     if [[ "$PHASE" == "post" ]]; then
       TIER=$(resolve_quality_tier)
       REPO_FOR_UVO="${GIT_ROOT:-$PROJECT_ROOT}"
+      IMPL_TASK_DIR="${REPO_TASK_DIR:-$TASK_DIR}"
       export GOAL_HANDOFF_DIR="$HANDOFF_DIR"
       export GOAL_EVIDENCE_DIR="$GOAL_EVIDENCE_DIR"
       # Pack A: stage write_set untracked (no commit) before hash / UVO / AM ratchet
       stage_write_set_untracked "$PLAN_WS" || true
       UVO="$SCRIPT_DIR/verification-oracle.sh"
       [[ -x "$UVO" ]] || fail "verification-oracle.sh not found"
-      UVO_ARGS=(--task-dir "$TASK_DIR" --repo-root "$REPO_FOR_UVO" --tier "$TIER")
+      UVO_ARGS=(--task-dir "$IMPL_TASK_DIR" --repo-root "$REPO_FOR_UVO" --tier "$TIER")
       [[ -n "$STATE_FILE" ]] && UVO_ARGS+=(--state-file "$STATE_FILE")
       [[ -n "$PROJECT_ROOT" ]] && UVO_ARGS+=(--project-root "$PROJECT_ROOT")
       if ! "$UVO" "${UVO_ARGS[@]}" >/dev/null 2>&1; then
@@ -63,14 +64,14 @@ PYUVO
       fi
       RATCHET="$SCRIPT_DIR/acceptance-matrix-ratchet.py"
       if [[ -f "$RATCHET" ]]; then
-        RAT_ARGS=(--task-dir "$TASK_DIR" --repo-root "$REPO_FOR_UVO" --evidence-dir "$GOAL_EVIDENCE_DIR" --json)
+        RAT_ARGS=(--task-dir "$IMPL_TASK_DIR" --repo-root "$REPO_FOR_UVO" --evidence-dir "$GOAL_EVIDENCE_DIR" --json)
         if ! python3 "$RATCHET" "${RAT_ARGS[@]}" >/dev/null 2>&1; then
           gate_fail_with_issues "implement" "$(code_subject_hash)" "fix_and_rerun" '[{"id":"AM-01","severity":"blocker","summary":"acceptance-matrix-ratchet failed","root_cause":"implement_error"}]' "acceptance-matrix-ratchet not_pass"
         fi
       fi
       # IQ thin wrapper: structural checks only (UVO evidence already written)
       IQ_JSON=$(mktemp)
-      if ! python3 "$SCRIPT_DIR/implement-qc-gate.py" --task-dir "$TASK_DIR" --repo-root "$REPO_FOR_UVO" --tier "$TIER" --skip-test-lint --json > "$IQ_JSON" 2>/dev/null; then
+      if ! python3 "$SCRIPT_DIR/implement-qc-gate.py" --task-dir "$IMPL_TASK_DIR" --repo-root "$REPO_FOR_UVO" --tier "$TIER" --skip-test-lint --json > "$IQ_JSON" 2>/dev/null; then
         DH_PRE=$(diff_hash)
         IQ_ISSUES=$(python3 - "$IQ_JSON" << 'PYIQ'
 import json, sys
@@ -90,7 +91,7 @@ PYIQ
       if [[ -f "$CC" ]]; then
         CC_JSON=$(mktemp)
         CC_EVIDENCE="${GOAL_EVIDENCE_DIR}/contract-conformance.json"
-        if ! python3 "$CC" --task-dir "$TASK_DIR" --repo-root "$REPO_FOR_UVO" --json --evidence "$CC_EVIDENCE" > "$CC_JSON" 2>/dev/null; then
+        if ! python3 "$CC" --task-dir "$IMPL_TASK_DIR" --repo-root "$REPO_FOR_UVO" --json --evidence "$CC_EVIDENCE" > "$CC_JSON" 2>/dev/null; then
           DH_PRE=$(diff_hash)
           CC_ISSUES=$(python3 - "$CC_JSON" << 'PYCC'
 import json, sys
@@ -115,14 +116,14 @@ PYCC
       fi
       UX_SCAN="$SCRIPT_DIR/ux_scan_v1.py"
       if [[ -f "$UX_SCAN" ]]; then
-        UX_ARGS=(--task-dir "$TASK_DIR" --repo-root "$REPO_FOR_UVO")
+        UX_ARGS=(--task-dir "$IMPL_TASK_DIR" --repo-root "$REPO_FOR_UVO")
         [[ -n "$STATE_FILE" ]] && UX_ARGS+=(--state-file "$STATE_FILE")
         [[ -n "$PROJECT_ROOT" ]] && UX_ARGS+=(--project-root "$PROJECT_ROOT")
         python3 "$UX_SCAN" "${UX_ARGS[@]}" >/dev/null 2>&1 || true
       fi
       TIMING_SYNC="$SCRIPT_DIR/sync_timing_substeps.py"
       if [[ -f "$TIMING_SYNC" && -f "$GOAL_EVIDENCE_DIR/verification-oracle.json" ]]; then
-        SYNC_ARGS=(--task-dir "$TASK_DIR" --source uvo)
+        SYNC_ARGS=(--task-dir "$IMPL_TASK_DIR" --source uvo)
         [[ -n "$STATE_FILE" ]] && SYNC_ARGS+=(--state-file "$STATE_FILE")
         [[ -n "$PROJECT_ROOT" ]] && SYNC_ARGS+=(--project-root "$PROJECT_ROOT")
         python3 "$TIMING_SYNC" "${SYNC_ARGS[@]}" >/dev/null 2>&1 || true
