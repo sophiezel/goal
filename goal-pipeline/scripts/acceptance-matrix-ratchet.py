@@ -221,10 +221,19 @@ def run_ratchet(
         checks.append({"id": "AM-10", "pass": True, "detail": "skipped — no package.json change or Stop Conditions present"})
 
     blockers = [c for c in checks if not c.get("pass") and c.get("severity") != "warning"]
+    matrix_rows: list[dict[str, Any]] = []
+    ms = plan.get("matrix_satisfaction")
+    if isinstance(ms, dict):
+        for entry in ms.get("rows") or []:
+            if isinstance(entry, dict) and entry.get("id"):
+                matrix_rows.append(dict(entry))
+            elif isinstance(entry, str) and entry.strip():
+                matrix_rows.append({"id": entry.strip(), "status": "unspecified"})
     return {
         "schema_version": 1,
         "overall": "pass" if not blockers else "not_pass",
         "checks": checks,
+        "matrix_rows": matrix_rows,
         "changed_files_count": len(changed),
         "src_files_in_diff": len(dr.src_files_in_diff(diff_text)),
         "reference_branch": ref_branch,

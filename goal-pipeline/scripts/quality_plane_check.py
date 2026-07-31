@@ -13,6 +13,11 @@ if str(_SCRIPT_DIR) not in sys.path:
     sys.path.insert(0, str(_SCRIPT_DIR))
 
 from l10_w1_policy import l10_row_blocks_complete
+from w2_matrix_bookkeeping import (
+    build_w2_matrix_leakage,
+    matrix_satisfaction_plane_notes,
+    merge_w2_into_leakage,
+)
 
 
 def load_json(p: Path) -> dict:
@@ -22,31 +27,6 @@ def load_json(p: Path) -> dict:
         return json.loads(p.read_text(encoding="utf-8"))
     except json.JSONDecodeError:
         return {}
-
-
-def matrix_satisfaction_errors(handoff: Path) -> list[dict]:
-    """Optional host handoff matrix_satisfaction — no-op when field absent."""
-    errors: list[dict] = []
-    for name in ("plan.json", "review.json"):
-        doc = load_json(handoff / name)
-        ms = doc.get("matrix_satisfaction")
-        if not isinstance(ms, dict):
-            continue
-        if ms.get("ok") is True:
-            continue
-        rows = ms.get("unsatisfied_rows") or ms.get("unsatisfied_row_ids") or []
-        if not rows and ms.get("ok") is False:
-            rows = ["(unspecified)"]
-        if rows:
-            errors.append(
-                {
-                    "failure_code": "matrix_row_unsatisfied",
-                    "summary": f"acceptance matrix unsatisfied rows: {', '.join(str(r) for r in rows)}",
-                    "leakage": {"w2_matrix_row_unsatisfied": [str(r) for r in rows]},
-                }
-            )
-        break
-    return errors
 
 
 def resolve_dirs(task_dir: str, state_file: str, project_root: str) -> tuple[Path, Path, Path]:
@@ -151,7 +131,7 @@ def main() -> int:
                 }
             )
 
-        matrix_w2 = matrix_satisfaction_errors(handoff_dir)
+        matrix_w2 = matrix_satisfaction_plane_notes(handoff_dir, goal_ev)
 
         manifest_path = handoff_dir / "argus-scenario-manifest.json"
         if manifest_path.is_file():
@@ -189,15 +169,17 @@ def main() -> int:
 
     ok = not errors
     leakage_silent: list[str] = []
-    matrix_rows_unsatisfied: list[str] = []
     for e in errors:
         if e.get("failure_code") == "declared_defect_silent_pass":
             leakage_silent.extend((e.get("leakage") or {}).get("declared_defect_classes_silent_pass") or [])
-    for e in matrix_w2 if args.mode == "complete" else []:
-        matrix_rows_unsatisfied.extend((e.get("leakage") or {}).get("w2_matrix_row_unsatisfied") or [])
     leakage: dict = {"declared_defect_classes_silent_pass": leakage_silent}
-    if matrix_rows_unsatisfied:
-        leakage["matrix_rows_unsatisfied"] = matrix_rows_unsatisfied
+    w2_leakage: dict = {}
+    if args.mode == "complete":
+        w2_leakage = build_w2_matrix_leakage(
+            handoff_dir=str(handoff_dir),
+            goal_evidence_dir=str(goal_ev),
+        )
+        leakage = merge_w2_into_leakage(leakage, w2_leakage)
     out = {
         "ok": ok,
         "plane": "quality",

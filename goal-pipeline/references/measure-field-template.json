@@ -17,7 +17,9 @@
   },
   "leakage": {
     "declared_defect_classes_silent_pass": [],
-    "degraded_marked_full_pass": null
+    "degraded_marked_full_pass": null,
+    "matrix_rows_unsatisfied": [],
+    "matrix_rows_waived": []
   },
   "planes_doctor_ok": null
 }

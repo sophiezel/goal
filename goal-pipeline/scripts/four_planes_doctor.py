@@ -182,7 +182,7 @@ def main() -> int:
     checks.append(
         check(
             "data.quality_plane_handoff_ssot",
-            "handoff_dir" in qpc and "matrix_satisfaction_errors(handoff_dir)" in qpc,
+            "handoff_dir" in qpc and "matrix_satisfaction_plane_notes" in qpc,
             "quality_plane_check.py",
         )
     )

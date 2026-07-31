@@ -13,6 +13,7 @@ if str(_SCRIPT_DIR) not in sys.path:
 
 from l10_w1_policy import W1_CLOSED as _W1_CLOSED
 from l10_w1_policy import l10_row_blocks_complete
+from w2_matrix_bookkeeping import build_w2_matrix_leakage, merge_w2_into_leakage
 
 
 def _load_json(path: Path) -> dict[str, Any]:
@@ -24,30 +25,11 @@ def _load_json(path: Path) -> dict[str, Any]:
         return {}
 
 
-def _matrix_rows_from_handoff(handoff: Path) -> list[str]:
-    """W2-only matrix row ids from host handoff matrix_satisfaction (no complete hard block)."""
-    rows_out: list[str] = []
-    for name in ("plan.json", "review.json"):
-        doc = _load_json(handoff / name)
-        ms = doc.get("matrix_satisfaction")
-        if not isinstance(ms, dict):
-            continue
-        if ms.get("ok") is True:
-            break
-        rows = ms.get("unsatisfied_rows") or ms.get("unsatisfied_row_ids") or []
-        if not rows and ms.get("ok") is False:
-            rows = ["(unspecified)"]
-        rows_out.extend(str(r) for r in rows)
-        break
-    return rows_out
-
-
 def build_w1_leakage(*, handoff_dir: str, goal_evidence_dir: str) -> dict[str, Any]:
     handoff = Path(handoff_dir)
     goal_ev = Path(goal_evidence_dir)
     silent: list[str] = []
     soft_l10_debt: list[str] = []
-    matrix_rows_unsatisfied = _matrix_rows_from_handoff(handoff)
     l10_rows: dict[str, str] = {}
     ux_rows: dict[str, str] = {}
 
@@ -81,8 +63,10 @@ def build_w1_leakage(*, handoff_dir: str, goal_evidence_dir: str) -> dict[str, A
         "ux_scan_w1_status": ux_rows,
         "w1_bookkeeping_version": 2,
     }
-    if matrix_rows_unsatisfied:
-        out["matrix_rows_unsatisfied"] = matrix_rows_unsatisfied
+    out = merge_w2_into_leakage(
+        out,
+        build_w2_matrix_leakage(handoff_dir=handoff_dir, goal_evidence_dir=goal_evidence_dir),
+    )
     return out
 
 
