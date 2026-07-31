@@ -494,18 +494,26 @@ ws_matches = list(re.finditer(
     text, re.IGNORECASE | re.DOTALL | re.MULTILINE
 ))
 ws_sec = ws_matches[-1] if ws_matches else None
-_excl = re.compile(r'(排除|除外|不做|exclude|exclusion|out of scope|非写集)', re.I)
+_excl = re.compile(r'(排除|除外|不做|忽略|exclude|exclusion|out of scope|非写集)', re.I)
 if ws_sec:
     block = ws_sec.group(1)
     # Truncate at first exclusions / 不做 subsection inside the write_set section
     cut = re.search(r'^###?\s*(?:不做|排除|除外|exclusions?|out of scope).*$', block, re.I | re.M)
     if cut:
         block = block[: cut.start()]
+    cut2 = re.search(r'\*\*(?:非目标|不做项)', block)
+    if cut2:
+        block = block[: cut2.start()]
     for line in block.splitlines():
         if _excl.search(line) and not re.search(r'`[^`]+`', line):
             continue
+        if re.search(r'viewingResults', line) and re.search(r'忽略|不含|及带看|不做|非目标', line):
+            continue
         for m in re.findall(r'`([^`]+)`', line):
-            write_set.append(m.strip())
+            tok = m.strip()
+            if tok.startswith('/external/') or tok.startswith('/api/'):
+                continue
+            write_set.append(tok)
         m2 = re.match(r'[-*]\s+(.+)', line.strip())
         if m2:
             val = m2.group(1).strip().strip('`')
@@ -521,6 +529,16 @@ def _looks_like_path(p: str) -> bool:
     return ("/" in p) or p.endswith((".ts", ".tsx", ".js", ".jsx", ".scss", ".css", ".json", ".md")) or p.startswith(("src", "docs", "e2e", "config"))
 
 write_set = list(dict.fromkeys([w for w in write_set if _looks_like_path(w)]))
+# Normalize via index_contract_hash (API paths, src/ aliases, prose)
+_gate_dir = os.environ.get("GATE_SCRIPT_DIR", "")
+if _gate_dir:
+    import importlib.util
+    _ich = os.path.join(_gate_dir, "index_contract_hash.py")
+    if os.path.isfile(_ich):
+        spec = importlib.util.spec_from_file_location("ich", _ich)
+        mod = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(mod)
+        write_set = mod.normalize_write_set(write_set)
 if not write_set:
     for pat in [r'write_set:\s*\[([^\]]+)\]']:
         wm = re.search(pat, text, re.IGNORECASE)
