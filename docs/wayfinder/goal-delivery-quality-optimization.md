@@ -16,6 +16,7 @@ GitHub 主副本：[Wayfinder: Goal 交付质量与全链路效率优化（guazi
 | [#3 CTB-44243 复盘](https://github.com/sophiezel/goal/issues/3) | [ctb-44243-guazi-flow-goal-rca.md](research/ctb-44243-guazi-flow-goal-rca.md) | issue 有评论，**未 close** |
 | [#2 节点清单](https://github.com/sophiezel/goal/issues/2) | [pipeline-node-catalog.md](research/pipeline-node-catalog.md) | [#2 评论](https://github.com/sophiezel/goal/issues/2#issuecomment-5145681202) |
 | [#6 review-chain](https://github.com/sophiezel/goal/issues/6) | [review-chain-bottlenecks.md](research/review-chain-bottlenecks.md) | issue 有评论 |
+| [#7 timing 看板 v0](https://github.com/sophiezel/goal/issues/7) | [pipeline-timing-dashboard-v0.md](research/pipeline-timing-dashboard-v0.md) | Markdown 规格 + JSON schema |
 | [#4 0 漏出](https://github.com/sophiezel/goal/issues/4) | [draft-zero-leakage-and-ux-policy.md](research/draft-zero-leakage-and-ux-policy.md) Part A | **closed** — W1+W2、A.8 B3 ratified |
 | [#5 UX 边界](https://github.com/sophiezel/goal/issues/5) | 同上 Part B | **closed** — C1 ratified（见 issue CONFIRM） |
 
@@ -25,7 +26,7 @@ GitHub 主副本：[Wayfinder: Goal 交付质量与全链路效率优化（guazi
 | --- | --- | --- |
 | #4 Grilling 0 漏出 | **closed**（核心 ratify ✓） | Part A 开放题（L9 failure_code、AM waive 等）随规格 v1 收尾 |
 | #5 Grilling UX 边界 | **closed**（C1 ratified） | UX 硬约束已回写 [optimization-spec-outline-v0.md](research/optimization-spec-outline-v0.md) §7–11 |
-| [#7 耗时看板](https://github.com/sophiezel/goal/issues/7) | 可开工 | 依赖 #2 节点命名；可引用 `pipeline-timing` + UVO steps |
+| [#7 耗时看板](https://github.com/sophiezel/goal/issues/7) | **v0 规格已落盘** | [pipeline-timing-dashboard-v0.md](research/pipeline-timing-dashboard-v0.md)；HTML prototype 待 v1 |
 
 ## 建议合并顺序（写优化规格前）
 
