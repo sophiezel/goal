@@ -159,7 +159,43 @@ check_noop_ratchet() {
   prev=$(python3 -c "import json; print(json.load(open('$fix_path')).get('subject_hash',''))" 2>/dev/null || echo "")
   if [[ -n "$prev" && "$prev" == "$subject_hash" ]]; then
     write_state_blocked "noop_fix"
-    local noop_issues='[{"id":"G000","severity":"blocker","summary":"subject_hash 未变化，修复无效（noop_fix）","root_cause":"implement_error"}]'
+    local noop_issues
+    noop_issues=$(python3 - "$fix_path" << 'PYNOOP'
+import json, sys
+noop = [{"id": "G000", "severity": "blocker", "summary": "subject_hash 未变化，修复无效（noop_fix）", "root_cause": "implement_error"}]
+prior_path = sys.argv[1]
+prior_blockers = []
+if prior_path:
+    try:
+        doc = json.load(open(prior_path, encoding="utf-8"))
+        for i in doc.get("issues") or []:
+            if i.get("id") == "G000":
+                continue
+            if i.get("severity") in ("blocker", "block"):
+                prior_blockers.append(i)
+    except (OSError, json.JSONDecodeError):
+        pass
+seen = set()
+merged = []
+for i in prior_blockers + noop:
+    iid = i.get("id")
+    if iid in seen:
+        continue
+    seen.add(iid)
+    merged.append(i)
+
+def _issue_rank(i):
+    iid = i.get("id") or ""
+    if iid == "G000":
+        return (2, iid)
+    if i.get("severity") in ("blocker", "block"):
+        return (0, iid)
+    return (1, iid)
+
+merged.sort(key=_issue_rank)
+print(json.dumps(merged, ensure_ascii=False))
+PYNOOP
+)
     fix_path=$(write_gate_fix_input "$stage" "$subject_hash" "blocked_noop_fix" "$noop_issues")
     local label
     label=$(echo "$stage" | tr '[:lower:]' '[:upper:]')
@@ -185,6 +221,16 @@ write_gate_fix_input() {
 import json, os, sys
 out, stage, subject_hash, action = sys.argv[1:5]
 issues = json.loads(os.environ.get("GATE_ISSUES_JSON", "[]"))
+
+def _issue_rank(i):
+    iid = i.get("id") or ""
+    if iid == "G000":
+        return (2, iid)
+    if i.get("severity") in ("blocker", "block"):
+        return (0, iid)
+    return (1, iid)
+
+issues = sorted(issues, key=_issue_rank)
 next_steps = {
     "plan": ["修 index.md 必填章节与 write_set 后重跑 gate --post plan"],
     "implement": ["在 write_set 范围内修改代码后重跑 gate --post implement"],
