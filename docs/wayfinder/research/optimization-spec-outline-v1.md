@@ -87,10 +87,10 @@
 |----|------|----------|
 | fe-argus v2 hybrid | 规则 manifest + 条件 fe-argus merge | rule v1 ✅；skill ② → **#8** |
 | strict UX 分层 | hard/blocker L10 + ux-scan blocker only | ✅ `review_strict_ux.py` |
-| matrix W2 | `matrix_rows_unsatisfied` + codes | 记账部分 ✅；waive 口径 **#16 已决**；自动化 **#10** |
+| matrix W2 | `matrix_rows_unsatisfied` + codes | ✅ **#10** — `test-w2-matrix-leakage.sh`（#16 waive 口径） |
 | P1-9 auto-fix | skill 执行 + gate audit | ✅ **#11** — `ux-auto-fix-c1.md` |
 | split handoff | IQ / AM / UX 同根 — [handoff-path-resolution.md](../../../goal-pipeline/references/handoff-path-resolution.md) | **#14** ✅ |
-| merge-review parity | kernel CLI ≡ shell chain | **#23** |
+| merge-review parity | `test-kernel-review-cli-parity.sh` + `kernel.review.cli` timing substep | **#23** ✅ |
 | four_planes_doctor + handoff tier | [four-planes-handoff-tier.md](four-planes-handoff-tier.md) | **#17** ✅ |
 | timing HTML v1 | [pipeline-timing-report-input.md](../../../goal-pipeline/references/pipeline-timing-report-input.md) + `render-pipeline-timing-report.py --format html` | **#9** ✅ |
 | postmerge ↔ complete | 平面衔接 | **#18** |

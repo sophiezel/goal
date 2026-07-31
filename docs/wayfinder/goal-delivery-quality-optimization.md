@@ -14,6 +14,8 @@ GitHub 主副本：[Wayfinder: Goal 交付质量与全链路效率优化（guazi
 - **Four-planes handoff tier (#17)** — `649abae`；[four-planes-handoff-tier.md](research/four-planes-handoff-tier.md) + `test-four-planes-handoff-tier.sh`
 - **Pipeline timing HTML v1 (#9)** — `ee1ef04`；`pipeline_timing_report_core.py` + [pipeline-timing-report-input.md](../../goal-pipeline/references/pipeline-timing-report-input.md)
 - **UX auto-fix audit (#11)** — `be2d7a8`；[ux-auto-fix-c1.md](../../goal-pipeline/references/ux-auto-fix-c1.md) + implement post fixtures
+- **Merge-review CLI parity (#23)** — `fd9fdf9`；`test-kernel-review-cli-parity.sh` + review timing substep on CLI path
+- **W2 matrix leakage (#10)** — `af42c42`；unsatisfied vs waived bookkeeping（#16 C1）
 
 | 工单 | 文件 | GitHub |
 | --- | --- | --- |
