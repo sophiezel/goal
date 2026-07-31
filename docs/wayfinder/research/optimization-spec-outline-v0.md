@@ -1,6 +1,6 @@
 # 优化规格大纲 v0（Research 合并稿）
 
-**Status:** 草稿 v0.2 — P0/P1/P2 Wayfinder 实现项已回写（2026-08-01）；Part A 开放题（`matrix_row_unsatisfied` 等）仍阻塞正式规格升格。
+**Status:** 草稿 v0.2 — P0/P1/P2 Wayfinder 实现项已回写（2026-08-01）。**§未决已于 2026-08-01 收口至** [optimization-spec-outline-v1.md](optimization-spec-outline-v1.md)（Phase-3b HITL + [#12](https://github.com/sophiezel/goal/issues/12) doc closure）。
 
 **父地图:** [Wayfinder #1](https://github.com/sophiezel/goal/issues/1)
 
@@ -74,8 +74,11 @@
 
 ---
 
-## 未决（阻塞规格定稿）
+## 未决（已迁移 v1）
 
-- #4（残余）：**`matrix_row_unsatisfied` C1 ratified** — W2 `matrix_rows_unsatisfied[]` + codes（`silent_pass_forbidden: false`）；**仍 open**：AM waive 是否算漏出、Part A.1 北星措辞  
-- #5：**Phase-2 C1 ratified** — fe-argus v2 hybrid、strict 分层、P1-9 audit、节点 skip 表；见 [phase-2-real-closure-grilling.md](phase-2-real-closure-grilling.md) Ratified 节  
-- #7：耗时看板 — **v0 Markdown** `render-pipeline-timing-report.py` ✅；HTML v1 defer
+**2026-08-01：** 下列主题已在 [optimization-spec-outline-v1.md](optimization-spec-outline-v1.md) 与 [phase-3-hitl-ratified.md](phase-3-hitl-ratified.md) 冻结；实现 deferred 见 v1 Part E。
+
+- ~~#4 残余~~：`matrix_row_unsatisfied`、AM waive、Part A.1 北星 → **closed**
+- ~~#5 Phase-2 C1~~ → v1 Part B / Phase-2 ratified 节
+- ~~#13 / #15 / #16 / #20~~ → v1 Part C / D / A
+- **仍 open（实现）：** split handoff [#14](https://github.com/sophiezel/goal/issues/14)；W2 自动化 [#10](https://github.com/sophiezel/goal/issues/10)；#7 HTML → [#9](https://github.com/sophiezel/goal/issues/9)

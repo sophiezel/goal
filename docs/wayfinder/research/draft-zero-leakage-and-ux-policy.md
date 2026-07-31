@@ -1,6 +1,6 @@
 # Draft: 「0 漏出」度量 + UX 自动发现/修复边界
 
-**Status:** **Part A**（#4）与 **Part B**（#5）核心策略已 ratified（2026-08-01, C1 defaults）；Part A 开放题 L9 failure_code、AM waive、PQ/IQ 等仍待 HITL。For [issue #4](https://github.com/sophiezel/goal/issues/4) / [issue #5](https://github.com/sophiezel/goal/issues/5) grilling record.
+**Status:** **Part A**（#4）与 **Part B**（#5）核心策略已 ratified（2026-08-01, C1 defaults）；**Phase-3b HITL（#16 / #20 / #15）** 已 ratified 2026-08-01 — 见 [phase-3-hitl-ratified.md](phase-3-hitl-ratified.md)。**仍 open：** split handoff SSOT → [#14](https://github.com/sophiezel/goal/issues/14)。For [issue #4](https://github.com/sophiezel/goal/issues/4) / [issue #5](https://github.com/sophiezel/goal/issues/5) grilling record.
 
 **Parent map:** [Wayfinder: Goal 交付质量与全链路效率优化](https://github.com/sophiezel/goal/issues/1)
 
@@ -14,7 +14,9 @@
 
 ### A.1 North star (align with goal-runtime)
 
-**Proposal:** 「0 漏出」在 Goal 语境下指：**在当次任务已声明的缺陷类集合上，不得出现 silent pass**（与 [`failure-code-dictionary.md`](../../goal-pipeline/references/failure-code-dictionary.md) 一致）。它不是「线上零 bug」，而是 **管线对声明覆盖类的漏检率 → 0**。
+**Ratified (2026-08-01, #4 + #20 C1):** 「0 漏出」在 Goal 语境下指：**在当次任务已声明的缺陷类集合上，不得出现 silent pass**（与 [`failure-code-dictionary.md`](../../goal-pipeline/references/failure-code-dictionary.md) 一致）。它不是「线上零 bug」，而是 **管线对声明覆盖类的漏检率 → 0**。
+
+**对外措辞（#20 C1）：** 默认对工程/闸门说 **W1**（单次 run + `quality_plane_check`）；对产品/MR 说 **W2** 时须**显式声明**矩阵窗口，且区分 `matrix_rows_unsatisfied` vs 带 separation 的 waive。模板见 [phase-3-hitl-ratified.md](phase-3-hitl-ratified.md) §1.4 与 [optimization-spec-outline-v1.md](optimization-spec-outline-v1.md) Part A.1。
 
 | 术语 | 草案定义 |
 |------|----------|
@@ -42,7 +44,7 @@
 | L6 | **Review 未独立或未拦声明类** | forged packet、degraded 当 full pass、通道缺失 | review-chain + complete | `review_forged`, `review_degraded_as_pass`, `review_undetermined` |
 | L7 | **无效修复循环** | subject_hash 不变重跑 gate | implement ratchet | `noop_fix` |
 | L8 | **交付证据缺失** | complete 无 review/evidence 链 | delivery gate | `delivery_evidence_missing`, `review_stale` |
-| L9 | **需求/缺陷类（业务语义）** | 验收矩阵行写了「须展示 X」但实现无 X 且 review 未标 fail | AM + review rubric + 人工 | *无单一码* — 记 `matrix_row_unsatisfied`（**待确认是否入 failure-codes**） |
+| L9 | **需求/缺陷类（业务语义）** | 验收矩阵行写了「须展示 X」但实现无 X 且 review 未标 fail | AM + review rubric + 人工 | `matrix_row_unsatisfied`（**已入 failure-codes**，Phase-2 C1：`silent_pass_forbidden: false`）；W2 `leakage.matrix_rows_unsatisfied[]` |
 | L10 | **隐藏 UX + Argus 场景债（见 A.8、Part B）** | fe-argus Scenario Q 在 plan post 写入 manifest 的行；默认 **软约束**，不升 L9 除非人工升级 | plan post → `handoff/argus-scenario-manifest.json`；implement/review/complete 消费 | 见 A.8（默认 warn/UX debt，**不**默认 block implement post） |
 
 **CTB-44243 anchors:**
@@ -66,7 +68,7 @@
 | **W2 — MR 合入** | 业务仓 PR 从开分到 merge | 产品/工程验收「这单有没有漏」 | L9 事件 + 矩阵行 satisfied 率；Goal 只保证 W1 证据链完整 |
 | **W3 — 发布后 N 天** | 可选运营复盘 | 漏出是否因声明类不全 | 仅作 **spec 反馈**，不反向惩罚单次 W1 pass |
 
-**Rule:** 宣称「0 漏出」的默认口径 = **W1 内声明缺陷类 silent pass 列表为空** + complete 时 `quality_plane_check` 通过。W2/W3 的「业务需求漏出」须显式写进验收矩阵（L9），否则不算 Goal 违约。
+**Rule:** 宣称「0 漏出」的**对外默认口径（#20 C1）** = **W1**：声明缺陷类 silent pass 列表为空 + complete 时 `quality_plane_check` 通过。**W2** 须在沟通中**单独声明**（MR + 验收矩阵行）；不得用 W1 pass 替代 W2 承诺。W3 仅运营复盘，非默认对外口径。W2「业务需求漏出」须显式写进验收矩阵（L9），否则不算 Goal 违约。
 
 **W1 与 L10（B3）：** 凡 **A.8** 中 plan post 写入 `argus-scenario-manifest.json` 的 L10 行，在 W1 内与 L1–L8 一样须 **pass / waive / deferred** 记账，**禁止 silent pass**；默认处置为 **soft**（warn、UX debt），**不**构成 implement post 硬阻断，除非该行已按 A.8 升级为 L9。
 
@@ -125,7 +127,9 @@
 **Proposal:**
 
 1. **验收矩阵**（index `## 验收矩阵`）= L9 的 **声明来源**。每行须含 `verify_command | data-testid | http_assert | display_assert` 之一（PQ-03/14；lite 可 warn）。
-2. **AM ratchet** = 矩阵 id 集合的 **子集硬闸门**：ratchet 脚本要求的每个 id 必须在 evidence 中有 pass 记录或显式 `waived` + separation（**waived 是否算漏出：待 HITL**）。
+2. **AM ratchet** = 矩阵 id 集合的 **子集硬闸门**：ratchet 脚本要求的每个 id 必须在 evidence 中有 pass 记录或显式 `waived` + **有效 separation**（**#16 C1 ratified 2026-08-01**）：
+   - **waive + 有效 separation** → **不算** `leakage.matrix_rows_unsatisfied[]`；可选记入 `leakage.matrix_rows_waived[]`（行 id、separation 指针、理由）。
+   - **无 separation 的 waive** 或未满足行 → **算 W2 漏出**（入 `matrix_rows_unsatisfied`）。
 3. **Review rubric** = 矩阵 **未机器化** 的行 + UX/视觉/a11y；ChannelPolicy 要求独立通道；rubric 项 fail → review outcome fail，**不得** degraded-as-pass。
 
 **Mapping table (draft):**
@@ -147,7 +151,8 @@
 |------|----------|------|
 | IQ-10 因 `as never` / 错误 adapter 锚点通过，实际 path 错 | 是 | L3 |
 | 矩阵有 C05 但无 verify 列，implement 未做，review pass | 是（若 C05 可验证） | L9 + L6 |
-| `am_ratchet_failed` 后人工 waive 无 separation 仍 complete | 是 | L4/L8 |
+| `am_ratchet_failed` 后人工 waive 无 separation 仍 complete | 是（#16 C1：W2 `matrix_rows_unsatisfied`） | L4/L8 + L9 |
+| `am_ratchet_failed` 后 waive **带** separation 已记账 | 否（可选 `matrix_rows_waived`） | — |
 | ESLint CI 红但任务 UVO 只跑 related tests 且通过 | 否（若 plan 未声明全仓 lint） | 噪声 → 效率面 |
 | viewingResults 未做，scope 在 README/index 标 out-of-scope | 否 | scope |
 | 骨架屏含 footer 主按钮（违反 `no_footer_cta_in_skeleton`）且 tag 已冻结 | 是（Part B 检测 + review） | L10 / L9 |
@@ -287,11 +292,11 @@
 
 ### From #4
 
-1. **L9 `matrix_row_unsatisfied`：** 是否纳入 `failure-codes.json`，还是仅 W2 人工记账？
-2. **AM ratchet `waived`：** 带 separation 的 waive 算不算漏出？
-3. **W1 vs W2 对外承诺：** 对产品说「0 漏出」时默认哪一层？
-4. **split handoff SSOT：** IQ-10 与 AM/UX 扫描统一读 `task_dir/handoff` 还是 `artifacts/handoff`？
-5. **PQ 与 IQ 重复校验：** 合并还是分层 warn/block（issue #1 未决）？
+1. ~~**L9 `matrix_row_unsatisfied`**~~ → **Ratified (Phase-2 C1):** 入 `failure-codes.json`（`silent_pass_forbidden: false`）+ W2 `matrix_rows_unsatisfied[]`。
+2. ~~**AM ratchet `waived`**~~ → **Ratified (#16 C1, 2026-08-01):** 有效 separation 的 waive **不算** unsatisfied；无 separation = 漏出；可选 `matrix_rows_waived` 审计。
+3. ~~**W1 vs W2 对外承诺**~~ → **Ratified (#20 C1, 2026-08-01):** 对外默认 **W1**；W2 须显式声明；模板见 [phase-3-hitl-ratified.md](phase-3-hitl-ratified.md) §1.4。
+4. **split handoff SSOT：** IQ-10 与 AM/UX 扫描统一读 `task_dir/handoff` 还是 `artifacts/handoff`？ → **open，[#14](https://github.com/sophiezel/goal/issues/14)**
+5. ~~**PQ 与 IQ 重复校验**~~ → **Ratified (#15 C1, 2026-08-01):** 分层（PQ 规划 hard / IQ 实现 hard）+ `dedupe_key`；PQ 同键不 double block；IQ 重复项 warn。见 [optimization-spec-outline-v1.md](optimization-spec-outline-v1.md) Part D。
 
 ### From #5
 
@@ -315,3 +320,4 @@
 | 2026-08-01 | Initial HITL draft for issues #4 and #5 |
 | 2026-08-01 | Ratified A.8 B3（L10 Argus manifest + L9 escalate-only）；A.3 W1+W2 交叉引用 L10 W1 记账 |
 | 2026-08-01 | Ratified Part B C1（#5）：双轨发现 D1/D2/D5 v1；D2/D5 narrow auto-fix；XS/S 无额外 HITL；strict review-first；review fail fix-input/waive；B.8 宿主 eslint；close open Q11 |
+| 2026-08-01 | Phase-3b HITL：#16 AM waive / #20 W1 vs W2 对外 / #15 PQ-IQ 分层；close open Q1–3, Q5 |

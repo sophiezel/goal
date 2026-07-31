@@ -7,6 +7,26 @@
 
 **Ratified C1 裁剪原则（Phase-2 #1）：** 仅 **效率面** 节点可 skip（遗留 `gate stage smoke`、review `dual` track、`four_planes_doctor`、timing `substep`）。**不可** 因 lite 默认跳过：`quality_plane_check`、`IQ-10`、**UVO**、review preflight、`merge-review-issues`（`kernel.review.cli run` 内含 merge，与 shell chain 等价），除非 profile 显式降级 flag（如 `GOAL_ALLOW_LEGACY_SMOKE_STAGE=1`）。
 
+**Phase-3b #13 C1 ratified（2026-08-01）：** [phase-3-hitl-ratified.md](phase-3-hitl-ratified.md) — lite **显式**降级表见下表（**非**质量面 skip）。
+
+### Profile：lite | standard | strict
+
+`lite` = `plan_profile: lite`（通常 XS/S）；`standard` = 默认 full index + hybrid Argus；`strict` = `quality` tier strict（review-first UX/L10 分层，见 Phase-2 C1）。
+
+| 节点 / 策略 | lite | standard | strict |
+|-------------|------|----------|--------|
+| `acceptance-matrix-ratchet` | **不可 skip** | **不可 skip** | **不可 skip** |
+| plan post Argus | **rule v1 only**（`argus_enrich_plan.py`；**无** fe-argus skill ②） | hybrid v2（规则 + 条件 fe-argus） | 同 standard |
+| `gate stage smoke`（遗留直调） | **hard-disable**（默认拒绝；`GOAL_ALLOW_LEGACY_SMOKE_STAGE=1`） | 同左 | 同左 |
+| `guazi-flow-review` dual track | **`review_track=single`** | XS/S 默认 single；M+ 可 dual | 同 standard |
+| `four_planes_doctor` | 可选（meta） | 可选；Wave 推荐 | 可选；Wave 推荐 |
+| timing `substep` | 可选 | 可选 | 可选 |
+| `merge-review-issues` | **不可 skip** | **不可 skip** | **不可 skip** |
+| `quality_plane_check`（complete） | **不可 skip** | **不可 skip** | **不可 skip** |
+| PQ plan gate（PQ-01/02/05/07） | **不降级** | full PQ | full PQ |
+| `implement-qc-gate` `--skip-test-lint` | 是（与 UVO 分工） | 是 | 是 |
+| UVO / IQ-10 / review preflight | **不可 skip** | **不可 skip** | **不可 skip** |
+
 ---
 
 ## 阶段序（控制面真相）
