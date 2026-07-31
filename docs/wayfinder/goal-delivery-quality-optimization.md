@@ -24,7 +24,7 @@ GitHub 主副本：[Wayfinder: Goal 交付质量与全链路效率优化（guazi
 | 工单 | 状态 | 下一步 |
 | --- | --- | --- |
 | #4 Grilling 0 漏出 | **closed**（核心 ratify ✓） | Part A 开放题（L9 failure_code、AM waive 等）随规格 v1 收尾 |
-| #5 Grilling UX 边界 | **closed**（C1 ratified） | 回写 `optimization-spec-outline-v0.md` UX 硬约束 |
+| #5 Grilling UX 边界 | **closed**（C1 ratified） | UX 硬约束已回写 [optimization-spec-outline-v0.md](research/optimization-spec-outline-v0.md) §7–11 |
 | [#7 耗时看板](https://github.com/sophiezel/goal/issues/7) | 可开工 | 依赖 #2 节点命名；可引用 `pipeline-timing` + UVO steps |
 
 ## 建议合并顺序（写优化规格前）
@@ -33,7 +33,7 @@ GitHub 主副本：[Wayfinder: Goal 交付质量与全链路效率优化（guazi
 2. **#4/#5** 已拍板 → 写入规格硬约束（`optimization-spec-outline-v0.md` 升格）。
 3. **#6** 与 review 规格章节合并；**#7** 做效率面验收原型。
 
-**合并稿入口：** [optimization-spec-outline-v0.md](research/optimization-spec-outline-v0.md)（P0/P1 来自 #2/#3/#6；#4/#5 ratified 待回写）
+**合并稿入口：** [optimization-spec-outline-v0.md](research/optimization-spec-outline-v0.md)（P0/P1 含 #4/#5 ratified UX/L10 硬约束）
 
 ### Research 交叉结论（简）
 
