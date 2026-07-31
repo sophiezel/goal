@@ -13,6 +13,7 @@ GitHub 主副本：[Wayfinder: Goal 交付质量与全链路效率优化（guazi
 - **Split handoff SSOT (#14)** — `handoff_path_resolver.py` + [handoff-path-resolution.md](../../goal-pipeline/references/handoff-path-resolution.md)；IQ-10 首验 `d9bf079` — [run log](research/iq10-handoff-fix-run-log.md)
 - **Four-planes handoff tier (#17)** — `649abae`；[four-planes-handoff-tier.md](research/four-planes-handoff-tier.md) + `test-four-planes-handoff-tier.sh`
 - **Pipeline timing HTML v1 (#9)** — `ee1ef04`；`pipeline_timing_report_core.py` + [pipeline-timing-report-input.md](../../goal-pipeline/references/pipeline-timing-report-input.md)
+- **UX auto-fix audit (#11)** — `be2d7a8`；[ux-auto-fix-c1.md](../../goal-pipeline/references/ux-auto-fix-c1.md) + implement post fixtures
 
 | 工单 | 文件 | GitHub |
 | --- | --- | --- |
