@@ -30,7 +30,7 @@ GitHub 主副本：[Wayfinder: Goal 交付质量与全链路效率优化（guazi
 
 **Phase-2 基线：** C1 ratified + T1–T5 on [`f91181b`](https://github.com/sophiezel/goal/commit/f91181b)。Grilling SSOT：[phase-2-real-closure-grilling.md](research/phase-2-real-closure-grilling.md)。
 
-**Phase-3b HITL（ratified 2026-08-01）：** [#13](https://github.com/sophiezel/goal/issues/13)–[#16](https://github.com/sophiezel/goal/issues/16)、[#20](https://github.com/sophiezel/goal/issues/20)、[#12](https://github.com/sophiezel/goal/issues/12) 全 C1 — [phase-3-hitl-ratified.md](research/phase-3-hitl-ratified.md)。**工程顺序：** #14 → #17 → #23。
+**Phase-3b HITL（ratified 2026-08-01）：** [#13](https://github.com/sophiezel/goal/issues/13)–[#16](https://github.com/sophiezel/goal/issues/16)、[#20](https://github.com/sophiezel/goal/issues/20)、[#12](https://github.com/sophiezel/goal/issues/12) 全 C1 — [phase-3-hitl-ratified.md](research/phase-3-hitl-ratified.md)。**工程顺序（已闭环）：** #14 → #17 → #23（`041b63b`/`fd9fdf9` 等）；并行 **#9** / **#10** / **#11** 已关。
 
 ### Phase-3 / Phase-3b 工单（全表）
 
