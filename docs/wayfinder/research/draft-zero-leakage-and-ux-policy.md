@@ -309,7 +309,7 @@
 ### Cross-cutting
 
 11. ~~**#5 blocked on #4**~~ → **CONFIRM (2026-08-01):** 接受 **未 manifest 且未升 L9 的 UX 不计 W2 L9 违约**；与 B3 一致。**已声明 L10（manifest）在 W1 禁止 silent pass** — 与「未声明不计漏出」不矛盾。
-12. **CTB-44243 复盘 (#3)：** 是否将上述草案回写为 #3 的「建议归属平面」附录？（仍 open）
+12. ~~**CTB-44243 复盘 (#3)**~~ → **CONFIRM (2026-08-01, [#22](https://github.com/sophiezel/goal/issues/22)):** 已回写 [ctb-44243-guazi-flow-goal-rca.md](ctb-44243-guazi-flow-goal-rca.md) **§8 平面归因附录**（PQ / IQ / UVO / Control / UX；IQ-10 handoff、noop_fix、UVO vs IQ；链 v0 P0/P1 与落地 commit）。
 
 ---
 
@@ -321,3 +321,4 @@
 | 2026-08-01 | Ratified A.8 B3（L10 Argus manifest + L9 escalate-only）；A.3 W1+W2 交叉引用 L10 W1 记账 |
 | 2026-08-01 | Ratified Part B C1（#5）：双轨发现 D1/D2/D5 v1；D2/D5 narrow auto-fix；XS/S 无额外 HITL；strict review-first；review fail fix-input/waive；B.8 宿主 eslint；close open Q11 |
 | 2026-08-01 | Phase-3b HITL：#16 AM waive / #20 W1 vs W2 对外 / #15 PQ-IQ 分层；close open Q1–3, Q5 |
+| 2026-08-01 | #22：CTB-44243 §8 附录回写 #3 RCA；close open Q12 |

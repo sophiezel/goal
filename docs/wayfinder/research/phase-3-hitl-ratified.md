@@ -116,7 +116,7 @@ Ref: [phase-3-hitl-ratified.md](https://github.com/sophiezel/goal/blob/main/docs
 | split handoff SSOT（`task_dir/handoff` vs `artifacts/handoff`） | [#14](https://github.com/sophiezel/goal/issues/14) |
 | W2 L9 矩阵满足度自动化 | [#10](https://github.com/sophiezel/goal/issues/10) |
 | fe-argus skill @ plan post | [#8](https://github.com/sophiezel/goal/issues/8) |
-| CTB-44243 附录回写 | [#22](https://github.com/sophiezel/goal/issues/22) |
+| ~~CTB-44243 附录回写~~ | **done** — [#22](https://github.com/sophiezel/goal/issues/22) → [ctb-44243-guazi-flow-goal-rca.md](ctb-44243-guazi-flow-goal-rca.md) §8 |
 
 ---
 

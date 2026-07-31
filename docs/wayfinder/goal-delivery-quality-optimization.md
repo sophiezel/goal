@@ -16,10 +16,11 @@ GitHub 主副本：[Wayfinder: Goal 交付质量与全链路效率优化（guazi
 - **UX auto-fix audit (#11)** — `be2d7a8`；[ux-auto-fix-c1.md](../../goal-pipeline/references/ux-auto-fix-c1.md) + implement post fixtures
 - **Merge-review CLI parity (#23)** — `fd9fdf9`；`test-kernel-review-cli-parity.sh` + review timing substep on CLI path
 - **W2 matrix leakage (#10)** — `af42c42`；unsatisfied vs waived bookkeeping（#16 C1）
+- **CTB-44243 平面归因附录 (#22)** — [ctb-44243-guazi-flow-goal-rca.md](research/ctb-44243-guazi-flow-goal-rca.md) §8；draft Q12 closed
 
 | 工单 | 文件 | GitHub |
 | --- | --- | --- |
-| [#3 CTB-44243 复盘](https://github.com/sophiezel/goal/issues/3) | [ctb-44243-guazi-flow-goal-rca.md](research/ctb-44243-guazi-flow-goal-rca.md) | **closed** — RCA + P0/P1 goal 修复已落地 |
+| [#3 CTB-44243 复盘](https://github.com/sophiezel/goal/issues/3) | [ctb-44243-guazi-flow-goal-rca.md](research/ctb-44243-guazi-flow-goal-rca.md)（含 **§8 附录** [#22](https://github.com/sophiezel/goal/issues/22)） | **closed** — RCA + P0/P1 goal 修复已落地 |
 | [#2 节点清单](https://github.com/sophiezel/goal/issues/2) | [pipeline-node-catalog.md](research/pipeline-node-catalog.md) | **closed** — 研究完成；节点裁剪 HITL → [#13](https://github.com/sophiezel/goal/issues/13) |
 | [#6 review-chain](https://github.com/sophiezel/goal/issues/6) | [review-chain-bottlenecks.md](research/review-chain-bottlenecks.md) | **closed** — preflight / strict UX / `review_track` on `main` |
 | [#7 timing 看板 v0](https://github.com/sophiezel/goal/issues/7) | [pipeline-timing-dashboard-v0.md](research/pipeline-timing-dashboard-v0.md) | **closed** — v0 规格；**HTML v1** → [`render-pipeline-timing-report.py`](../../goal-pipeline/scripts/render-pipeline-timing-report.py) `--format html` ([#9](https://github.com/sophiezel/goal/issues/9)) |
@@ -50,7 +51,7 @@ GitHub 主副本：[Wayfinder: Goal 交付质量与全链路效率优化（guazi
 | 19 | Phase-3: goal-quality e2e profile 与 tier 对齐 | https://github.com/sophiezel/goal/issues/19 |
 | 20 | Phase-3b: Part A.1 北星对外措辞（W1 vs W2） | https://github.com/sophiezel/goal/issues/20 | **C1 ratified 2026-08-01** |
 | 21 | ~~optimization-spec v0.2 → v1 升格~~ | closed duplicate of #12 |
-| 22 | Phase-3: CTB-44243 平面归因附录（#3 回写） | https://github.com/sophiezel/goal/issues/22 |
+| 22 | Phase-3: CTB-44243 平面归因附录（#3 回写） | https://github.com/sophiezel/goal/issues/22 | **closed 2026-08-01** → RCA §8 |
 | 23 | Phase-3: review kernel CLI merge-review 持续 parity | https://github.com/sophiezel/goal/issues/23 |
 
 | 阶段 | 状态 | 备注 |
@@ -66,6 +67,6 @@ GitHub 主副本：[Wayfinder: Goal 交付质量与全链路效率优化（guazi
 | 主题 | #3 RCA | #2 catalog | #6 review |
 | --- | --- | --- | --- |
 | 阻断 implement | IQ-10 未读 Tier-R handoff → **已修**；全平面 SSOT → [#14](https://github.com/sophiezel/goal/issues/14) | timing 仅 gate 边界 | merge-review parity → [#23](https://github.com/sophiezel/goal/issues/23) |
-| 漏出/质量 | 平面归因附录 → [#22](https://github.com/sophiezel/goal/issues/22) | smoke vs quality 双轨 | preflight 必留；dual Agent 耗时 |
+| 漏出/质量 | 平面归因附录 → [#22](https://github.com/sophiezel/goal/issues/22) **§8 已回写** | smoke vs quality 双轨 | preflight 必留；dual Agent 耗时 |
 | 效率 | noop_fix 掩盖 IQ-10 → **已修** | 子步骤 timing → [#9](https://github.com/sophiezel/goal/issues/9) | single track + detect cache（P2） |
 | UX (#5) | manifest L10 + ux-scan | implement post warn + **ux-autofix audit** | review-first strict；D2/D5 **#11** ✅ |
