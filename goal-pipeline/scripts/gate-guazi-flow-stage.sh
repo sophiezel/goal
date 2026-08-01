@@ -124,7 +124,13 @@ GIT_ROOT=$(git -C "$REPO_TASK_DIR" rev-parse --show-toplevel 2>/dev/null || git 
 
 FORMAT_ISSUES="$SCRIPT_DIR/format-gate-issues.sh"
 
-fail() { echo "gate FAIL [$STAGE/$PHASE]: $*" >&2; exit 1; }
+fail() {
+  if declare -f record_stage_timing >/dev/null 2>&1; then
+    record_stage_timing "$STAGE" "end" "$PHASE" || true
+  fi
+  echo "gate FAIL [$STAGE/$PHASE]: $*" >&2
+  exit 1
+}
 purge_split_repo_tier_r() {
   [[ "${ARTIFACT_MODE:-}" == "split" ]] || return 0
   local _purge_args=(--task-dir "$REPO_TASK_DIR" --purge-repo-tier-r)
@@ -134,6 +140,9 @@ purge_split_repo_tier_r() {
 }
 pass() {
   [[ "$PHASE" == "post" ]] && purge_split_repo_tier_r
+  if declare -f record_stage_timing >/dev/null 2>&1; then
+    record_stage_timing "$STAGE" "end" "$PHASE" || true
+  fi
   echo "gate PASS [$STAGE/$PHASE]: $*"
   exit 0
 }
@@ -847,8 +856,16 @@ stage_to_index_current() {
 }
 
 
+timing_stage_id() {
+  case "$1" in
+    smoke) echo "quality" ;;
+    *) echo "$1" ;;
+  esac
+}
+
 record_stage_timing() {
-  local stage="$1"
+  local stage
+  stage="$(timing_stage_id "$1")"
   local event="${2:-end}"
   local substep="${3:-}"
   local duration_ms="${4:-}"
@@ -935,8 +952,8 @@ except Exception:
   return 0
 }
 
-# Pair with update_state_gate → end. Optional substips: record_stage_timing STAGE mark|end SUBSTEP MS
-record_stage_timing "$STAGE" "start"
+# Pair with update_state_gate → end. Optional substeps: record_stage_timing STAGE mark|end SUBSTEP MS
+record_stage_timing "$STAGE" "start" "$PHASE"
 
 case "$STAGE" in
   plan)

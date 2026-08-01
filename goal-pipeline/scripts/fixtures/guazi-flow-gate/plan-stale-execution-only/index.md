@@ -61,6 +61,26 @@ function DetailPage() {
 - `src/pages/DiscrepancyVideoAudit/`
 - `src/services/discrepancyVideoAudit/`
 
+## Goal 契约
+
+### allowed_patterns
+
+- routes.ts
+- src/pages/DiscrepancyVideoAudit/
+- src/services/discrepancyVideoAudit/
+
+
+### exclusions
+
+- (derive from index scope / out-of-scope sections)
+
+
+### stop_conditions
+
+- 需要新增未声明外部依赖时停止
+- 修改超出 Allowed Files 范围时停止
+
+
 - extra implement note
 
 - guazi-flow-implement pass

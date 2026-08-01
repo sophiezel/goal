@@ -2,7 +2,7 @@
 
 **Status:** **open** — 实现轨  
 **GitHub 主副本（地图）：** [Wayfinder: goal-pipeline v1.2 破坏性实现（Phase-5 落地）](https://github.com/sophiezel/goal/issues/44)  
-**Frontier（首波）：** [#50](https://github.com/sophiezel/goal/issues/50)、[#51](https://github.com/sophiezel/goal/issues/51)（#45、#46、#47、#48、#49 已闭合）
+**Frontier（首波）：** [#51](https://github.com/sophiezel/goal/issues/51)（#45–#50 已闭合）
 
 **前置地图（已关闭）：** [Wayfinder #36 — Phase-5 系统分析与优化规格](https://github.com/sophiezel/goal/issues/36) — [PHASE-5-CLOSURE.md](../PHASE-5-CLOSURE.md) · 规格 SSOT [optimization-spec-outline-v1.2.md](../research/optimization-spec-outline-v1.2.md)
 
@@ -25,7 +25,7 @@
 | Task: B1 — deprecate smoke advance；quality-only 主轨 | task | https://github.com/sophiezel/goal/issues/47 | **closed**（`1390b13`） |
 | Task: B8 single-track 默认 + review gate/handoff（Part L） | task | https://github.com/sophiezel/goal/issues/48 | **closed**（`c4406e6`） |
 | Task: engineering_pack 目录桩 + Phase 1 skill_to_load（Part K） | task | https://github.com/sophiezel/goal/issues/49 | **closed**（`1390b13`） |
-| Task: B2 + B3 — 全 stage timing 与契约融入 WARN→BLOCK | task | https://github.com/sophiezel/goal/issues/50 | **open** |
+| Task: B2 + B3 — 全 stage timing 与契约融入 WARN→BLOCK | task | https://github.com/sophiezel/goal/issues/50 | **closed** |
 | Task: v1.2 gate fixture sweep（run-all-gate-tests 对齐） | task | https://github.com/sophiezel/goal/issues/51 | **open** |
 
 ## 并发与串行（路由）
@@ -37,10 +37,10 @@
 | [#47](https://github.com/sophiezel/goal/issues/47) B1 smoke 轨 | #49 | **closed** |
 | [#49](https://github.com/sophiezel/goal/issues/49) engineering_pack（Part K） | #47 | **closed** |
 | [#48](https://github.com/sophiezel/goal/issues/48) B8 single-track | #47、#49 | **closed** |
-| [#50](https://github.com/sophiezel/goal/issues/50) B2 + B3 | #48（部分） | — |
-| [#51](https://github.com/sophiezel/goal/issues/51) gate sweep | #50（建议） | — |
+| [#50](https://github.com/sophiezel/goal/issues/50) B2 + B3 | #48（部分） | **closed** |
+| [#51](https://github.com/sophiezel/goal/issues/51) gate sweep | #50（建议） | **open** |
 
-**建议认领顺序：** **#50** → **#51** 收口。
+**Frontier：** [#51](https://github.com/sophiezel/goal/issues/51)（#50 闭合后）
 
 ## Decisions so far（本地镜像）
 
@@ -49,6 +49,7 @@
 - [Task: B8 single-track 默认 + review gate/handoff（Part L）](https://github.com/sophiezel/goal/issues/48) — `review_track.py` 默认 `single` + `wrapper_profile_for_track`；plan post / `run-independent-review` / `gate-lib/review.sh` handoff 写入 `review_track` + `wrapper_profile`（`goal-review`）；single 轨拒绝 `gf_skill_attested`；dual 显式 `GOAL_REVIEW_TRACK=dual`；夹具 `test-review-track.sh`、`test-review-handoff-b8.sh`（`c4406e6`）。
 - [Task: engineering_pack 目录桩 + Phase 1 skill_to_load（Part K）](https://github.com/sophiezel/goal/issues/49) — `goal-pipeline/skills/goal-engineering/*` stub；`engineering_pack` profile 键 + `goal-stage-driver` plan WO 软加载；`test-engineering-pack-phase1.sh`（`1390b13`）。
 - [Task: B1 — deprecate smoke advance；quality-only 主轨](https://github.com/sophiezel/goal/issues/47) — default `--stage smoke` blocked；`GOAL_ALLOW_LEGACY_SMOKE_STAGE=1`；chain/stage-port/consistency 仅认 `quality.json`；`test-b1-smoke-quality-only-advance.sh`；`run-all-gate-tests.sh` exit 0（`1390b13`）。
+- [Task: B2 + B3 — 全 stage timing 与契约融入 WARN→BLOCK](https://github.com/sophiezel/goal/issues/50) — gate pre/post `record-pipeline-timing`（phase substep；`smoke`→`quality`）；`guazi_flow_contract_enrich.py` plan post BLOCK + implement pre guard；default profile `contract_enrich.policy=block`；`test-b2-b3-timing-contract.sh` + kernel unit tests；`run-all-gate-tests.sh` exit 0。
 
 ## Not yet specified（Fog）
 

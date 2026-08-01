@@ -3,6 +3,9 @@
   "profile_id": "default",
   "description": "v1.2 default stage graph — equivalent to optimization-spec v1.1 Part F.2 five-stage table",
   "engineering_pack": "none",
+  "contract_enrich": {
+    "policy": "block"
+  },
   "stage_graph": [
     {
       "id": "plan",

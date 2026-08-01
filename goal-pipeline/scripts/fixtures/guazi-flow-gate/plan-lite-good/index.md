@@ -47,3 +47,21 @@ export const CANCEL_LABEL = "取消";
 | Stage | Skill | Result |
 |-------|-------|--------|
 | plan | guazi-flow-plan | pass |
+
+## Goal 契约
+
+### allowed_patterns
+
+- src/constants/buttons.ts
+
+
+### exclusions
+
+- (derive from index scope / out-of-scope sections)
+
+
+### stop_conditions
+
+- 需要新增未声明外部依赖时停止
+- 修改超出 Allowed Files 范围时停止
+
