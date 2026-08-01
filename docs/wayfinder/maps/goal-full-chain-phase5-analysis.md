@@ -29,6 +29,7 @@
 | Research: goal 仓跨平面 generic services 清单与边界 | research | https://github.com/sophiezel/goal/issues/39 | **closed** — [generic-services-inventory-phase5.md](../research/generic-services-inventory-phase5.md) |
 | [Grilling: Phase-5 Destination — 优化方案须裁决 vs 可推迟](https://github.com/sophiezel/goal/issues/40) | grilling | https://github.com/sophiezel/goal/issues/40 | **closed** — [final ratification](https://github.com/sophiezel/goal/issues/40#issuecomment-5152145886)（B+C SSOT、Skill Pack、review B、管线独立、B1–B9） |
 | Research: 统一 SLO / 质量模型（v1.1 扩展输入） | research | https://github.com/sophiezel/goal/issues/41 | **closed** — [unified-slo-quality-model-phase5.md](../research/unified-slo-quality-model-phase5.md) |
+| Task: optimization-spec v1.2 / Part J 文档收口（Phase-5 研究合入） | task | https://github.com/sophiezel/goal/issues/42 | **open** — v1.2 / Part J 合入 #37–#41 + #40 ratification；产出 `optimization-spec-outline-v1.2.md` |
 
 ## 并发与串行（路由）
 
@@ -38,9 +39,10 @@
 | [#38](https://github.com/sophiezel/goal/issues/38) 外部模式差距 — **closed** | #39 | — |
 | [#39](https://github.com/sophiezel/goal/issues/39) generic services | #37、#38、#40 | — |
 | [#40](https://github.com/sophiezel/goal/issues/40) grilling — **closed** | — | — |
-| [#41](https://github.com/sophiezel/goal/issues/41) 统一 SLO/质量模型 | — | **#37、#38、#39**（GitHub blocked-by）；**应阅读** #40 ratification |
+| [#41](https://github.com/sophiezel/goal/issues/41) 统一 SLO/质量模型 — **closed** | — | **#37、#38、#39**（GitHub blocked-by）；**应阅读** #40 ratification |
+| [#42](https://github.com/sophiezel/goal/issues/42) spec v1.2 / Part J 收口 | — | **#37–#41** + [#40 ratification](https://github.com/sophiezel/goal/issues/40#issuecomment-5152145886) |
 
-**建议认领顺序：** 子票 **#37–#41 均已闭合**；地图 frontier 空 → 见 §规格交叉引用与 #36 下一跳（spec closure）。
+**建议认领顺序：** **[#42](https://github.com/sophiezel/goal/issues/42)**（spec 文档收口；研究波 #37–#41 已闭合）→ 后续实现地图（本票不含破坏性代码）。
 
 ## Decisions so far（本地镜像）
 
@@ -54,8 +56,8 @@
 
 ## Not yet specified（Fog）
 
-- optimization-spec 升格形态（v1.2 vs Part J append）— 轴 1 B+C 已定向。
-- SLO-Q-01 等 **数值带**（v1.2 校准票；#41 已 ratify 结构与 breach）· `sla_breach` 实现与 timing substep 默认接线（P2 + v1.2）。
+- optimization-spec 升格形态（v1.2 vs Part J append）— **#42** 收口；轴 1 B+C 已定向。
+- SLO-Q-01 等 **数值带** — **#42** 内 structure + calibration 脚注；`sla_breach` 实现与 timing substep 默认接线（P2 + 实现地图）。
 - guazi-flow-* SKILL 正文（仓外）审计深度边界。
 - eval 覆盖 vs spec 缺口的分工。
 - Review kernel 完整 **API v1 semver**（defer impl map；轴 3 B 已冻 schema + chain）。
