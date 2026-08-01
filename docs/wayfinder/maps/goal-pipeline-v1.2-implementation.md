@@ -23,10 +23,10 @@
 | Task: profile stage_graph + handoff WO 字段（Part J / R1–R4 映射） | task | https://github.com/sophiezel/goal/issues/45 | **closed**（`58de85e`） |
 | Task: review kernel B JSON schemas + 夹具校验（Part L） | task | https://github.com/sophiezel/goal/issues/46 | **closed**（`1886b23`） |
 | Task: B1 — deprecate smoke advance；quality-only 主轨 | task | https://github.com/sophiezel/goal/issues/47 | **open** |
-| Task: B8 single-track 默认 + review gate/handoff（Part L） | task | https://github.com/sophiezel/goal/issues/48 | **closed** |
+| Task: B8 single-track 默认 + review gate/handoff（Part L） | task | https://github.com/sophiezel/goal/issues/48 | **closed**（`c4406e6`） |
 | Task: engineering_pack 目录桩 + Phase 1 skill_to_load（Part K） | task | https://github.com/sophiezel/goal/issues/49 | **open** |
 | Task: B2 + B3 — 全 stage timing 与契约融入 WARN→BLOCK | task | https://github.com/sophiezel/goal/issues/50 | blocked by **#47** |
-| Task: v1.2 gate fixture sweep（run-all-gate-tests 对齐） | task | https://github.com/sophiezel/goal/issues/51 | blocked by **#47、#48** |
+| Task: v1.2 gate fixture sweep（run-all-gate-tests 对齐） | task | https://github.com/sophiezel/goal/issues/51 | blocked by **#47** |
 
 ## 并发与串行（路由）
 
@@ -34,8 +34,8 @@
 | --- | --- | --- |
 | [#45](https://github.com/sophiezel/goal/issues/45) stage_graph（Part J） | — | **closed** |
 | [#46](https://github.com/sophiezel/goal/issues/46) B schemas（Part L） | #47、#49 | **closed** |
-| [#47](https://github.com/sophiezel/goal/issues/47) B1 smoke 轨 | #48、#49 | — |
-| [#49](https://github.com/sophiezel/goal/issues/49) engineering_pack（Part K） | #47、#48 | — |
+| [#47](https://github.com/sophiezel/goal/issues/47) B1 smoke 轨 | #49 | — |
+| [#49](https://github.com/sophiezel/goal/issues/49) engineering_pack（Part K） | #47 | — |
 | [#48](https://github.com/sophiezel/goal/issues/48) B8 single-track | #47、#49 | **closed** |
 | [#50](https://github.com/sophiezel/goal/issues/50) B2 + B3 | #48（部分） | **#47**（建议） |
 | [#51](https://github.com/sophiezel/goal/issues/51) gate sweep | — | **#47** |
@@ -46,7 +46,7 @@
 
 - [Task: profile stage_graph + handoff WO 字段（Part J / R1–R4 映射）](https://github.com/sophiezel/goal/issues/45) — `references/profiles/default/pipeline.profile.json` + `kernel.profile.stage_graph`；`plan.json` 可覆盖拓扑；`goal-stage-driver` work_order 含 `pipeline_profile` / `stage_graph_ids` / `stage_meta`；gate post 用 `next_stage_id` 替代硬编码五段表；夹具 `test-stage-graph-profile-default.sh` 证明 default ≡ F.2（`58de85e`）。
 - [Task: review kernel B JSON schemas + 夹具校验（Part L）](https://github.com/sophiezel/goal/issues/46) — `schemas/review-{run,unified,fix-input}.schema.json` 升为 draft-07；`kernel/review/b_schema.py` + `test-review-kernel-b-schemas.sh`（11 件夹具）；`gate-lib/review.sh` 复用 `b_schema_cli validate-fix-input`。
-- [Task: B8 single-track 默认 + review gate/handoff（Part L）](https://github.com/sophiezel/goal/issues/48) — `review_track.py` 默认 `single` + `wrapper_profile_for_track`；plan post / `run-independent-review` / `gate-lib/review.sh` handoff 写入 `review_track` + `wrapper_profile`（`goal-review`）；single 轨拒绝 `gf_skill_attested`；dual 显式 `GOAL_REVIEW_TRACK=dual`；夹具 `test-review-track.sh`、`test-review-handoff-b8.sh`。
+- [Task: B8 single-track 默认 + review gate/handoff（Part L）](https://github.com/sophiezel/goal/issues/48) — `review_track.py` 默认 `single` + `wrapper_profile_for_track`；plan post / `run-independent-review` / `gate-lib/review.sh` handoff 写入 `review_track` + `wrapper_profile`（`goal-review`）；single 轨拒绝 `gf_skill_attested`；dual 显式 `GOAL_REVIEW_TRACK=dual`；夹具 `test-review-track.sh`、`test-review-handoff-b8.sh`（`c4406e6`）。
 
 ## Not yet specified（Fog）
 
