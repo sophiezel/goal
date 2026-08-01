@@ -22,7 +22,7 @@
 
 | 标题 | 类型 | URL | Frontier |
 | --- | --- | --- | --- |
-| Research: guazi-flow-goal 节点图 I/O 契约审计（上下游贯通） | research | https://github.com/sophiezel/goal/issues/37 | **open** — catalog delta + 断点表 |
+| Research: guazi-flow-goal 节点图 I/O 契约审计（上下游贯通） | research | https://github.com/sophiezel/goal/issues/37 | **closed** — [guazi-flow-goal-node-io-audit-phase5.md](../research/guazi-flow-goal-node-io-audit-phase5.md) |
 | Research: goal-pipeline 阶段图 vs Wayfinder/Matt Pocock 等外部 skill 模式差距 | research | https://github.com/sophiezel/goal/issues/38 | **open** — 差距矩阵 + Phase-5 规格建议 |
 | Research: goal 仓跨平面 generic services 清单与边界 | research | https://github.com/sophiezel/goal/issues/39 | **open** — inventory + ownership（含 review kernel vs wrappers） |
 | Grilling: Phase-5 Destination — 优化方案须裁决 vs 可推迟 | grilling | https://github.com/sophiezel/goal/issues/40 | **open** — ratify 决策面 vs P2/实现图 |
@@ -32,7 +32,7 @@
 
 | 票 | 可与谁并行 | 必须等待 |
 | --- | --- | --- |
-| [#37](https://github.com/sophiezel/goal/issues/37) I/O 审计 | [#38](https://github.com/sophiezel/goal/issues/38)、[#39](https://github.com/sophiezel/goal/issues/39)、[#40](https://github.com/sophiezel/goal/issues/40) | — |
+| [#37](https://github.com/sophiezel/goal/issues/37) I/O 审计 — **closed** | [#38](https://github.com/sophiezel/goal/issues/38)、[#39](https://github.com/sophiezel/goal/issues/39)、[#40](https://github.com/sophiezel/goal/issues/40) | — |
 | [#38](https://github.com/sophiezel/goal/issues/38) 外部模式差距 | #37、#39、#40 | — |
 | [#39](https://github.com/sophiezel/goal/issues/39) generic services | #37、#38、#40 | — |
 | [#40](https://github.com/sophiezel/goal/issues/40) grilling | #37–#39（建议早开以裁剪研究范围） | — |
@@ -44,6 +44,7 @@
 
 - **Scope ratification (2026-08-01)** — [#36 评论](https://github.com/sophiezel/goal/issues/36#issuecomment-5151795281)：goal-pipeline **独立审核模型** parity（非仅 guazi-flow-review 路径）；[#37](https://github.com/sophiezel/goal/issues/37)、[#38](https://github.com/sophiezel/goal/issues/38)、[#41](https://github.com/sophiezel/goal/issues/41) Question 已对齐。
 - **Scope ratification (2026-08-01, 公共服务)** — [#36 评论](https://github.com/sophiezel/goal/issues/36#issuecomment-5151812266)：**独立审核模型是公共服务**；guazi-flow-goal / goal-pipeline / 外部流程经 **标准接口** 接入；边界盘点见 [#39](https://github.com/sophiezel/goal/issues/39)。
+- **Research close [#37](https://github.com/sophiezel/goal/issues/37) (2026-08-01)** — [guazi-flow-goal-node-io-audit-phase5.md](../research/guazi-flow-goal-node-io-audit-phase5.md)：catalog **9+2 delta**（含 bridge `goal-state` 路径漂移、契约融入静默跳过）；review **kernel 契约** vs **goal-review** / **guazi-flow-review** wrapper 分轨表；断点 B1–B9。
 
 ## Not yet specified（Fog）
 
