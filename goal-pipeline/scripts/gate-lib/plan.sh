@@ -165,7 +165,7 @@ except json.JSONDecodeError:
 with open(plan_path, encoding="utf-8") as f:
     plan = json.load(f)
 plan["review_policy"] = {
-    "track": doc.get("track", "dual"),
+    "track": doc.get("track", "single"),
     "resolved_at": doc.get("reason", ""),
     "task_tier": doc.get("task_tier", plan.get("task_tier", "")),
 }

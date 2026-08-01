@@ -5,10 +5,11 @@
   "model": "deterministic",
   "packet_hash": "c01d9ee55537e046",
   "channels": [
-    "goal",
-    "guazi-flow-review"
+    "goal"
   ],
-  "gf_skill_attested": true,
+  "gf_skill_attested": false,
+  "wrapper_profile": "goal-review",
+  "review_track": "single",
   "latency_ms": 10,
   "mode": "unified",
   "invocation_count": 1,

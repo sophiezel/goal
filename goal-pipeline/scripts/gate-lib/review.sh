@@ -144,6 +144,15 @@ PYGC
       fi
       GF_COUNT=$(read_gf_issues_count)
       GF_ATTESTED=$(python3 -c "import json; d=json.load(open('$GOAL_EVIDENCE_DIR/review-fix-input.json')); print(str(d.get('provenance',{}).get('gf_skill_attested',False)).lower())" 2>/dev/null || echo "false")
+      REVIEW_TRACK=$(python3 "$SCRIPT_DIR/review_track.py" \
+        --state-file "${STATE_FILE:-}" \
+        --plan-json "$HANDOFF_DIR/plan.json" \
+        --auto-resolve-xs-s \
+        --format track 2>/dev/null || echo "single")
+      WRAPPER_PROFILE=$(REVIEW_TRACK="$REVIEW_TRACK" python3 -c "import os,sys; sys.path.insert(0,sys.argv[1]); from review_track import wrapper_profile_for_track; print(wrapper_profile_for_track(os.environ['REVIEW_TRACK']))" "$SCRIPT_DIR")
+      if [[ "$REVIEW_TRACK" == "single" && "$GF_ATTESTED" == "true" ]]; then
+        fail "single-track review (B8): gf_skill_attested must be false — use GOAL_REVIEW_TRACK=dual for guazi-flow-review wrapper"
+      fi
       RUN_ID=$(python3 -c "import json; print(json.load(open('$GOAL_EVIDENCE_DIR/review-run.json')).get('run_id',''))" 2>/dev/null || echo "")
       TMP=$(mktemp)
       cat > "$TMP" << JSON
@@ -153,6 +162,8 @@ PYGC
   "result": "$RESULT_VAL",
   "review_subject_hash": "$RSH",
   "git_head": "$GH",
+  "review_track": "$REVIEW_TRACK",
+  "wrapper_profile": "$WRAPPER_PROFILE",
   "issues_gf_count": $GF_COUNT,
   "issues_goal_count": $GOAL_COUNT,
   "gf_execution_mode": "independent_unified_review",
@@ -165,6 +176,16 @@ PYGC
 JSON
       py_write_handoff review "$TMP" >/dev/null
       rm -f "$TMP"
+      python3 - "$GOAL_EVIDENCE_DIR/review-run.json" "$REVIEW_TRACK" "$WRAPPER_PROFILE" << 'PYSTAMP'
+import json, sys
+path, track, wrapper = sys.argv[1:4]
+run = json.load(open(path, encoding="utf-8"))
+run["review_track"] = track
+run["wrapper_profile"] = wrapper
+with open(path, "w", encoding="utf-8") as f:
+    json.dump(run, f, indent=2, ensure_ascii=False)
+    f.write("\n")
+PYSTAMP
       assert_pipeline_chain
       [[ -f "$GOAL_EVIDENCE_DIR/review-run.json" ]] || fail "review-run.json missing — run run-independent-review.sh"
       RUN_DOWNGRADE=$(python3 - << 'PY' "$GOAL_EVIDENCE_DIR/review-run.json"

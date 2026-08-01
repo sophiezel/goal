@@ -43,6 +43,11 @@
     "fallback_layer": { "type": "string" },
     "review_depth": { "type": "string" },
     "attempts": { "type": "array" },
+    "wrapper_profile": {
+      "type": "string",
+      "enum": ["goal-review", "guazi-flow-review", "adapter"]
+    },
+    "review_track": { "type": "string", "enum": ["single", "dual"] },
     "channel_guard": { "type": "object" }
   },
   "additionalProperties": true

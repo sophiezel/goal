@@ -64,6 +64,9 @@ fi
 echo "=== resolve-plan-index-lite unit ==="
 bash "$SCRIPT_DIR/test-resolve-plan-index-lite.sh"
 
+echo "=== review-handoff B8 (single default) ==="
+bash "$SCRIPT_DIR/test-review-handoff-b8.sh"
+
 echo "=== review-track unit ==="
 bash "$SCRIPT_DIR/test-review-track.sh"
 

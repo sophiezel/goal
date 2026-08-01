@@ -4,8 +4,8 @@
 single: goal-review/SKILL.md only + goal-run-review-chain.sh (no guazi-flow-review Agent turn)
 dual:   guazi-flow-review + chain (current behavior)
 
-Default in PR3: dual (feature flag). Single is opt-in via env or state.
-P2 flips auto-resolve to single for XS/S after eval ≥95% × 2 rounds.
+B8 (v1.2): goal-pipeline default track is **single** + goal-review wrapper.
+Dual + guazi-flow-review is opt-in (env/state) for guazi-compat only.
 """
 from __future__ import annotations
 
@@ -69,7 +69,12 @@ def resolve_review_track(
     if auto_resolve_xs_s and task_tier in ("XS", "S"):
         return "single", {"reason": "auto_xs_s", "task_tier": task_tier}
 
-    return "dual", {"reason": "default_dual"}
+    return "single", {"reason": "default_single"}
+
+
+def wrapper_profile_for_track(track: str) -> str:
+    """B8: goal-pipeline single → goal-review; dual → guazi-flow-review wrapper."""
+    return "guazi-flow-review" if track.strip().lower() == "dual" else "goal-review"
 
 
 def persist_review_track(state_file: str, track: str, meta: dict[str, Any]) -> None:

@@ -7,7 +7,7 @@ MERGE="$SCRIPT_DIR/../../merge-review-issues.sh"
 ASSEMBLE="$SCRIPT_DIR/../../assemble-review-packet.sh"
 
 "$ASSEMBLE" --task-dir "$TASK" >/dev/null 2>&1 || true
-GOAL_REVIEW_PROVIDER=mock-unified GOAL_REVIEW_MODE=unified "$RUN" --task-dir "$TASK" --provider mock-unified --mode unified
+GOAL_REVIEW_TRACK=dual GOAL_REVIEW_PROVIDER=mock-unified GOAL_REVIEW_MODE=unified "$RUN" --task-dir "$TASK" --provider mock-unified --mode unified
 "$MERGE" --task-dir "$TASK" --unified-json "$TASK/evidence/review-unified.json"
 
 python3 - "$TASK" << 'PY'

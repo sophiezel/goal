@@ -1,5 +1,5 @@
 #!/bin/bash
-# test-review-track.sh — review_track.py resolves single/dual correctly
+# test-review-track.sh — review_track.py resolves single/dual correctly (B8 default single)
 set -euo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPTS="$(cd "$DIR/../.." && pwd)"
@@ -7,10 +7,10 @@ RT="$SCRIPTS/review_track.py"
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 
-# Test 1: default (no env, no state) → dual
+# Test 1: default (no env, no state) → single (B8)
 TRACK=$(python3 "$RT" --format track)
-[[ "$TRACK" == "dual" ]] || { echo "FAIL: default expected dual got $TRACK"; exit 1; }
-echo "OK: default → dual"
+[[ "$TRACK" == "single" ]] || { echo "FAIL: default expected single got $TRACK"; exit 1; }
+echo "OK: default → single"
 
 # Test 2: GOAL_REVIEW_TRACK=single → single
 TRACK=$(GOAL_REVIEW_TRACK=single python3 "$RT" --format track)
@@ -40,21 +40,21 @@ TRACK=$(GOAL_REVIEW_TRACK=dual python3 "$RT" --state-file "$TMP/state.json" --fo
 [[ "$TRACK" == "dual" ]] || { echo "FAIL: env dual should override state single got $TRACK"; exit 1; }
 echo "OK: env overrides state"
 
-# Test 7: auto-resolve XS/S → single (only with --auto-resolve-xs-s)
+# Test 7: XS without flag → single (B8 default)
 echo '{"task_tier":"XS"}' > "$TMP/state.json"
 TRACK=$(python3 "$RT" --state-file "$TMP/state.json" --format track)
-[[ "$TRACK" == "dual" ]] || { echo "FAIL: without flag XS should stay dual got $TRACK"; exit 1; }
-echo "OK: XS without --auto-resolve-xs-s → dual (PR3 default)"
+[[ "$TRACK" == "single" ]] || { echo "FAIL: XS default should be single got $TRACK"; exit 1; }
+echo "OK: XS without --auto-resolve-xs-s → single"
 
 TRACK=$(python3 "$RT" --state-file "$TMP/state.json" --auto-resolve-xs-s --format track)
 [[ "$TRACK" == "single" ]] || { echo "FAIL: with flag XS should be single got $TRACK"; exit 1; }
 echo "OK: XS with --auto-resolve-xs-s → single"
 
-# Test 8: auto-resolve M → dual even with flag
+# Test 8: M tier → single by default (B8)
 echo '{"task_tier":"M"}' > "$TMP/state.json"
 TRACK=$(python3 "$RT" --state-file "$TMP/state.json" --auto-resolve-xs-s --format track)
-[[ "$TRACK" == "dual" ]] || { echo "FAIL: M with flag should be dual got $TRACK"; exit 1; }
-echo "OK: M with --auto-resolve-xs-s → dual"
+[[ "$TRACK" == "single" ]] || { echo "FAIL: M default B8 should be single got $TRACK"; exit 1; }
+echo "OK: M with --auto-resolve-xs-s → single (B8 default)"
 
 # Test 9: persist writes review_policy.track to state
 echo '{}' > "$TMP/state2.json"
@@ -63,19 +63,21 @@ PERSISTED=$(python3 -c "import json; print(json.load(open('$TMP/state2.json')).g
 [[ "$PERSISTED" == "single" ]] || { echo "FAIL: persist expected single got $PERSISTED"; exit 1; }
 echo "OK: persist writes review_policy.track"
 
-# Test 10: GOAL_REVIEW_SINGLE_DEFAULT=1 enables XS/S → single (P2 default-flip)
-echo '{"task_tier":"XS"}' > "$TMP/state3.json"
-TRACK=$(GOAL_REVIEW_SINGLE_DEFAULT=1 python3 "$RT" --state-file "$TMP/state3.json" --format track)
-[[ "$TRACK" == "single" ]] || { echo "FAIL: SINGLE_DEFAULT XS expected single got $TRACK"; exit 1; }
-echo "OK: GOAL_REVIEW_SINGLE_DEFAULT=1 + XS → single"
+# Test 10: wrapper_profile_for_track
+WP=$(python3 -c "import sys; sys.path.insert(0,'$SCRIPTS'); from review_track import wrapper_profile_for_track; print(wrapper_profile_for_track('single'))")
+[[ "$WP" == "goal-review" ]] || { echo "FAIL: wrapper single expected goal-review got $WP"; exit 1; }
+WP=$(python3 -c "import sys; sys.path.insert(0,'$SCRIPTS'); from review_track import wrapper_profile_for_track; print(wrapper_profile_for_track('dual'))")
+[[ "$WP" == "guazi-flow-review" ]] || { echo "FAIL: wrapper dual expected guazi-flow-review got $WP"; exit 1; }
+echo "OK: wrapper_profile_for_track"
 
-# Test 11: GOAL_REVIEW_SINGLE_DEFAULT=1 keeps M → dual
+# Test 11: GOAL_REVIEW_SINGLE_DEFAULT=1 still single for M (redundant with B8)
 echo '{"task_tier":"M"}' > "$TMP/state4.json"
 TRACK=$(GOAL_REVIEW_SINGLE_DEFAULT=1 python3 "$RT" --state-file "$TMP/state4.json" --format track)
-[[ "$TRACK" == "dual" ]] || { echo "FAIL: SINGLE_DEFAULT M expected dual got $TRACK"; exit 1; }
-echo "OK: GOAL_REVIEW_SINGLE_DEFAULT=1 + M → dual"
+[[ "$TRACK" == "single" ]] || { echo "FAIL: SINGLE_DEFAULT M expected single got $TRACK"; exit 1; }
+echo "OK: GOAL_REVIEW_SINGLE_DEFAULT=1 + M → single"
 
 # Test 12: explicit GOAL_REVIEW_TRACK=dual overrides SINGLE_DEFAULT
+echo '{"task_tier":"XS"}' > "$TMP/state3.json"
 TRACK=$(GOAL_REVIEW_SINGLE_DEFAULT=1 GOAL_REVIEW_TRACK=dual python3 "$RT" --state-file "$TMP/state3.json" --format track)
 [[ "$TRACK" == "dual" ]] || { echo "FAIL: explicit dual should override SINGLE_DEFAULT got $TRACK"; exit 1; }
 echo "OK: explicit GOAL_REVIEW_TRACK=dual overrides SINGLE_DEFAULT"

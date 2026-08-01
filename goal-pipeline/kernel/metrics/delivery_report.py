@@ -83,7 +83,7 @@ def build_delivery_report(
             task_tier = task_tier or state.get("task_tier", "")
             review_track = (state.get("review_policy") or {}).get("track", "")
             if not review_track:
-                review_track = state.get("review_track") or ""
+                review_track = state.get("review_track") or "single"
         except (OSError, json.JSONDecodeError):
             pass
 
@@ -125,6 +125,9 @@ def build_delivery_report(
             review_prov["provider"] = run.get("provider", "")
             review_prov["model"] = run.get("model", "")
             review_prov["channels_used"] = run.get("channels") or []
+            review_prov["wrapper_profile"] = run.get("wrapper_profile") or (
+                "goal-review" if review_track != "dual" else "guazi-flow-review"
+            )
         except (OSError, json.JSONDecodeError):
             pass
 
