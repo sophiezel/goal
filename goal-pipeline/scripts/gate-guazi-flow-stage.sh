@@ -240,7 +240,7 @@ issues = sorted(issues, key=_issue_rank)
 next_steps = {
     "plan": ["修 index.md 必填章节与 write_set 后重跑 gate --post plan"],
     "implement": ["在 write_set 范围内修改代码后重跑 gate --post implement"],
-    "smoke": ["修复 runtime-smoke 问题后重跑 gate --post smoke"],
+    "smoke": ["B1: 使用 gate --post quality（非 smoke）；legacy 需 GOAL_ALLOW_LEGACY_SMOKE_STAGE=1"],
     "review": ["读 evidence/review-fix-input.json 修复后重跑 review 链"],
 }.get(stage, [f"修产物后重跑 gate --post {stage}"])
 payload = {

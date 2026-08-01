@@ -237,11 +237,7 @@ def main():
     exclude = (args.exclude_stage or "").strip()
     if os.path.isfile(impl):
         if os.path.isfile(sm_path):
-            if (
-                exclude != "quality"
-                and not os.path.isfile(quality_handoff)
-                and not os.path.isfile(os.path.join(handoff_dir, "smoke.json"))
-            ):
+            if exclude != "quality" and not os.path.isfile(quality_handoff):
                 res = fm(sm_path, "result")
                 if res != "skipped":
                     errors.append("quality: handoff/quality.json gate not passed")
