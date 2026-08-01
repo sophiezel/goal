@@ -28,7 +28,7 @@
 | Research: goal-pipeline 阶段图 vs Wayfinder/Matt Pocock 等外部 skill 模式差距 | research | https://github.com/sophiezel/goal/issues/38 | **closed** — [goal-pipeline-external-patterns-gap-phase5.md](../research/goal-pipeline-external-patterns-gap-phase5.md) |
 | Research: goal 仓跨平面 generic services 清单与边界 | research | https://github.com/sophiezel/goal/issues/39 | **closed** — [generic-services-inventory-phase5.md](../research/generic-services-inventory-phase5.md) |
 | [Grilling: Phase-5 Destination — 优化方案须裁决 vs 可推迟](https://github.com/sophiezel/goal/issues/40) | grilling | https://github.com/sophiezel/goal/issues/40 | **closed** — [final ratification](https://github.com/sophiezel/goal/issues/40#issuecomment-5152145886)（B+C SSOT、Skill Pack、review B、管线独立、B1–B9） |
-| Research: 统一 SLO / 质量模型（v1.1 扩展输入） | research | https://github.com/sophiezel/goal/issues/41 | **open** — frontier（#37–#39 closed）；读 #40 ratification + inventory §6 |
+| Research: 统一 SLO / 质量模型（v1.1 扩展输入） | research | https://github.com/sophiezel/goal/issues/41 | **closed** — [unified-slo-quality-model-phase5.md](../research/unified-slo-quality-model-phase5.md) |
 
 ## 并发与串行（路由）
 
@@ -40,7 +40,7 @@
 | [#40](https://github.com/sophiezel/goal/issues/40) grilling — **closed** | — | — |
 | [#41](https://github.com/sophiezel/goal/issues/41) 统一 SLO/质量模型 | — | **#37、#38、#39**（GitHub blocked-by）；**应阅读** #40 ratification |
 
-**建议认领顺序：** **#41**（#37、#38、#39、#40 已闭合）。
+**建议认领顺序：** 子票 **#37–#41 均已闭合**；地图 frontier 空 → 见 §规格交叉引用与 #36 下一跳（spec closure）。
 
 ## Decisions so far（本地镜像）
 
@@ -50,11 +50,12 @@
 - **Grilling close [#40](https://github.com/sophiezel/goal/issues/40) (2026-08-01)** — [final ratification](https://github.com/sophiezel/goal/issues/40#issuecomment-5152145886)：B+C SSOT；轴 2 简体 Matt pack + Phase 1 软加载；轴 3 review **B** schema + chain；**双线独立 / goal-pipeline breaking-first**；**B1–B9** goal-pipeline 处置表；#38/#39/#41 scope裁剪。
 - **Research close [#38](https://github.com/sophiezel/goal/issues/38) (2026-08-01)** — [goal-pipeline-external-patterns-gap-phase5.md](../research/goal-pipeline-external-patterns-gap-phase5.md)：差距矩阵 + Part J 候选；Wayfinder out-of-band；grill/to-specs borrow；review single-default + kernel B；reject guazi parity。
 - **Research close [#39](https://github.com/sophiezel/goal/issues/39) (2026-08-01)** — [generic-services-inventory-phase5.md](../research/generic-services-inventory-phase5.md)：跨平面 generic services 表 + ownership；review kernel（B schema + chain SSOT）一等公民；goal-pipeline breaking-first；#41 边界 §6（SLO/timing 数字）。
+- **Research close [#41](https://github.com/sophiezel/goal/issues/41) (2026-08-02)** — [unified-slo-quality-model-phase5.md](../research/unified-slo-quality-model-phase5.md)：goal-pipeline 统一质量+效率+漏出模型；DEM/LEAK→信号；W1/W2×stage；B4/B2/DEM-13 breach 语义；**ratify** W1/W2/Q-02/R-02/E-01 与结构；**SLO-Q-01/E-02/E-03/R-01/R-03/B4 数值 → v1.2 校准票**；Part J 输入 §6。
 
 ## Not yet specified（Fog）
 
 - optimization-spec 升格形态（v1.2 vs Part J append）— 轴 1 B+C 已定向。
-- SLO-Q-01 数值与 `sla_breach` / timing substep（**#41**；grilling 不 ratify 数字）。
+- SLO-Q-01 等 **数值带**（v1.2 校准票；#41 已 ratify 结构与 breach）· `sla_breach` 实现与 timing substep 默认接线（P2 + v1.2）。
 - guazi-flow-* SKILL 正文（仓外）审计深度边界。
 - eval 覆盖 vs spec 缺口的分工。
 - Review kernel 完整 **API v1 semver**（defer impl map；轴 3 B 已冻 schema + chain）。
