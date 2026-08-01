@@ -14,9 +14,9 @@
 
 系统级全链路分析 + **优化设计（决策/规格）**，覆盖三条链：
 
-1. **guazi-flow-goal** — guazi-flow-* 依赖、implement 后自修复环 + 独立 review；节点 I/O 与上下游贯通（基线 [pipeline-node-catalog.md](../research/pipeline-node-catalog.md)）。
-2. **goal-pipeline** — 通用目标管线；对照 Wayfinder / grill / to-specs / to-ticket / implement / review 等外部高保真 skill 模式。**独立审核模型（HITL 2026-08-01）：** 与 guazi-flow-goal 环工程 **parity** — 接入 `goal-review`、unified kernel（`goal-run-review-chain` / `run-independent-review`）、与 implement **分离的审核模型**；I/O（packet、review-run、review-unified、fix-input）；review 环质量/效率（single/dual track、latency、`invocation_count`、degraded channel）。
-3. **Generic services** — handoff、gates、timing、review kernel、postmerge、doctor、schemas 等横切能力。
+1. **guazi-flow-goal** — guazi-flow-* 依赖、implement 后自修复环 + 独立 review（经共享 review 公共服务 + `guazi-flow-review` 包装）；节点 I/O 与上下游贯通（基线 [pipeline-node-catalog.md](../research/pipeline-node-catalog.md)）。
+2. **goal-pipeline** — 通用目标管线；对照 Wayfinder / grill / to-specs / to-ticket / implement / review 等外部高保真 skill 模式。**独立审核（HITL 2026-08-01）：** 与 guazi-flow-goal **parity**，经 **标准 implement→review 接口** 接入同一 kernel（非每工作流一套引擎）— `goal-review` 包装层、unified kernel（`goal-run-review-chain` / `run-independent-review`）、与 implement **分离的审核模型**；I/O（packet、review-run、review-unified、fix-input）；review 环质量/效率（single/dual track、latency、`invocation_count`、degraded channel）。
+3. **Generic services** — handoff、gates、timing、**独立审核公共服务**（一等公民：公开契约 + 可扩展至非 guazi / 非 goal-pipeline 流程）、postmerge、doctor、schemas；`goal-review` / `guazi-flow-review` 为 **wrapper**，非并行内核实现。
 
 ## 子票
 
@@ -24,7 +24,7 @@
 | --- | --- | --- | --- |
 | Research: guazi-flow-goal 节点图 I/O 契约审计（上下游贯通） | research | https://github.com/sophiezel/goal/issues/37 | **open** — catalog delta + 断点表 |
 | Research: goal-pipeline 阶段图 vs Wayfinder/Matt Pocock 等外部 skill 模式差距 | research | https://github.com/sophiezel/goal/issues/38 | **open** — 差距矩阵 + Phase-5 规格建议 |
-| Research: goal 仓跨平面 generic services 清单与边界 | research | https://github.com/sophiezel/goal/issues/39 | **open** — inventory + ownership |
+| Research: goal 仓跨平面 generic services 清单与边界 | research | https://github.com/sophiezel/goal/issues/39 | **open** — inventory + ownership（含 review kernel vs wrappers） |
 | Grilling: Phase-5 Destination — 优化方案须裁决 vs 可推迟 | grilling | https://github.com/sophiezel/goal/issues/40 | **open** — ratify 决策面 vs P2/实现图 |
 | Research: 统一 SLO / 质量模型（v1.1 扩展输入） | research | https://github.com/sophiezel/goal/issues/41 | **open** — blocked by #37–#39 |
 
@@ -42,7 +42,8 @@
 
 ## Decisions so far（本地镜像）
 
-- **Scope ratification (2026-08-01)** — [#36 Scope ratification 评论](https://github.com/sophiezel/goal/issues/36#issuecomment-5151795281)：Phase-5 须覆盖 **goal-pipeline 独立审核模型**（非仅 guazi-flow-review 路径）；子票 [#37](https://github.com/sophiezel/goal/issues/37)、[#38](https://github.com/sophiezel/goal/issues/38)、[#41](https://github.com/sophiezel/goal/issues/41) Question 已对齐。
+- **Scope ratification (2026-08-01)** — [#36 评论](https://github.com/sophiezel/goal/issues/36#issuecomment-5151795281)：goal-pipeline **独立审核模型** parity（非仅 guazi-flow-review 路径）；[#37](https://github.com/sophiezel/goal/issues/37)、[#38](https://github.com/sophiezel/goal/issues/38)、[#41](https://github.com/sophiezel/goal/issues/41) Question 已对齐。
+- **Scope ratification (2026-08-01, 公共服务)** — [#36 评论](https://github.com/sophiezel/goal/issues/36#issuecomment-5151812266)：**独立审核模型是公共服务**；guazi-flow-goal / goal-pipeline / 外部流程经 **标准接口** 接入；边界盘点见 [#39](https://github.com/sophiezel/goal/issues/39)。
 
 ## Not yet specified（Fog）
 
@@ -52,6 +53,7 @@
 - guazi-flow-* SKILL 正文（仓外）审计深度边界。
 - eval 覆盖 vs spec 缺口的分工。
 - 纯 **goal-pipeline**（无 guazi index）默认 **review_track** 与 cross-provider 策略。
+- **Review kernel 公共 API** 版本化与第三方 adapter 清单。
 
 ## Out of scope
 
