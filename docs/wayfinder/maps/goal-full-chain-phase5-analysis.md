@@ -1,7 +1,8 @@
 # Wayfinder 本地镜像：Goal 全链路质量与效率 — 系统分析与优化规格（Phase-5）
 
-**Status:** **open（chart 2026-08-01）**  
-**GitHub 主副本（地图）：** [Wayfinder: Goal 全链路质量与效率 — 系统分析与优化规格（Phase-5）](https://github.com/sophiezel/goal/issues/36)
+**Status:** **closed（2026-08-02）** — [PHASE-5-CLOSURE](../PHASE-5-CLOSURE.md)  
+**GitHub 主副本（地图）：** [Wayfinder: Goal 全链路质量与效率 — 系统分析与优化规格（Phase-5）](https://github.com/sophiezel/goal/issues/36)（**closed**）  
+**Frontier:** none — 实现 → 新地图；规格 SSOT [optimization-spec-outline-v1.2.md](../research/optimization-spec-outline-v1.2.md)
 
 **前置地图（已关闭）：**
 
