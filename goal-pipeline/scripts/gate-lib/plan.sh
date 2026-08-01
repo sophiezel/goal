@@ -81,6 +81,28 @@ PYVER
 JSON
       py_write_handoff plan "$TMP" >/dev/null
       rm -f "$TMP"
+      CONTRACT_ENRICH="$SCRIPT_DIR/guazi_flow_contract_enrich.py"
+      if [[ -f "$CONTRACT_ENRICH" ]]; then
+        CE_ARGS=(--task-dir "$TASK_DIR" --index "$INDEX" --plan-json "$HANDOFF_DIR/plan.json")
+        [[ -n "$STATE_FILE" && -f "$STATE_FILE" ]] && CE_ARGS+=(--state-file "$STATE_FILE")
+        CE_OUT=$(python3 "$CONTRACT_ENRICH" "${CE_ARGS[@]}" 2>&1) || CE_RC=$?
+        CE_RC=${CE_RC:-0}
+        if [[ "$CE_RC" -ne 0 ]]; then
+          fail "contract enrich failed (B3) — ${CE_OUT:-see guazi_flow_contract_enrich.py}"
+        fi
+        CE_OK=$(echo "$CE_OUT" | python3 -c "import json,sys; print(json.load(sys.stdin).get('ok'))" 2>/dev/null || echo "False")
+        [[ "$CE_OK" == "True" ]] || fail "contract enrich returned not ok (B3)"
+        python3 - "$HANDOFF_DIR/plan.json" << 'PYCE'
+import json, sys
+plan_path = sys.argv[1]
+with open(plan_path, encoding="utf-8") as f:
+    plan = json.load(f)
+plan["contract_enriched"] = True
+with open(plan_path, "w", encoding="utf-8") as f:
+    json.dump(plan, f, indent=2, ensure_ascii=False)
+    f.write("\n")
+PYCE
+      fi
       ARGUS="$SCRIPT_DIR/argus-enrich-plan.sh"
       if [[ -x "$ARGUS" ]]; then
         if ! bash "$ARGUS" --task-dir "$TASK_DIR" --handoff-dir "$HANDOFF_DIR"; then
@@ -165,7 +187,7 @@ except json.JSONDecodeError:
 with open(plan_path, encoding="utf-8") as f:
     plan = json.load(f)
 plan["review_policy"] = {
-    "track": doc.get("track", "dual"),
+    "track": doc.get("track", "single"),
     "resolved_at": doc.get("reason", ""),
     "task_tier": doc.get("task_tier", plan.get("task_tier", "")),
 }

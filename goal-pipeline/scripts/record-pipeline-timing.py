@@ -34,6 +34,13 @@ def resolve_evidence(task_dir: str, state_file: str, project_root: str) -> Path:
     return Path(task_dir) / "evidence"
 
 
+def canonical_timing_stage(stage: str) -> str:
+    """Map deprecated gate stage ids to v1.2 timing stage ids (B1/B2)."""
+    if stage == "smoke":
+        return "quality"
+    return stage
+
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--task-dir", required=True)
@@ -45,9 +52,8 @@ def main() -> None:
     ap.add_argument("--project-root", default="")
     ap.add_argument("--note", default="")
     args = ap.parse_args()
-
+    stage = canonical_timing_stage(args.stage.strip())
     evidence = resolve_evidence(args.task_dir, args.state_file, args.project_root)
-    evidence.mkdir(parents=True, exist_ok=True)
     path = evidence / "pipeline-timing.json"
     doc: dict
     if path.is_file():
@@ -62,7 +68,7 @@ def main() -> None:
     doc.setdefault("timezone", "UTC")
     doc.setdefault("stages", {})
     stages = doc["stages"]
-    entry = stages.setdefault(args.stage, {"events": []})
+    entry = stages.setdefault(stage, {"events": []})
     ts = utc_now()
     ev = {"event": args.event, "timestamp_utc": ts}
     if args.substep:
@@ -92,7 +98,7 @@ def main() -> None:
             {
                 "ok": True,
                 "path": str(path),
-                "stage": args.stage,
+                "stage": stage,
                 "event": args.event,
                 "substep": args.substep or None,
                 "timestamp_utc": ts,

@@ -377,7 +377,7 @@ evidence 文件清单：
 | 非 JS 项目 | runtime-smoke 自动跳过（无法推导 dev 命令）|
 | budget ≥100% | 暂停，用户可 extend 或 /goal-pipeline-clear |
 | 审核通道全不可用 | 输出告警 + 安装建议，implement 前仍不可用则 blocked |
-| 契约融入失败 | 静默跳过，state.json 记录 `contract_enriched=false`，不阻断后续阶段 |
+| 契约融入失败 | plan post **BLOCK**（B3）；`guazi_flow_contract_enriched=false` 禁止进入 implement；profile `contract_enrich.policy=waive` 记 W2 |
 
 ## 前置依赖
 

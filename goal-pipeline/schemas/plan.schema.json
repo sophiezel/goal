@@ -11,6 +11,26 @@
     "skill_executed": { "type": "boolean" },
     "task_dir": { "type": "string" },
     "profile": { "type": "string" },
+    "pipeline_profile": {
+      "type": "string",
+      "description": "v1.2 Part J: references/profiles/<id>/pipeline.profile.json"
+    },
+    "stage_graph": {
+      "type": "array",
+      "description": "Optional override of profile stage_graph (id, r_layer, gate_stage_id)",
+      "items": {
+        "type": "object",
+        "required": ["id", "r_layer", "gate_stage_id"],
+        "properties": {
+          "id": { "type": "string" },
+          "r_layer": { "type": "string", "enum": ["R1", "R2", "R3", "R4"] },
+          "gate_stage_id": { "type": "string" },
+          "r_layers_active": { "type": "array", "items": { "type": "string" } },
+          "r_layers_note": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    },
     "write_set": { "type": "array", "items": { "type": "string" } },
     "acceptance_matrix_ids": { "type": "array", "items": { "type": "string" } },
     "artifact_paths": { "type": "array", "items": { "type": "string" } },

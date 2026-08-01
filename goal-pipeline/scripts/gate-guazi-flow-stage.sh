@@ -5,7 +5,13 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_self="${BASH_SOURCE[0]}"
+while [[ -L "$_self" ]]; do
+  _link_dir="$(cd "$(dirname "$_self")" && pwd)"
+  _self="$(readlink "$_self")"
+  [[ "$_self" != /* ]] && _self="${_link_dir}/${_self}"
+done
+SCRIPT_DIR="$(cd "$(dirname "$_self")" && pwd)"
 export GATE_SCRIPT_DIR="$SCRIPT_DIR"
 SCHEMA_DIR="${SCRIPT_DIR}/../references/guazi-flow-artifact-schema"
 GATE_VERSION=1
@@ -118,7 +124,13 @@ GIT_ROOT=$(git -C "$REPO_TASK_DIR" rev-parse --show-toplevel 2>/dev/null || git 
 
 FORMAT_ISSUES="$SCRIPT_DIR/format-gate-issues.sh"
 
-fail() { echo "gate FAIL [$STAGE/$PHASE]: $*" >&2; exit 1; }
+fail() {
+  if declare -f record_stage_timing >/dev/null 2>&1; then
+    record_stage_timing "$STAGE" "end" "$PHASE" || true
+  fi
+  echo "gate FAIL [$STAGE/$PHASE]: $*" >&2
+  exit 1
+}
 purge_split_repo_tier_r() {
   [[ "${ARTIFACT_MODE:-}" == "split" ]] || return 0
   local _purge_args=(--task-dir "$REPO_TASK_DIR" --purge-repo-tier-r)
@@ -128,6 +140,9 @@ purge_split_repo_tier_r() {
 }
 pass() {
   [[ "$PHASE" == "post" ]] && purge_split_repo_tier_r
+  if declare -f record_stage_timing >/dev/null 2>&1; then
+    record_stage_timing "$STAGE" "end" "$PHASE" || true
+  fi
   echo "gate PASS [$STAGE/$PHASE]: $*"
   exit 0
 }
@@ -234,7 +249,7 @@ issues = sorted(issues, key=_issue_rank)
 next_steps = {
     "plan": ["修 index.md 必填章节与 write_set 后重跑 gate --post plan"],
     "implement": ["在 write_set 范围内修改代码后重跑 gate --post implement"],
-    "smoke": ["修复 runtime-smoke 问题后重跑 gate --post smoke"],
+    "smoke": ["B1: 使用 gate --post quality（非 smoke）；legacy 需 GOAL_ALLOW_LEGACY_SMOKE_STAGE=1"],
     "review": ["读 evidence/review-fix-input.json 修复后重跑 review 链"],
 }.get(stage, [f"修产物后重跑 gate --post {stage}"])
 payload = {
@@ -841,8 +856,16 @@ stage_to_index_current() {
 }
 
 
+timing_stage_id() {
+  case "$1" in
+    smoke) echo "quality" ;;
+    *) echo "$1" ;;
+  esac
+}
+
 record_stage_timing() {
-  local stage="$1"
+  local stage
+  stage="$(timing_stage_id "$1")"
   local event="${2:-end}"
   local substep="${3:-}"
   local duration_ms="${4:-}"
@@ -861,11 +884,13 @@ update_state_gate() {
   local handoff_file="$HANDOFF_DIR/${stage}.json"
   record_stage_timing "$stage" "end"
   [[ -n "$STATE_FILE" && -f "$STATE_FILE" && -f "$handoff_file" ]] || return 0
-  python3 - "$STATE_FILE" "$stage" "$handoff_file" "$SCRIPT_DIR" << 'PYSTATE'
+  GP_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+  python3 - "$STATE_FILE" "$stage" "$handoff_file" "$GP_ROOT" << 'PYSTATE'
 import json, sys, hashlib
 from datetime import datetime, timezone
-state_path, stage, handoff_path = sys.argv[1:4]
-sys.path.insert(0, sys.argv[4])
+state_path, stage, handoff_path, gp_root = sys.argv[1:5]
+sys.path.insert(0, gp_root)
+sys.path.insert(0, gp_root + '/scripts')
 from atomic_json import write_state_atomic
 with open(state_path, encoding='utf-8') as f:
     state = json.load(f)
@@ -884,8 +909,14 @@ entry['gate'] = {
 }
 gates = state.setdefault('gates', {})
 gates.setdefault(stage, {})['post'] = {'exit_code': 0, 'passed_at': passed_at}
-_next = {'plan': 'implement', 'implement': 'quality', 'quality': 'review', 'smoke': 'review', 'review': 'complete', 'complete': 'complete'}
-state['current_stage'] = _next.get(stage, stage)
+_handoff_plan = __import__('pathlib').Path(handoff_path).parent / 'plan.json'
+_plan = None
+if _handoff_plan.is_file():
+    _plan = json.load(open(_handoff_plan, encoding='utf-8'))
+sys.path.insert(0, str(__import__('pathlib').Path(gp_root)))
+from kernel.profile.stage_graph import load_stage_graph, next_stage_id
+_g = load_stage_graph(plan_json=_plan)
+state['current_stage'] = next_stage_id(stage, _g)
 write_state_atomic(state_path, state)
 PYSTATE
 }
@@ -921,8 +952,8 @@ except Exception:
   return 0
 }
 
-# Pair with update_state_gate → end. Optional substips: record_stage_timing STAGE mark|end SUBSTEP MS
-record_stage_timing "$STAGE" "start"
+# Pair with update_state_gate → end. Optional substeps: record_stage_timing STAGE mark|end SUBSTEP MS
+record_stage_timing "$STAGE" "start" "$PHASE"
 
 case "$STAGE" in
   plan)

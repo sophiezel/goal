@@ -11,7 +11,7 @@ SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 STAGE_FILES = {
     "plan": "plan.json",
     "implement": "implement.json",
-    "quality": ("quality.json", "smoke.json"),
+    "quality": "quality.json",
     "review": "review.json",
     "complete": "complete.json",
 }

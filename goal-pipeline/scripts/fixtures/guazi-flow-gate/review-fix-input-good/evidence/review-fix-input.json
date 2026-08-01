@@ -12,6 +12,6 @@
   "provenance": {
     "review_run_id": "run1234567890abcd",
     "packet_hash": "c01d9ee55537e046",
-    "gf_skill_attested": true
+    "gf_skill_attested": false
   }
 }

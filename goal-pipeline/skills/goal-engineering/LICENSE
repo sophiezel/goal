@@ -1,0 +1,8 @@
+goal-engineering pack (grill / to-specs stubs)
+Copyright (c) goal-pipeline contributors
+
+These skills are simplified, repo-local derivatives inspired by Matt Pocock-style
+interview / spec workflows. They are NOT copies of third-party marketplace skills
+and must not be used as a runtime dependency on external English skill packs.
+
+Use under the same license terms as the parent goal repository.

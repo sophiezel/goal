@@ -206,8 +206,8 @@ check_provenance() {
   if [ -f "$smoke_md" ]; then
     local sr
     sr=$(parse_fm "$smoke_md" "result")
-    if [ "$sr" != "skipped" ] && [ ! -f "$HANDOFF_DIR/smoke.json" ]; then
-      issues+=('{"rule":"smoke_provenance","issue":"runtime-smoke.md without handoff/smoke.json","action":"run_smoke_gate"}')
+    if [ "$sr" != "skipped" ] && [ ! -f "$HANDOFF_DIR/quality.json" ]; then
+      issues+=('{"rule":"smoke_provenance","issue":"runtime-smoke.md without handoff/quality.json (B1 quality-only verify)","action":"run_quality_gate"}')
     fi
   fi
   if [ -f "$EVIDENCE_DIR/review.md" ]; then

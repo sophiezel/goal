@@ -1,8 +1,0 @@
-{
-  "stage": "smoke",
-  "schema_version": 1,
-  "result": "pass",
-  "gate": {
-    "passed_at": "2026-01-01T00:00:00Z"
-  }
-}

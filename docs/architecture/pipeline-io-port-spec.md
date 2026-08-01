@@ -12,7 +12,7 @@
 |-------|-------------|-------------|---------------|------|
 | plan | — | `plan.json` | `index.md` | `--stage plan` |
 | implement | `plan.json` | `implement.json` | `verification-oracle.json` | `--stage implement` |
-| quality | `implement.json` | `quality.json` 或 `smoke.json` | `runtime-smoke.md` | `--stage quality` |
+| quality | `implement.json` | `quality.json`（**B1**：`smoke.json` 仅 `GOAL_ALLOW_LEGACY_SMOKE_STAGE=1` 遗留轨） | `runtime-smoke.md` | `--stage quality` |
 | review-pre | `quality.json` | — | clean git | `check_commit_before_review.py` |
 | review | packet | `review.json` | `review-fix-input.json`, `review-run.json` | `--stage review` |
 | complete | 全链 | `complete.json` | **`delivery-quality.json`** | `--stage complete` |
@@ -30,9 +30,13 @@ Handoff 根目录由 `resolve-artifact-paths.py` 解析（split / repo_full）�
 
 - `stage`, `schema_version`, `write_set`, `candidate_diff_hash` 或 `code_subject_hash`
 
-### quality.json / smoke.json
+### quality.json
 
 - `stage`, `schema_version`, `result` 或 gate 等价字段
+
+### smoke.json（遗留，B1 deprecate）
+
+- 非 default advance 完成条件；直调 `--stage smoke` 默认 **fail**，须 `GOAL_ALLOW_LEGACY_SMOKE_STAGE=1`
 
 ### review.json
 

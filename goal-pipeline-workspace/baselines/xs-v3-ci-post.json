@@ -1,10 +1,10 @@
 {
   "schema_version": 2,
-  "benchmark_at": "2026-08-01T11:47:44Z",
-  "goal_commit": "b46d677",
+  "benchmark_at": "2026-08-01T17:10:50Z",
+  "goal_commit": "bda0232",
   "task_dir": "/Users/xuwei/Profession/goal/goal-pipeline/scripts/fixtures/guazi-flow-gate/plan-good",
   "profile": "default",
-  "duration_ms": 37,
+  "duration_ms": 38,
   "op_counts": {
     "verification_oracle_expected": 1,
     "verify_review_full_in_assemble": 0,

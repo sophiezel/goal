@@ -2,7 +2,14 @@
 # goal-stage-driver.sh — Single work order for guazi-flow-goal Agent turns
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_gf_script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_self="${BASH_SOURCE[0]}"
+while [[ -L "$_self" ]]; do
+  _link_dir="$(cd "$(dirname "$_self")" && pwd)"
+  _self="$(readlink "$_self")"
+  [[ "$_self" != /* ]] && _self="${_link_dir}/${_self}"
+done
+SCRIPT_DIR="$(cd "$(dirname "$_self")" && pwd)"
 GOAL_STATE_HOME="${GOAL_STATE_HOME:-${GOAL_HOME:-$HOME/.goal-pipeline}/state}"
 ADVANCE="$GOAL_STATE_HOME/scripts/goal-advance-stage.sh"
 [[ -x "$ADVANCE" ]] || ADVANCE="$SCRIPT_DIR/goal-advance-stage.sh"
@@ -83,16 +90,32 @@ STAGE_SKILL_EVOLUTION = {
     "complete": "goal-complete",
 }
 
-STAGE_PROGRESS = {
-    "plan": "[1/5] plan",
-    "implement": "[2/5] implement",
-    "quality": "[3/5] quality",
-    "runtime_smoke": "[3/5] quality",
-    "review": "[4/5] review",
+STAGE_PROGRESS_FALLBACK = {
     "postmerge": "[postmerge] delivery",
-    "complete": "[5/5] complete",
-    "done": "[5/5] complete",
+    "done": "[done] complete",
 }
+
+def load_stage_graph_doc():
+    import sys as _sys
+    gp_root = os.path.normpath(os.path.join(script_dir, ".."))
+    if gp_root not in _sys.path:
+        _sys.path.insert(0, gp_root)
+    from kernel.profile.stage_graph import load_stage_graph, progress_for_stage
+
+    plan_path = os.path.join(task_dir, "handoff", "plan.json")
+    plan_doc = None
+    if os.path.isfile(plan_path):
+        with open(plan_path, encoding="utf-8") as f:
+            plan_doc = json.load(f)
+    graph_doc = load_stage_graph(plan_json=plan_doc)
+    return graph_doc, progress_for_stage
+
+stage_graph_doc, progress_for_stage_fn = load_stage_graph_doc()
+
+def stage_progress_label(stage):
+    if stage in STAGE_PROGRESS_FALLBACK:
+        return STAGE_PROGRESS_FALLBACK[stage]
+    return progress_for_stage_fn(stage, stage_graph_doc)
 
 def gate_cmd(stage, phase):
     return (
@@ -112,8 +135,7 @@ def load_pipeline_track():
 track = load_pipeline_track()
 STAGE_SKILL = STAGE_SKILL_EVOLUTION if track == "evolution" else STAGE_SKILL_COMPAT
 
-# Review single-track (v3 §8.2): XS/S may skip guazi-flow-review Agent turn.
-# Default dual in PR3; single opt-in via GOAL_REVIEW_TRACK=single or state.review_policy.track.
+# Review single-track (B8): default single — goal-review only; dual opt-in via env/state.
 def load_review_track():
     import subprocess, sys as _sys
     try:
@@ -123,10 +145,10 @@ def load_review_track():
                 [_sys.executable, rt_script, "--state-file", state_file, "--format", "json"],
                 text=True,
             )
-            return json.loads(out).get("track", "dual")
+            return json.loads(out).get("track", "single")
     except Exception:
         pass
-    return "dual"
+    return "single"
 
 review_track = load_review_track()
 
@@ -259,15 +281,50 @@ resolved_skill = STAGE_SKILL.get(next_stage)
 if next_stage == "review" and review_track == "single":
     resolved_skill = "goal-review"
 
+engineering_pack_doc = {
+    "engineering_pack": "none",
+    "source": "profile:default",
+    "skills_to_load": [],
+    "skill_paths": [],
+}
+if next_stage == "plan":
+    plan_path_ep = os.path.join(task_dir, "handoff", "plan.json")
+    plan_doc_ep = None
+    if os.path.isfile(plan_path_ep):
+        with open(plan_path_ep, encoding="utf-8") as f:
+            plan_doc_ep = json.load(f)
+    from kernel.profile.engineering_pack import merge_plan_phase_skills, resolve_engineering_pack
+
+    engineering_pack_doc = resolve_engineering_pack(plan_json=plan_doc_ep)
+
 primary_skills: list[str] = []
 if resolved_skill:
     primary_skills.append(resolved_skill)
+if next_stage == "plan":
+    primary_skills = merge_plan_phase_skills(resolved_skill, engineering_pack_doc)
+    if engineering_pack_doc.get("engineering_pack") not in (None, "none"):
+        pack = engineering_pack_doc["engineering_pack"]
+        paths = ", ".join(engineering_pack_doc.get("skill_paths") or [])
+        mandatory.insert(
+            2,
+            f"# engineering_pack={pack}: soft-load {paths} (R1/R2 enhance only; PQ/plan gate unchanged)",
+        )
 for s in skills_to_load:
     if s and s not in primary_skills:
         primary_skills.append(s)
 
+stage_node = None
+for _n in stage_graph_doc.get("stage_graph") or []:
+    if _n.get("id") == next_stage or (next_stage in ("runtime_smoke", "smoke") and _n.get("id") == "quality"):
+        stage_node = _n
+        break
+
 work_order = {
     "schema_version": 1,
+    "pipeline_profile": stage_graph_doc.get("profile_id"),
+    "stage_graph_source": stage_graph_doc.get("source"),
+    "stage_graph_ids": [n.get("id") for n in stage_graph_doc.get("stage_graph") or []],
+    "stage_meta": stage_node,
     "next_stage": next_stage,
     "blocked": blocked or wrong_stage,
     "blocked_reason": blocked_reason,
@@ -276,7 +333,10 @@ work_order = {
     "skills_to_load": primary_skills,
     "fe_argus_plan_post": fe_argus_plan_post,
     "review_track": review_track,
-    "progress": STAGE_PROGRESS.get(next_stage, f"[?] {next_stage}"),
+    "engineering_pack": engineering_pack_doc.get("engineering_pack"),
+    "engineering_pack_source": engineering_pack_doc.get("source"),
+    "engineering_skill_paths": engineering_pack_doc.get("skill_paths") or [],
+    "progress": stage_progress_label(next_stage),
     "mandatory_commands": mandatory,
     "required_commands_from_advance": required,
     "never": [

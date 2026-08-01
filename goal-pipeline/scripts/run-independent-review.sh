@@ -56,6 +56,15 @@ PACKET="${PACKET:-$HANDOFF/review-packet.json}"
 OUT_UNIFIED="$EVIDENCE/review-unified.json"
 OUT_RUN="$EVIDENCE/review-run.json"
 
+PLAN_JSON="$HANDOFF/plan.json"
+REVIEW_TRACK=$(python3 "$SCRIPT_DIR/review_track.py" \
+  --state-file "${STATE_FILE:-}" \
+  --plan-json "$PLAN_JSON" \
+  --auto-resolve-xs-s \
+  --format track 2>/dev/null || echo "single")
+export GOAL_REVIEW_TRACK_RESOLVED="$REVIEW_TRACK"
+export GOAL_REVIEW_WRAPPER_PROFILE="$(python3 -c "import sys; sys.path.insert(0,'$SCRIPT_DIR'); from review_track import wrapper_profile_for_track; print(wrapper_profile_for_track('$REVIEW_TRACK'))")"
+
 mkdir -p "$EVIDENCE" "$HANDOFF"
 START_MS=$(python3 -c "import time; print(int(time.time()*1000))")
 
@@ -413,7 +422,8 @@ with open(out_unified, "w", encoding="utf-8") as f:
     json.dump(unified, f, indent=2, ensure_ascii=False)
 
 channels = ["goal"]
-if unified.get("gf_skill_attested") or issues_gf or unified.get("checklist_gf"):
+track = os.environ.get("GOAL_REVIEW_TRACK_RESOLVED", "single")
+if track == "dual" and (unified.get("gf_skill_attested") or issues_gf or unified.get("checklist_gf")):
     channels.append("guazi-flow-review")
 
 run_doc = {
@@ -423,8 +433,10 @@ run_doc = {
     "model": unified.get("model", provider),
     "mode": mode,
     "channels": channels,
+    "review_track": track,
+    "wrapper_profile": os.environ.get("GOAL_REVIEW_WRAPPER_PROFILE", "goal-review"),
     "invocation_count": unified.get("invocation_count", 1 if provider != "deterministic" else 0),
-    "gf_skill_attested": bool(unified.get("gf_skill_attested")),
+    "gf_skill_attested": bool(track == "dual" and unified.get("gf_skill_attested")),
     "gf_rubric_source": packet_doc.get("guazi_flow_rubric", {}).get("rubric_hash", ""),
     "packet_hash": packet_hash,
     "packet_path": os.path.relpath(packet_path, task_dir),

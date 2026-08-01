@@ -16,6 +16,13 @@
           fail "API mapping table changed since plan post — refresh handoff (gate --post plan) or mini-replan"
         fi
       fi
+      if [[ -f "$SCRIPT_DIR/guazi_flow_contract_enrich.py" && -f "$HANDOFF_DIR/plan.json" ]]; then
+        CE_ARGS=(--task-dir "$REPO_TASK_DIR" --check-implement-pre --plan-json "$HANDOFF_DIR/plan.json" --index "$INDEX")
+        [[ -n "$STATE_FILE" && -f "$STATE_FILE" ]] && CE_ARGS+=(--state-file "$STATE_FILE")
+        if ! python3 "$SCRIPT_DIR/guazi_flow_contract_enrich.py" "${CE_ARGS[@]}" >/dev/null 2>&1; then
+          fail "contract enrich not satisfied (B3) — re-run gate --post plan; guazi_flow_contract_enriched=false blocks implement"
+        fi
+      fi
       pass "implement pre — plan gate passed; write_set non-empty; code changes now allowed within write_set"
     fi
     [[ -f "$HANDOFF_DIR/plan.json" ]] || fail "plan handoff missing — run gate --post plan first"

@@ -1,10 +1,16 @@
 # Wayfinder 本地镜像
 
+**当前活跃地图：** _无_ — v1.2 实现图 [#44](https://github.com/sophiezel/goal/issues/44) **已关闭**（[PHASE-5-V12-IMPL-CLOSURE.md](PHASE-5-V12-IMPL-CLOSURE.md) · 镜像 [maps/goal-pipeline-v1.2-implementation.md](maps/goal-pipeline-v1.2-implementation.md) · 分支 `feat/goal-pipeline-v1.2-breaking-impl`）
+
+**Phase-5 地图（已关闭 2026-08-02）：** [Wayfinder: Goal 全链路质量与效率 — 系统分析与优化规格（Phase-5）](https://github.com/sophiezel/goal/issues/36) — [PHASE-5-CLOSURE.md](PHASE-5-CLOSURE.md)（`4c27640`…[`ebb28fb`](https://github.com/sophiezel/goal/commit/ebb28fb)）· 镜像 [maps/goal-full-chain-phase5-analysis.md](maps/goal-full-chain-phase5-analysis.md) · 子票 [#37](https://github.com/sophiezel/goal/issues/37)–[#42](https://github.com/sophiezel/goal/issues/42) **closed** · grilling [#40](https://github.com/sophiezel/goal/issues/40) · spec [#42](https://github.com/sophiezel/goal/issues/42) → **v1.2**
+
 **Phase-4 地图（已关闭 2026-08-01）：** [Wayfinder: guazi-flow-goal 全链路硬化](https://github.com/sophiezel/goal/issues/24) — 镜像 [maps/ctb-44243-phase4-pipeline-hardening.md](maps/ctb-44243-phase4-pipeline-hardening.md) · 夹具验收 [#30](https://github.com/sophiezel/goal/issues/30) PASS · 规格 [v1.1](research/optimization-spec-outline-v1.1.md)
 
 GitHub 主副本（Phase-3，已关闭）：[Wayfinder: Goal 交付质量与全链路效率优化（guazi-flow-goal 实战复盘）](https://github.com/sophiezel/goal/issues/1)
 
 **Phase-3 工程收口（2026-08-01）：** [PHASE-3-CLOSURE.md](PHASE-3-CLOSURE.md)（`4cc8e18..f7b6ae4`）；P2 待办 → [tech-debt-p2.md](tech-debt-p2.md)。
+
+**Phase-5 规格收口（2026-08-02）：** [PHASE-5-CLOSURE.md](PHASE-5-CLOSURE.md)（`4c27640..ebb28fb`）；合并稿 **[optimization-spec-outline-v1.2.md](research/optimization-spec-outline-v1.2.md)**（Part J–N + B1–B9）。
 
 ## Decisions so far（镜像）
 

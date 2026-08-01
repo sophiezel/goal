@@ -1,5 +1,11 @@
 {
+  "schema_version": 1,
+  "run_id": "fixture000000001",
+  "provider": "fixture",
+  "packet_hash": "fixture00000001",
   "latency_ms": 42000,
   "invocation_count": 1,
-  "provider": "fixture"
+  "output_hash": "fixture00000002",
+  "started_at": "2026-01-01T00:00:00Z",
+  "finished_at": "2026-01-01T00:00:42Z"
 }

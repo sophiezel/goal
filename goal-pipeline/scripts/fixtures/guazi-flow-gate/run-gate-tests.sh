@@ -64,6 +64,9 @@ fi
 echo "=== resolve-plan-index-lite unit ==="
 bash "$SCRIPT_DIR/test-resolve-plan-index-lite.sh"
 
+echo "=== review-handoff B8 (single default) ==="
+bash "$SCRIPT_DIR/test-review-handoff-b8.sh"
+
 echo "=== review-track unit ==="
 bash "$SCRIPT_DIR/test-review-track.sh"
 
@@ -108,11 +111,18 @@ else
   echo "OK implement-post-without-plan rejected"
 fi
 
-echo "=== smoke-good should PASS post ==="
-if "$GATE" --task-dir "$SCRIPT_DIR/smoke-good" --stage smoke --post --mode guazi; then
-  echo "OK smoke-good"
+echo "=== smoke-good blocked without legacy opt-in (B1) ==="
+if "$GATE" --task-dir "$SCRIPT_DIR/smoke-good" --stage smoke --post --mode guazi 2>/dev/null; then
+  echo "FAIL smoke-good expected fail (B1 deprecated)"; exit 1
 else
-  echo "FAIL smoke-good expected pass"; exit 1
+  echo "OK smoke-good rejected (B1)"
+fi
+
+echo "=== smoke-good legacy opt-in (GOAL_ALLOW_LEGACY_SMOKE_STAGE) ==="
+if GOAL_ALLOW_LEGACY_SMOKE_STAGE=1 "$GATE" --task-dir "$SCRIPT_DIR/smoke-good" --stage smoke --post --mode guazi; then
+  echo "OK smoke-good legacy"
+else
+  echo "FAIL smoke-good legacy expected pass"; exit 1
 fi
 
 echo "=== review-fake (no review-run) should FAIL post ==="

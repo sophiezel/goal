@@ -119,7 +119,7 @@ Agent 回合协议：`kernel next` → 执行 `FrozenWorkOrder.mandatory_command
 
 ### 冗余或双轨节点
 
-1. **`smoke` gate 阶段 vs `quality` 阶段**：`gate-guazi-flow-stage.sh` 与 `gate-lib/smoke.sh` 仍独立；`goal-advance-stage` / WO 只推进 **quality**（内部 `runtime-smoke.sh` + `quality-gate.sh`）。直调 `--stage smoke` 可产生多余 `handoff/smoke.json`。
+1. **`smoke` gate 阶段（B1 deprecate）**：默认 `--stage smoke` **blocked**；`goal-advance-stage` / WO 仅认 **`quality.json`**（内部 `runtime-smoke.sh` + `quality-gate.sh`）。遗留轨：`GOAL_ALLOW_LEGACY_SMOKE_STAGE=1`。
 2. **`runtime_smoke` next_stage 别名**：`goal-stage-driver` 将 `runtime_smoke` 与 `quality` 互别名，与 advance 仅输出 `quality` 并存。
 3. **纯模式 `goal-pipeline/gates/*.sh`** vs **guazi `gate-lib/*.sh`**：SKILL 文档两套门禁路径；guazi 生产路径以 `gate-guazi-flow-stage` 为准。
 4. **review-pre `verify-review.sh`** 与 **quality-gate / UVO**：scope/secret 分层重复（确定性 0-cost + 深度检查）；裁减需证明不增 silent pass。

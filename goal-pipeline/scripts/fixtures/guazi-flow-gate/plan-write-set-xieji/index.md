@@ -66,3 +66,22 @@ function DetailPage() {
 
 - `src/pages/Foo/`
 - `src/services/foo/`
+
+## Goal 契约
+
+### allowed_patterns
+
+- src/pages/Foo/
+- src/services/foo/
+
+
+### exclusions
+
+- (derive from index scope / out-of-scope sections)
+
+
+### stop_conditions
+
+- 需要新增未声明外部依赖时停止
+- 修改超出 Allowed Files 范围时停止
+
