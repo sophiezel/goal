@@ -32,15 +32,15 @@
 
 | 票 | 可与谁并行 | 必须等待 |
 | --- | --- | --- |
-| [#45](https://github.com/sophiezel/goal/issues/45) stage_graph（Part J） | #46、#47、#49 | — |
-| [#46](https://github.com/sophiezel/goal/issues/46) B schemas（Part L） | #45、#47、#49 | — |
-| [#47](https://github.com/sophiezel/goal/issues/47) B1 smoke 轨 | #45、#46、#49 | — |
-| [#49](https://github.com/sophiezel/goal/issues/49) engineering_pack（Part K） | #45、#46、#47 | — |
+| [#45](https://github.com/sophiezel/goal/issues/45) stage_graph（Part J） | — | **closed** |
+| [#46](https://github.com/sophiezel/goal/issues/46) B schemas（Part L） | #47、#49 | — |
+| [#47](https://github.com/sophiezel/goal/issues/47) B1 smoke 轨 | #46、#49 | — |
+| [#49](https://github.com/sophiezel/goal/issues/49) engineering_pack（Part K） | #46、#47 | — |
 | [#48](https://github.com/sophiezel/goal/issues/48) B8 single-track | — | **#46**（GitHub blocked-by） |
-| [#50](https://github.com/sophiezel/goal/issues/50) B2 + B3 | #45（部分） | **#47**（建议） |
+| [#50](https://github.com/sophiezel/goal/issues/50) B2 + B3 | #46（部分） | **#47**（建议） |
 | [#51](https://github.com/sophiezel/goal/issues/51) gate sweep | — | **#46、#47、#48** |
 
-**建议认领顺序：** 首波并行 **#45 / #46 / #47 / #49** → **#48**（#46 后）→ **#50**（#47 后）→ **#51** 收口。
+**建议认领顺序：** 首波并行 **#46 / #47 / #49** → **#48**（#46 后）→ **#50**（#47 后）→ **#51** 收口。
 
 ## Decisions so far（本地镜像）
 
