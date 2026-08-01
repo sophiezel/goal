@@ -12,11 +12,13 @@
 
 ## Destination（摘要）
 
-系统级全链路分析 + **优化设计（决策/规格）**，覆盖三条链：
+系统级分析 + **goal-pipeline 下一代优化规格（决策/规格，可破坏性）**；**guazi-flow-goal 为独立管线**，本图不以 guazi 历史编排约束 goal-pipeline 设计。
 
-1. **guazi-flow-goal** — guazi-flow-* 依赖、implement 后自修复环 + 独立 review（经共享 review 公共服务 + `guazi-flow-review` 包装）；节点 I/O 与上下游贯通（基线 [pipeline-node-catalog.md](../research/pipeline-node-catalog.md)）。
-2. **goal-pipeline** — 通用目标管线；对照 Wayfinder / grill / to-specs / to-ticket / implement / review 等外部高保真 skill 模式。**独立审核（HITL 2026-08-01）：** 与 guazi-flow-goal **parity**，经 **标准 implement→review 接口** 接入同一 kernel（非每工作流一套引擎）— `goal-review` 包装层、unified kernel（`goal-run-review-chain` / `run-independent-review`）、与 implement **分离的审核模型**；I/O（packet、review-run、review-unified、fix-input）；review 环质量/效率（single/dual track、latency、`invocation_count`、degraded channel）。
-3. **Generic services** — handoff、gates、timing、**独立审核公共服务**（一等公民：公开契约 + 可扩展至非 guazi / 非 goal-pipeline 流程）、postmerge、doctor、schemas；`goal-review` / `guazi-flow-review` 为 **wrapper**，非并行内核实现。
+1. **goal-pipeline（主轨）** — 高保真需求、高效率执行、高质量交付、漏出趋 0（W1/W2 + quality plane）。**Stage 图为 profile 可配置外壳**；normative = R1–R4（[v1.1 Part F](../research/optimization-spec-outline-v1.1.md)）+ gate + **独立审核公共服务**（轴 3 **B**：I/O schema + `goal-run-review-chain` 编排 SSOT）。**轴 2：** 外置 `/wayfinder` 制图；Phase 1/profile 软加载 **Goal 内嵌简体 Matt 衍生 Skill Pack**（grill、to-specs 等）；五阶段名非架构常量。**允许 breaking change**，不为 guazi 双轨保留 goal-pipeline 兼容层。
+2. **guazi-flow-goal（独立管线）** — 业务仓 + guazi-flow-*；[#37](../research/guazi-flow-goal-node-io-audit-phase5.md) 为现状快照；Phase-5 **不**承担改造 guazi 以匹配新 goal-pipeline。可选接入共享 review 契约（wrapper profile）。
+3. **Generic services** — handoff、gates、timing、**独立审核公共服务**（一等公民）；外部流程可 adapter 接入；`goal-review` / `guazi-flow-review` = wrapper profiles。
+
+**Grilling SSOT：** [#40 评论线程](https://github.com/sophiezel/goal/issues/40)（轴 1 B+C、轴 2、轴 3 B、管线独立 — 见 [ratification](https://github.com/sophiezel/goal/issues/40#issuecomment-5152135041)）。
 
 ## 子票
 
@@ -44,21 +46,22 @@
 
 - **Scope ratification (2026-08-01)** — [#36 评论](https://github.com/sophiezel/goal/issues/36#issuecomment-5151795281)：goal-pipeline **独立审核模型** parity（非仅 guazi-flow-review 路径）；[#37](https://github.com/sophiezel/goal/issues/37)、[#38](https://github.com/sophiezel/goal/issues/38)、[#41](https://github.com/sophiezel/goal/issues/41) Question 已对齐。
 - **Scope ratification (2026-08-01, 公共服务)** — [#36 评论](https://github.com/sophiezel/goal/issues/36#issuecomment-5151812266)：**独立审核模型是公共服务**；guazi-flow-goal / goal-pipeline / 外部流程经 **标准接口** 接入；边界盘点见 [#39](https://github.com/sophiezel/goal/issues/39)。
-- **Research close [#37](https://github.com/sophiezel/goal/issues/37) (2026-08-01)** — [guazi-flow-goal-node-io-audit-phase5.md](../research/guazi-flow-goal-node-io-audit-phase5.md)：catalog **9+2 delta**（含 bridge `goal-state` 路径漂移、契约融入静默跳过）；review **kernel 契约** vs **goal-review** / **guazi-flow-review** wrapper 分轨表；断点 B1–B9。
+- **Research close [#37](https://github.com/sophiezel/goal/issues/37) (2026-08-01)** — [guazi-flow-goal-node-io-audit-phase5.md](../research/guazi-flow-goal-node-io-audit-phase5.md)：catalog **9+2 delta**（含 bridge `goal-state` 路径漂移、契约融入静默跳过）；review **kernel 契约** vs **goal-review** / **guazi-flow-review** wrapper 分轨表；断点 B1–B9（**guazi 现状**；goal-pipeline 处置见 #40）。
+- **Grilling partial [#40](https://github.com/sophiezel/goal/issues/40)** — [轴 1 B+C SSOT](https://github.com/sophiezel/goal/issues/40#issuecomment-5152014743)；[轴 2 B + 简体 Skill Pack](https://github.com/sophiezel/goal/issues/40#issuecomment-5152045423)；[轴 3 B + 管线独立 breaking-first](https://github.com/sophiezel/goal/issues/40#issuecomment-5152135041)。
 
 ## Not yet specified（Fog）
 
-- optimization-spec 升格形态（v1.2 vs Part J append）。
-- goal-pipeline 是否内置 wayfinder/grill 阶段钩子。
-- SLO-Q-01 数值与 `sla_breach` / timing substep 默认接线（P2 候选）。
+- optimization-spec 升格形态（v1.2 vs Part J append）— 轴 1 B+C 已定向。
+- SLO-Q-01 数值与 `sla_breach` / timing substep（**#41**；grilling 不 ratify 数字）。
 - guazi-flow-* SKILL 正文（仓外）审计深度边界。
 - eval 覆盖 vs spec 缺口的分工。
-- 纯 **goal-pipeline**（无 guazi index）默认 **review_track** 与 cross-provider 策略。
-- **Review kernel 公共 API** 版本化与第三方 adapter 清单。
+- **B1–B9** 对 **goal-pipeline** normative / P2 / impl-only 分类（#40 下一 HITL）。
+- Review kernel 完整 **API v1 semver**（defer impl map；轴 3 B 已冻 schema + chain）。
 
 ## Out of scope
 
 - 业务仓单票功能交付；Phase-4 [#30](https://github.com/sophiezel/goal/issues/30) 夹具除非新回归；本图会话内 bulk 实现。
+- **用 guazi-flow-goal 编排/历史双轨约束 goal-pipeline 设计**（两条独立管线；见 #40 pipeline independence）。
 
 ## 规格交叉引用
 
