@@ -2,7 +2,14 @@
 # goal-stage-driver.sh — Single work order for guazi-flow-goal Agent turns
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_gf_script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_self="${BASH_SOURCE[0]}"
+while [[ -L "$_self" ]]; do
+  _link_dir="$(cd "$(dirname "$_self")" && pwd)"
+  _self="$(readlink "$_self")"
+  [[ "$_self" != /* ]] && _self="${_link_dir}/${_self}"
+done
+SCRIPT_DIR="$(cd "$(dirname "$_self")" && pwd)"
 GOAL_STATE_HOME="${GOAL_STATE_HOME:-${GOAL_HOME:-$HOME/.goal-pipeline}/state}"
 ADVANCE="$GOAL_STATE_HOME/scripts/goal-advance-stage.sh"
 [[ -x "$ADVANCE" ]] || ADVANCE="$SCRIPT_DIR/goal-advance-stage.sh"
@@ -83,16 +90,32 @@ STAGE_SKILL_EVOLUTION = {
     "complete": "goal-complete",
 }
 
-STAGE_PROGRESS = {
-    "plan": "[1/5] plan",
-    "implement": "[2/5] implement",
-    "quality": "[3/5] quality",
-    "runtime_smoke": "[3/5] quality",
-    "review": "[4/5] review",
+STAGE_PROGRESS_FALLBACK = {
     "postmerge": "[postmerge] delivery",
-    "complete": "[5/5] complete",
-    "done": "[5/5] complete",
+    "done": "[done] complete",
 }
+
+def load_stage_graph_doc():
+    import sys as _sys
+    gp_root = os.path.normpath(os.path.join(script_dir, ".."))
+    if gp_root not in _sys.path:
+        _sys.path.insert(0, gp_root)
+    from kernel.profile.stage_graph import load_stage_graph, progress_for_stage
+
+    plan_path = os.path.join(task_dir, "handoff", "plan.json")
+    plan_doc = None
+    if os.path.isfile(plan_path):
+        with open(plan_path, encoding="utf-8") as f:
+            plan_doc = json.load(f)
+    graph_doc = load_stage_graph(plan_json=plan_doc)
+    return graph_doc, progress_for_stage
+
+stage_graph_doc, progress_for_stage_fn = load_stage_graph_doc()
+
+def stage_progress_label(stage):
+    if stage in STAGE_PROGRESS_FALLBACK:
+        return STAGE_PROGRESS_FALLBACK[stage]
+    return progress_for_stage_fn(stage, stage_graph_doc)
 
 def gate_cmd(stage, phase):
     return (
@@ -266,8 +289,18 @@ for s in skills_to_load:
     if s and s not in primary_skills:
         primary_skills.append(s)
 
+stage_node = None
+for _n in stage_graph_doc.get("stage_graph") or []:
+    if _n.get("id") == next_stage or (next_stage in ("runtime_smoke", "smoke") and _n.get("id") == "quality"):
+        stage_node = _n
+        break
+
 work_order = {
     "schema_version": 1,
+    "pipeline_profile": stage_graph_doc.get("profile_id"),
+    "stage_graph_source": stage_graph_doc.get("source"),
+    "stage_graph_ids": [n.get("id") for n in stage_graph_doc.get("stage_graph") or []],
+    "stage_meta": stage_node,
     "next_stage": next_stage,
     "blocked": blocked or wrong_stage,
     "blocked_reason": blocked_reason,
@@ -276,7 +309,7 @@ work_order = {
     "skills_to_load": primary_skills,
     "fe_argus_plan_post": fe_argus_plan_post,
     "review_track": review_track,
-    "progress": STAGE_PROGRESS.get(next_stage, f"[?] {next_stage}"),
+    "progress": stage_progress_label(next_stage),
     "mandatory_commands": mandatory,
     "required_commands_from_advance": required,
     "never": [

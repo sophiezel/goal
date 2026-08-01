@@ -5,7 +5,13 @@
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+_self="${BASH_SOURCE[0]}"
+while [[ -L "$_self" ]]; do
+  _link_dir="$(cd "$(dirname "$_self")" && pwd)"
+  _self="$(readlink "$_self")"
+  [[ "$_self" != /* ]] && _self="${_link_dir}/${_self}"
+done
+SCRIPT_DIR="$(cd "$(dirname "$_self")" && pwd)"
 export GATE_SCRIPT_DIR="$SCRIPT_DIR"
 SCHEMA_DIR="${SCRIPT_DIR}/../references/guazi-flow-artifact-schema"
 GATE_VERSION=1
@@ -861,11 +867,13 @@ update_state_gate() {
   local handoff_file="$HANDOFF_DIR/${stage}.json"
   record_stage_timing "$stage" "end"
   [[ -n "$STATE_FILE" && -f "$STATE_FILE" && -f "$handoff_file" ]] || return 0
-  python3 - "$STATE_FILE" "$stage" "$handoff_file" "$SCRIPT_DIR" << 'PYSTATE'
+  GP_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+  python3 - "$STATE_FILE" "$stage" "$handoff_file" "$GP_ROOT" << 'PYSTATE'
 import json, sys, hashlib
 from datetime import datetime, timezone
-state_path, stage, handoff_path = sys.argv[1:4]
-sys.path.insert(0, sys.argv[4])
+state_path, stage, handoff_path, gp_root = sys.argv[1:5]
+sys.path.insert(0, gp_root)
+sys.path.insert(0, gp_root + '/scripts')
 from atomic_json import write_state_atomic
 with open(state_path, encoding='utf-8') as f:
     state = json.load(f)
@@ -884,8 +892,14 @@ entry['gate'] = {
 }
 gates = state.setdefault('gates', {})
 gates.setdefault(stage, {})['post'] = {'exit_code': 0, 'passed_at': passed_at}
-_next = {'plan': 'implement', 'implement': 'quality', 'quality': 'review', 'smoke': 'review', 'review': 'complete', 'complete': 'complete'}
-state['current_stage'] = _next.get(stage, stage)
+_handoff_plan = __import__('pathlib').Path(handoff_path).parent / 'plan.json'
+_plan = None
+if _handoff_plan.is_file():
+    _plan = json.load(open(_handoff_plan, encoding='utf-8'))
+sys.path.insert(0, str(__import__('pathlib').Path(gp_root)))
+from kernel.profile.stage_graph import load_stage_graph, next_stage_id
+_g = load_stage_graph(plan_json=_plan)
+state['current_stage'] = next_stage_id(stage, _g)
 write_state_atomic(state_path, state)
 PYSTATE
 }
