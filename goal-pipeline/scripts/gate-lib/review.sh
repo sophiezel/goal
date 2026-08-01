@@ -218,55 +218,9 @@ PYMG
       fi
       CLEN=$(python3 -c "import json; d=json.load(open('$GOAL_EVIDENCE_DIR/review-unified.json')); print(len(d.get('checklist_goal',[])))" 2>/dev/null || echo 0)
       [[ -f "$GOAL_EVIDENCE_DIR/review-fix-input.json" ]] || fail "review-fix-input.json missing — run merge-review-issues.sh"
-      python3 - "$GOAL_EVIDENCE_DIR/review-fix-input.json" << 'PYSCHEMA' || fail "review-fix-input.json schema invalid"
-import json, sys
-d = json.load(open(sys.argv[1], encoding="utf-8"))
-required = ["schema_version", "round", "merged_result", "action", "issues", "next_steps", "provenance"]
-for k in required:
-    if k not in d:
-        raise SystemExit(f"missing field: {k}")
-actions = {
-    "proceed_complete",
-    "fix_and_rerun_review",
-    "mini_replan",
-    "blocked_user_decision",
-    "blocked_stagnant",
-    "switch_to_cursor_task",
-    "fix_channel",
-}
-if d["action"] not in actions:
-    raise SystemExit(f"invalid action: {d['action']}")
-if d["merged_result"] not in ("pass", "not_pass"):
-    raise SystemExit("invalid merged_result")
-if d["merged_result"] == "pass" and d["action"] != "proceed_complete":
-    raise SystemExit("pass requires proceed_complete")
-if d["merged_result"] == "not_pass" and d["action"] == "proceed_complete":
-    raise SystemExit("not_pass cannot proceed_complete")
-# Infra actions must not be treated as business fix_and_rerun_review.
-if d.get("classification") == "infra_undetermined" and d["action"] == "fix_and_rerun_review":
-    raise SystemExit("infra_undetermined cannot use fix_and_rerun_review")
-# info_gain 熔断 (v3 §8.3a): stagnant_blocked requires action=blocked_stagnant
-if d.get("stagnant_blocked") and d["action"] != "blocked_stagnant":
-    raise SystemExit("stagnant_blocked requires action=blocked_stagnant")
-# Hard round cap: exhausted business loops must not proceed_complete.
-import os
-try:
-    max_rounds = int(os.environ.get("GOAL_REVIEW_MAX_ROUNDS", "10") or "10")
-except ValueError:
-    max_rounds = 10
-round_n = int(d.get("round") or 0)
-if d.get("rounds_exhausted") or (
-    d.get("merged_result") == "not_pass"
-    and round_n > max_rounds
-    and d.get("action") in ("fix_and_rerun_review", "mini_replan")
-):
-    raise SystemExit(
-        f"review fix rounds exhausted: round={round_n} max={max_rounds} "
-        "(set action=blocked_user_decision; do not continue blind loops)"
-    )
-if d.get("rounds_exhausted") and d.get("action") != "blocked_user_decision":
-    raise SystemExit("rounds_exhausted requires action=blocked_user_decision")
-PYSCHEMA
+      B_SCHEMA_CLI="$SCRIPT_DIR/../kernel/review/b_schema_cli.py"
+      python3 "$B_SCHEMA_CLI" validate-fix-input "$GOAL_EVIDENCE_DIR/review-fix-input.json" \
+        || fail "review-fix-input.json schema invalid"
 
       FIX_ACTION=$(python3 -c "import json; print(json.load(open('$GOAL_EVIDENCE_DIR/review-fix-input.json')).get('action',''))" 2>/dev/null || echo "")
       FIX_MERGED=$(python3 -c "import json; print(json.load(open('$GOAL_EVIDENCE_DIR/review-fix-input.json')).get('merged_result',''))" 2>/dev/null || echo "")

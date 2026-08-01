@@ -1,31 +1,93 @@
 {
-  "schema_version": 1,
-  "description": "Execution-agent contract for review fix loop",
-  "required": ["schema_version", "round", "merged_result", "action", "issues", "next_steps", "provenance"],
-  "action_enum": [
-    "proceed_complete",
-    "fix_and_rerun_review",
-    "mini_replan",
-    "blocked_user_decision",
-    "blocked_stagnant",
-    "switch_to_cursor_task",
-    "fix_channel"
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "goal-pipeline/schemas/review-fix-input.schema.json",
+  "title": "Review kernel B — review-fix-input contract",
+  "description": "Execution-agent contract for review fix loop (merge-review-issues output)",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "round",
+    "merged_result",
+    "action",
+    "issues",
+    "next_steps",
+    "provenance"
   ],
-  "optional_fields": {
-    "max_rounds": "integer — GOAL_REVIEW_MAX_ROUNDS cap applied at merge",
-    "rounds_exhausted": "boolean — true when business fix loop exceeded max_rounds",
-    "blocker_count": "integer — number of blocker issues this round",
-    "info_gain": "float — blocker reduction ratio vs previous round: (prev - cur) / max(prev, 1)",
-    "info_gain_threshold": "float — GOAL_REVIEW_INFO_GAIN_MIN (default 0.10)",
-    "stagnant_rounds": "integer — consecutive rounds with info_gain < threshold",
-    "stagnant_rounds_limit": "integer — GOAL_REVIEW_STAGNANT_ROUNDS (default 2)",
-    "stagnant_blocked": "boolean — true when info_gain 熔断 triggered (action=blocked_stagnant)"
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "round": { "type": "integer", "minimum": 1 },
+    "merged_result": { "type": "string", "enum": ["pass", "not_pass"] },
+    "action": {
+      "type": "string",
+      "enum": [
+        "proceed_complete",
+        "fix_and_rerun_review",
+        "mini_replan",
+        "blocked_user_decision",
+        "blocked_stagnant",
+        "switch_to_cursor_task",
+        "fix_channel"
+      ]
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "channel", "severity", "summary"],
+        "properties": {
+          "id": { "type": "string" },
+          "channel": {
+            "type": "string",
+            "enum": ["goal", "guazi-flow-review"]
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["blocker", "warning", "medium", "high", "critical"]
+          },
+          "summary": { "type": "string" },
+          "file": { "type": "string" },
+          "line_range": { "type": "string" },
+          "suggestion": { "type": "string" },
+          "root_cause": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "resolved_since_last_round": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "next_steps": {
+      "type": "array",
+      "items": { "type": "string" },
+      "minItems": 1
+    },
+    "provenance": {
+      "type": "object",
+      "required": ["review_run_id", "packet_hash"],
+      "properties": {
+        "review_run_id": { "type": "string" },
+        "packet_hash": { "type": "string" },
+        "gf_skill_attested": { "type": "boolean" },
+        "channels": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
+      },
+      "additionalProperties": true
+    },
+    "classification": {
+      "type": "string",
+      "enum": ["business", "infra_undetermined"]
+    },
+    "max_rounds": { "type": "integer", "minimum": 1 },
+    "rounds_exhausted": { "type": "boolean" },
+    "blocker_count": { "type": "integer", "minimum": 0 },
+    "info_gain": { "type": "number" },
+    "info_gain_threshold": { "type": "number" },
+    "stagnant_rounds": { "type": "integer", "minimum": 0 },
+    "stagnant_rounds_limit": { "type": "integer", "minimum": 1 },
+    "stagnant_blocked": { "type": "boolean" }
   },
-  "issue_fields": {
-    "id": "string",
-    "channel": "goal | guazi-flow-review",
-    "severity": "blocker | warning | medium | high",
-    "summary": "string",
-    "root_cause": "implement_error | plan_gap | spec_ambiguity | contract_drift | integration_gap"
-  }
+  "additionalProperties": true
 }
