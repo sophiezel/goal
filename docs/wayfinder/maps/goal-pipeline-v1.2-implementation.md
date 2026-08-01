@@ -26,7 +26,7 @@
 | Task: B8 single-track 默认 + review gate/handoff（Part L） | task | https://github.com/sophiezel/goal/issues/48 | blocked by **#46** |
 | Task: engineering_pack 目录桩 + Phase 1 skill_to_load（Part K） | task | https://github.com/sophiezel/goal/issues/49 | **open** |
 | Task: B2 + B3 — 全 stage timing 与契约融入 WARN→BLOCK | task | https://github.com/sophiezel/goal/issues/50 | blocked by **#47** |
-| Task: v1.2 gate fixture sweep（run-all-gate-tests 对齐） | task | https://github.com/sophiezel/goal/issues/51 | blocked by **#45、#46、#47、#48** |
+| Task: v1.2 gate fixture sweep（run-all-gate-tests 对齐） | task | https://github.com/sophiezel/goal/issues/51 | blocked by **#46、#47、#48** |
 
 ## 并发与串行（路由）
 
@@ -38,7 +38,7 @@
 | [#49](https://github.com/sophiezel/goal/issues/49) engineering_pack（Part K） | #45、#46、#47 | — |
 | [#48](https://github.com/sophiezel/goal/issues/48) B8 single-track | — | **#46**（GitHub blocked-by） |
 | [#50](https://github.com/sophiezel/goal/issues/50) B2 + B3 | #45（部分） | **#47**（建议） |
-| [#51](https://github.com/sophiezel/goal/issues/51) gate sweep | — | **#45、#46、#47、#48** |
+| [#51](https://github.com/sophiezel/goal/issues/51) gate sweep | — | **#46、#47、#48** |
 
 **建议认领顺序：** 首波并行 **#45 / #46 / #47 / #49** → **#48**（#46 后）→ **#50**（#47 后）→ **#51** 收口。
 
