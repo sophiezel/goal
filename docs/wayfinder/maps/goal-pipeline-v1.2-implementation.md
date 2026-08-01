@@ -26,7 +26,7 @@
 | Task: B8 single-track 默认 + review gate/handoff（Part L） | task | https://github.com/sophiezel/goal/issues/48 | **closed**（`c4406e6`） |
 | Task: engineering_pack 目录桩 + Phase 1 skill_to_load（Part K） | task | https://github.com/sophiezel/goal/issues/49 | **closed**（`1390b13`） |
 | Task: B2 + B3 — 全 stage timing 与契约融入 WARN→BLOCK | task | https://github.com/sophiezel/goal/issues/50 | **closed**（`61e9100`） |
-| Task: v1.2 gate fixture sweep（run-all-gate-tests 对齐） | task | https://github.com/sophiezel/goal/issues/51 | **closed**（sweep commit） |
+| Task: v1.2 gate fixture sweep（run-all-gate-tests 对齐） | task | https://github.com/sophiezel/goal/issues/51 | **closed**（`7bd8b99`） |
 
 ## 并发与串行（路由）
 
@@ -50,7 +50,7 @@
 - [Task: engineering_pack 目录桩 + Phase 1 skill_to_load（Part K）](https://github.com/sophiezel/goal/issues/49) — `goal-pipeline/skills/goal-engineering/*` stub；`engineering_pack` profile 键 + `goal-stage-driver` plan WO 软加载；`test-engineering-pack-phase1.sh`（`1390b13`）。
 - [Task: B1 — deprecate smoke advance；quality-only 主轨](https://github.com/sophiezel/goal/issues/47) — default `--stage smoke` blocked；`GOAL_ALLOW_LEGACY_SMOKE_STAGE=1`；chain/stage-port/consistency 仅认 `quality.json`；`test-b1-smoke-quality-only-advance.sh`；`run-all-gate-tests.sh` exit 0（`1390b13`）。
 - [Task: B2 + B3 — 全 stage timing 与契约融入 WARN→BLOCK](https://github.com/sophiezel/goal/issues/50) — gate pre/post `record-pipeline-timing`（phase substep；`smoke`→`quality`）；`guazi_flow_contract_enrich.py` plan post BLOCK + implement pre guard；default profile `contract_enrich.policy=block`；`test-b2-b3-timing-contract.sh` + kernel unit tests；`run-all-gate-tests.sh` exit 0（`61e9100`）。
-- [Task: v1.2 gate fixture sweep（run-all-gate-tests 对齐）](https://github.com/sophiezel/goal/issues/51) — `run-all-gate-tests.sh` exit 0 @ `561c89e` 基线；附录 D 边界记录 [V1.2-SWEEP.md](../../../goal-pipeline/scripts/fixtures/guazi-flow-gate/V1.2-SWEEP.md)；地图 #44 闭合。
+- [Task: v1.2 gate fixture sweep（run-all-gate-tests 对齐）](https://github.com/sophiezel/goal/issues/51) — `run-all-gate-tests.sh` exit 0；附录 D 边界 [V1.2-SWEEP.md](../../../goal-pipeline/scripts/fixtures/guazi-flow-gate/V1.2-SWEEP.md)；地图 #44 闭合（`7bd8b99`）。
 
 ## Not yet specified（Fog）
 
