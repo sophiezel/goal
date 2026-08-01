@@ -1,6 +1,6 @@
 # Wayfinder 本地镜像
 
-**当前活跃地图（Phase-5）：** [Wayfinder: Goal 全链路质量与效率 — 系统分析与优化规格（Phase-5）](https://github.com/sophiezel/goal/issues/36) — 镜像 [maps/goal-full-chain-phase5-analysis.md](maps/goal-full-chain-phase5-analysis.md)（chart only；研究子票 [#37](https://github.com/sophiezel/goal/issues/37)–[#41](https://github.com/sophiezel/goal/issues/41) 已闭合；frontier **[#42](https://github.com/sophiezel/goal/issues/42)** spec v1.2 收口）。Phase-5 范围裁决 SSOT：[#36 评论](https://github.com/sophiezel/goal/issues/36) + 镜像「Decisions so far」— 本页不重复罗列。
+**当前活跃地图（Phase-5）：** [Wayfinder: Goal 全链路质量与效率 — 系统分析与优化规格（Phase-5）](https://github.com/sophiezel/goal/issues/36) — 镜像 [maps/goal-full-chain-phase5-analysis.md](maps/goal-full-chain-phase5-analysis.md)（chart only；子票 [#37](https://github.com/sophiezel/goal/issues/37)–[#42](https://github.com/sophiezel/goal/issues/42) 已闭合；规格 **[optimization-spec-outline-v1.2.md](research/optimization-spec-outline-v1.2.md)**）。Phase-5 范围裁决 SSOT：[#36 评论](https://github.com/sophiezel/goal/issues/36) + 镜像「Decisions so far」— 本页不重复罗列。
 
 **Phase-4 地图（已关闭 2026-08-01）：** [Wayfinder: guazi-flow-goal 全链路硬化](https://github.com/sophiezel/goal/issues/24) — 镜像 [maps/ctb-44243-phase4-pipeline-hardening.md](maps/ctb-44243-phase4-pipeline-hardening.md) · 夹具验收 [#30](https://github.com/sophiezel/goal/issues/30) PASS · 规格 [v1.1](research/optimization-spec-outline-v1.1.md)
 

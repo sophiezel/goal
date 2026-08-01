@@ -29,7 +29,7 @@
 | Research: goal 仓跨平面 generic services 清单与边界 | research | https://github.com/sophiezel/goal/issues/39 | **closed** — [generic-services-inventory-phase5.md](../research/generic-services-inventory-phase5.md) |
 | [Grilling: Phase-5 Destination — 优化方案须裁决 vs 可推迟](https://github.com/sophiezel/goal/issues/40) | grilling | https://github.com/sophiezel/goal/issues/40 | **closed** — [final ratification](https://github.com/sophiezel/goal/issues/40#issuecomment-5152145886)（B+C SSOT、Skill Pack、review B、管线独立、B1–B9） |
 | Research: 统一 SLO / 质量模型（v1.1 扩展输入） | research | https://github.com/sophiezel/goal/issues/41 | **closed** — [unified-slo-quality-model-phase5.md](../research/unified-slo-quality-model-phase5.md) |
-| Task: optimization-spec v1.2 / Part J 文档收口（Phase-5 研究合入） | task | https://github.com/sophiezel/goal/issues/42 | **open** — v1.2 / Part J 合入 #37–#41 + #40 ratification；产出 `optimization-spec-outline-v1.2.md` |
+| Task: optimization-spec v1.2 / Part J 文档收口（Phase-5 研究合入） | task | https://github.com/sophiezel/goal/issues/42 | **closed** — [optimization-spec-outline-v1.2.md](../research/optimization-spec-outline-v1.2.md)（Part J–N + B1–B9 + 管线独立） |
 
 ## 并发与串行（路由）
 
@@ -53,11 +53,11 @@
 - **Research close [#38](https://github.com/sophiezel/goal/issues/38) (2026-08-01)** — [goal-pipeline-external-patterns-gap-phase5.md](../research/goal-pipeline-external-patterns-gap-phase5.md)：差距矩阵 + Part J 候选；Wayfinder out-of-band；grill/to-specs borrow；review single-default + kernel B；reject guazi parity。
 - **Research close [#39](https://github.com/sophiezel/goal/issues/39) (2026-08-01)** — [generic-services-inventory-phase5.md](../research/generic-services-inventory-phase5.md)：跨平面 generic services 表 + ownership；review kernel（B schema + chain SSOT）一等公民；goal-pipeline breaking-first；#41 边界 §6（SLO/timing 数字）。
 - **Research close [#41](https://github.com/sophiezel/goal/issues/41) (2026-08-02)** — [unified-slo-quality-model-phase5.md](../research/unified-slo-quality-model-phase5.md)：goal-pipeline 统一质量+效率+漏出模型；DEM/LEAK→信号；W1/W2×stage；B4/B2/DEM-13 breach 语义；**ratify** W1/W2/Q-02/R-02/E-01 与结构；**SLO-Q-01/E-02/E-03/R-01/R-03/B4 数值 → v1.2 校准票**；Part J 输入 §6。
+- **Task close [#42](https://github.com/sophiezel/goal/issues/42) (2026-08-02)** — [optimization-spec-outline-v1.2.md](../research/optimization-spec-outline-v1.2.md)：Part J–N + 附录 B1–B9 + 管线独立；Phase-5 研究波文档收口。
 
 ## Not yet specified（Fog）
 
-- optimization-spec 升格形态（v1.2 vs Part J append）— **#42** 收口；轴 1 B+C 已定向。
-- SLO-Q-01 等 **数值带** — **#42** 内 structure + calibration 脚注；`sla_breach` 实现与 timing substep 默认接线（P2 + 实现地图）。
+- SLO-Q-01 等 **数值带** — v1.2 Part N 结构 + calibration 脚注；**实现地图** 样本校准 + `sla_breach` 与 timing substep 默认接线（P2）。
 - guazi-flow-* SKILL 正文（仓外）审计深度边界。
 - eval 覆盖 vs spec 缺口的分工。
 - Review kernel 完整 **API v1 semver**（defer impl map；轴 3 B 已冻 schema + chain）。
@@ -69,6 +69,6 @@
 
 ## 规格交叉引用
 
-- [optimization-spec-outline-v1.md](../research/optimization-spec-outline-v1.md) · [optimization-spec-outline-v1.1.md](../research/optimization-spec-outline-v1.1.md)
+- [optimization-spec-outline-v1.md](../research/optimization-spec-outline-v1.md) · [optimization-spec-outline-v1.1.md](../research/optimization-spec-outline-v1.1.md) · [optimization-spec-outline-v1.2.md](../research/optimization-spec-outline-v1.2.md)（Phase-5 SSOT）
 - [pipeline-node-catalog.md](../research/pipeline-node-catalog.md) · [review-chain-bottlenecks.md](../research/review-chain-bottlenecks.md)
 - [guazi-flow-goal/SKILL.md](../../../guazi-flow-goal/SKILL.md) · [goal-pipeline/SKILL.md](../../../goal-pipeline/SKILL.md)
