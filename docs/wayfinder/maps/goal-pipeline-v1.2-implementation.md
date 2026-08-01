@@ -2,7 +2,7 @@
 
 **Status:** **open** — 实现轨  
 **GitHub 主副本（地图）：** [Wayfinder: goal-pipeline v1.2 破坏性实现（Phase-5 落地）](https://github.com/sophiezel/goal/issues/44)  
-**Frontier（首波）：** [#45](https://github.com/sophiezel/goal/issues/45)、[#46](https://github.com/sophiezel/goal/issues/46)、[#47](https://github.com/sophiezel/goal/issues/47)、[#49](https://github.com/sophiezel/goal/issues/49)（未认领、无 open blocker）
+**Frontier（首波）：** [#46](https://github.com/sophiezel/goal/issues/46)、[#47](https://github.com/sophiezel/goal/issues/47)、[#49](https://github.com/sophiezel/goal/issues/49)（#45 已闭合；#51 仍 blocked by #46、#47、#48）
 
 **前置地图（已关闭）：** [Wayfinder #36 — Phase-5 系统分析与优化规格](https://github.com/sophiezel/goal/issues/36) — [PHASE-5-CLOSURE.md](../PHASE-5-CLOSURE.md) · 规格 SSOT [optimization-spec-outline-v1.2.md](../research/optimization-spec-outline-v1.2.md)
 
@@ -20,7 +20,7 @@
 
 | 标题 | 类型 | URL | Frontier |
 | --- | --- | --- | --- |
-| Task: profile stage_graph + handoff WO 字段（Part J / R1–R4 映射） | task | https://github.com/sophiezel/goal/issues/45 | **open** |
+| Task: profile stage_graph + handoff WO 字段（Part J / R1–R4 映射） | task | https://github.com/sophiezel/goal/issues/45 | **closed**（`58de85e`） |
 | Task: review kernel B JSON schemas + 夹具校验（Part L） | task | https://github.com/sophiezel/goal/issues/46 | **open** |
 | Task: B1 — deprecate smoke advance；quality-only 主轨 | task | https://github.com/sophiezel/goal/issues/47 | **open** |
 | Task: B8 single-track 默认 + review gate/handoff（Part L） | task | https://github.com/sophiezel/goal/issues/48 | blocked by **#46** |
@@ -44,7 +44,7 @@
 
 ## Decisions so far（本地镜像）
 
-_(empty — 实现闭合票写入地图 Decisions + GitHub 评论。)_
+- [Task: profile stage_graph + handoff WO 字段（Part J / R1–R4 映射）](https://github.com/sophiezel/goal/issues/45) — `references/profiles/default/pipeline.profile.json` + `kernel.profile.stage_graph`；`plan.json` 可覆盖拓扑；`goal-stage-driver` work_order 含 `pipeline_profile` / `stage_graph_ids` / `stage_meta`；gate post 用 `next_stage_id` 替代硬编码五段表；夹具 `test-stage-graph-profile-default.sh` 证明 default ≡ F.2（`58de85e`）。
 
 ## Not yet specified（Fog）
 
