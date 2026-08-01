@@ -2,6 +2,8 @@
 
 **Status:** **v1.0 — 文档与 HITL 决策收口**（2026-08-01）；实现项以文中 **Deferred** 链到 Phase-3 子工单，不以本文冒充已落地代码。
 
+**Phase-4 扩展:** [optimization-spec-outline-v1.1.md](optimization-spec-outline-v1.1.md) — Part F（四层需求）· G（失败 taxonomy）· H（横切面政策）· I（Pipeline SLO v0）；合入自 [#28](https://github.com/sophiezel/goal/issues/28) / [#31](https://github.com/sophiezel/goal/issues/31)。
+
 **前身:** [optimization-spec-outline-v0.md](optimization-spec-outline-v0.md)（v0.2 工程合并稿）  
 **Ratification SSOT:** [phase-3-hitl-ratified.md](phase-3-hitl-ratified.md)  
 **父地图:** [Wayfinder #1](https://github.com/sophiezel/goal/issues/1)

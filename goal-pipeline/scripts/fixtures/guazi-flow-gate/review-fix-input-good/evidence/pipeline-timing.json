@@ -255,11 +255,51 @@
         {
           "event": "end",
           "timestamp_utc": "2026-07-31T18:31:30Z"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-08-01T10:43:30Z"
+        },
+        {
+          "event": "end",
+          "timestamp_utc": "2026-08-01T10:43:30Z"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-08-01T11:30:24Z"
+        },
+        {
+          "event": "end",
+          "timestamp_utc": "2026-08-01T11:30:24Z"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-08-01T11:38:15Z"
+        },
+        {
+          "event": "end",
+          "timestamp_utc": "2026-08-01T11:38:16Z"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-08-01T11:47:05Z"
+        },
+        {
+          "event": "end",
+          "timestamp_utc": "2026-08-01T11:47:06Z"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-08-01T11:47:53Z"
+        },
+        {
+          "event": "end",
+          "timestamp_utc": "2026-08-01T11:47:54Z"
         }
       ],
-      "started_at_utc": "2026-07-31T18:31:29Z",
-      "last_timestamp_utc": "2026-07-31T18:31:30Z"
+      "started_at_utc": "2026-08-01T11:47:53Z",
+      "last_timestamp_utc": "2026-08-01T11:47:54Z"
     }
   },
-  "updated_at_utc": "2026-07-31T18:31:30Z"
+  "updated_at_utc": "2026-08-01T11:47:54Z"
 }

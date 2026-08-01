@@ -291,11 +291,51 @@
         {
           "event": "end",
           "timestamp_utc": "2026-07-31T18:31:15Z"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-08-01T10:43:13Z"
+        },
+        {
+          "event": "end",
+          "timestamp_utc": "2026-08-01T10:43:13Z"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-08-01T11:30:07Z"
+        },
+        {
+          "event": "end",
+          "timestamp_utc": "2026-08-01T11:30:08Z"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-08-01T11:37:59Z"
+        },
+        {
+          "event": "end",
+          "timestamp_utc": "2026-08-01T11:37:59Z"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-08-01T11:46:48Z"
+        },
+        {
+          "event": "end",
+          "timestamp_utc": "2026-08-01T11:46:49Z"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-08-01T11:47:35Z"
+        },
+        {
+          "event": "end",
+          "timestamp_utc": "2026-08-01T11:47:36Z"
         }
       ],
-      "started_at_utc": "2026-07-31T18:31:14Z",
-      "last_timestamp_utc": "2026-07-31T18:31:15Z"
+      "started_at_utc": "2026-08-01T11:47:35Z",
+      "last_timestamp_utc": "2026-08-01T11:47:36Z"
     }
   },
-  "updated_at_utc": "2026-07-31T18:31:15Z"
+  "updated_at_utc": "2026-08-01T11:47:36Z"
 }

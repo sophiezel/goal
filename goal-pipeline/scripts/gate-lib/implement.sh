@@ -53,10 +53,20 @@ try:
     data = json.loads(sys.argv[1])
 except json.JSONDecodeError:
     data = {"overall": "not_pass"}
+dem08_warn = data.get("dem08_implement_warn")
 out = [{"id": "UVO-01", "severity": "block", "message": f"verification-oracle {data.get('overall','not_pass')}", "root_cause": "implement_qc"}]
+if not dem08_warn and (data.get("out_of_write_set_closure") or data.get("verification_scope_overreach")):
+    out[0]["root_cause"] = "verification_scope_overreach"
+    out[0]["failure_code"] = "verification_scope_overreach"
 for s in data.get("steps", []):
     if s.get("ok") is False or s.get("pass") is False:
-        out.append({"id": f"UVO-{s.get('id','step')}", "severity": "block", "message": str(s.get("output_tail", s.get("output", "failed")))[:200], "root_cause": "implement_qc"})
+        if dem08_warn or s.get("dem08_warn"):
+            out.append({"id": f"UVO-{s.get('id','step')}", "severity": "warning", "message": str(s.get("output_tail", s.get("output", "failed")))[:200], "root_cause": "verification_scope_overreach", "failure_code": "verification_scope_overreach"})
+            continue
+        rc = "implement_qc"
+        if data.get("out_of_write_set_closure") or data.get("verification_scope_overreach"):
+            rc = "verification_scope_overreach"
+        out.append({"id": f"UVO-{s.get('id','step')}", "severity": "block", "message": str(s.get("output_tail", s.get("output", "failed")))[:200], "root_cause": rc})
 print(json.dumps(out, ensure_ascii=False))
 PYUVO
 )

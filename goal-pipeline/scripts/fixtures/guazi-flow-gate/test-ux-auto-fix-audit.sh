@@ -46,11 +46,15 @@ assert "src/components/Button.tsx" in doc.get("audited_files", [])
 print("OK valid D2 autofix pass")
 PY
 
-# --- invalid: change outside write_set (strict blocks) ---
+# --- invalid: D2/D5 change outside write_set (strict blocks) ---
 git checkout -q -- src/components/Button.tsx
 mkdir -p src/other
-echo "export const x = 1;" > src/other/extra.ts
-git add src/other/extra.ts
+cat > src/other/extra.tsx << 'TS'
+export function Extra() {
+  return <button disabled={loading}>x</button>;
+}
+TS
+git add src/other/extra.tsx
 EV_FAIL="$TMP/evidence-fail.json"
 if python3 "$AUDIT" \
   --repo-root "$TMP" \
@@ -71,7 +75,39 @@ assert any(v.get("severity") == "blocker" for v in doc["violations"]), doc
 print("OK invalid diff strict + violations recorded")
 PY
 
-# --- non-strict: same breach warns, gate may continue (exit 0) ---
+# --- feature implement in write_set (strict must not block) ---
+git checkout -q -- src/other/extra.tsx 2>/dev/null || true
+rm -rf src/other
+perl -pi -e 's/<button>Go<\/button>/<button>Go feature<\/button>/' src/components/Button.tsx
+if ! python3 "$AUDIT" \
+  --repo-root "$TMP" \
+  --handoff-dir "$TMP/handoff" \
+  --strict \
+  --format text | grep -q "ok=True"; then
+  echo "FAIL strict audit should pass feature-only change in write_set" >&2
+  exit 1
+fi
+echo "OK feature implement in write_set passes strict"
+
+# --- docs/guazi-flow changes excluded from scope ---
+mkdir -p docs/guazi-flow/task-a
+echo "task doc" > docs/guazi-flow/task-a/index.md
+git add docs/guazi-flow/task-a/index.md
+python3 "$AUDIT" \
+  --repo-root "$TMP" \
+  --handoff-dir "$TMP/handoff" \
+  --strict \
+  --format text | grep -q "ok=True"
+echo "OK docs/guazi-flow excluded from autofix scope"
+
+# --- non-strict: D2 outside write_set warns, gate may continue (exit 0) ---
+mkdir -p src/other
+cat > src/other/extra.tsx << 'TS'
+export function Extra() {
+  return <button disabled={loading}>x</button>;
+}
+TS
+git add src/other/extra.tsx
 EV_WARN="$TMP/evidence-warn.json"
 python3 "$AUDIT" \
   --repo-root "$TMP" \

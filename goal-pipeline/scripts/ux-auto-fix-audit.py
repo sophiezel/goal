@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""P1-9 gate audit: implement diff ⊆ write_set and D2/D5 auto-fix patterns only."""
+"""P1-9 gate audit: UX auto-fix ⊆ write_set; feature implement diff not mistaken for autofix."""
 from __future__ import annotations
 
 import argparse
@@ -9,6 +9,12 @@ import subprocess
 import sys
 from pathlib import Path
 from typing import Any
+
+# Import sibling module (goal-pipeline/scripts)
+_SCRIPT_DIR = Path(__file__).resolve().parent
+if str(_SCRIPT_DIR) not in sys.path:
+    sys.path.insert(0, str(_SCRIPT_DIR))
+from diff_resolver import implement_scope_changed_files, path_allowed  # noqa: E402
 
 _D2_PATTERNS = (
     re.compile(r"loading\s*=\s*\{"),
@@ -36,43 +42,16 @@ def load_write_set(handoff_dir: Path) -> list[str]:
     return list(plan.get("write_set") or [])
 
 
-def git_changed_files(repo_root: Path) -> list[str]:
-    r = subprocess.run(
-        ["git", "-C", str(repo_root), "diff", "--name-only", "HEAD"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if r.returncode != 0:
-        r = subprocess.run(
-            ["git", "-C", str(repo_root), "diff", "--name-only"],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-    lines = [ln.strip() for ln in (r.stdout or "").splitlines() if ln.strip()]
-    return lines
-
-
-def path_in_write_set(path: str, write_set: list[str]) -> bool:
-    norm = path.replace("\\", "/")
-    for entry in write_set:
-        e = entry.rstrip("/").replace("\\", "/")
-        if norm == e or norm.startswith(e + "/"):
-            return True
-    return False
-
-
 def diff_hunks(repo_root: Path, path: str) -> str:
     r = subprocess.run(
-        ["git", "-C", str(repo_root), "diff", "HEAD", "--", path],
+        ["git", "-C", str(repo_root), "-c", "core.quotepath=false", "diff", "HEAD", "--", path],
         capture_output=True,
         text=True,
         check=False,
     )
     if not (r.stdout or "").strip():
         r = subprocess.run(
-            ["git", "-C", str(repo_root), "diff", "--", path],
+            ["git", "-C", str(repo_root), "-c", "core.quotepath=false", "diff", "--", path],
             capture_output=True,
             text=True,
             check=False,
@@ -80,9 +59,23 @@ def diff_hunks(repo_root: Path, path: str) -> str:
     return r.stdout or ""
 
 
+def _added_lines(hunk_text: str) -> list[str]:
+    return [ln[1:] for ln in hunk_text.splitlines() if ln.startswith("+") and not ln.startswith("+++")]
+
+
+def has_d2_d5_added(hunk_text: str) -> bool:
+    for line in _added_lines(hunk_text):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("//") or stripped.startswith("/*"):
+            continue
+        if any(p.search(line) for p in _D2_PATTERNS) or any(p.search(line) for p in _D5_PATTERNS):
+            return True
+    return False
+
+
 def hunks_match_d2_d5_only(hunk_text: str) -> bool:
     """Added lines should only touch D2/D5-style UX fixes (heuristic)."""
-    added = [ln[1:] for ln in hunk_text.splitlines() if ln.startswith("+") and not ln.startswith("+++")]
+    added = _added_lines(hunk_text)
     if not added:
         return True
     for line in added:
@@ -97,7 +90,6 @@ def hunks_match_d2_d5_only(hunk_text: str) -> bool:
             return False
         if re.search(r"export\s+(default\s+)?function|export\s+const", line):
             return False
-        # Allow whitespace-only or closing brace tweaks
         if re.fullmatch(r"[}\]);,\s]*", stripped):
             continue
         return False
@@ -107,19 +99,33 @@ def hunks_match_d2_d5_only(hunk_text: str) -> bool:
 def audit(*, repo_root: Path, handoff_dir: Path, strict: bool) -> dict[str, Any]:
     write_set = load_write_set(handoff_dir)
     violations: list[dict[str, str]] = []
-    changed = git_changed_files(repo_root)
     audited: list[str] = []
+    changed = implement_scope_changed_files(str(repo_root))
 
     for path in changed:
-        if not write_set or not path_in_write_set(path, write_set):
-            violations.append(
-                {
-                    "id": "AUTOFIX-WS",
-                    "summary": f"change outside write_set: {path}",
-                    "severity": "blocker" if strict else "warn",
-                }
-            )
+        hunk = diff_hunks(repo_root, path)
+        if not hunk.strip():
             continue
+        in_ws = bool(write_set) and path_allowed(path, write_set)
+        d2d5_only = hunks_match_d2_d5_only(hunk)
+        has_d2d5 = has_d2_d5_added(hunk)
+
+        if not in_ws:
+            if has_d2d5:
+                violations.append(
+                    {
+                        "id": "AUTOFIX-WS",
+                        "summary": f"D2/D5 change outside write_set: {path}",
+                        "severity": "blocker" if strict else "warn",
+                    }
+                )
+            continue
+
+        # In write_set: police only narrow UX auto-fix deltas, not full feature implement.
+        if not d2d5_only:
+            continue
+
+        audited.append(path)
         if _FORBIDDEN_PATH_RE.search(path):
             violations.append(
                 {
@@ -128,10 +134,7 @@ def audit(*, repo_root: Path, handoff_dir: Path, strict: bool) -> dict[str, Any]
                     "severity": "blocker" if strict else "warn",
                 }
             )
-            continue
-        hunk = diff_hunks(repo_root, path)
-        audited.append(path)
-        if hunk and not hunks_match_d2_d5_only(hunk):
+        elif not has_d2d5:
             violations.append(
                 {
                     "id": "AUTOFIX-PATTERN",
@@ -146,6 +149,7 @@ def audit(*, repo_root: Path, handoff_dir: Path, strict: bool) -> dict[str, Any]
         "audited_files": audited,
         "violations": violations,
         "write_set_size": len(write_set),
+        "scope_changed_files": len(changed),
     }
 
 

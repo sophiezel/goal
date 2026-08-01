@@ -115,11 +115,32 @@ def run_gate(
         result = core.run_oracle(task_dir, repo_root, tier=tier, oracle_mode=oracle_mode, evidence_dir=evidence_dir)
         executions.extend(result.get("steps", []))
         if result.get("overall") != "pass":
+            root_cause = "implement_qc"
+            pure_dem08 = (
+                result.get("verification_scope_overreach")
+                and not result.get("dem08_implement_warn")
+            )
+            if pure_dem08 or (
+                result.get("out_of_write_set_closure") and not result.get("dem08_implement_warn")
+            ):
+                root_cause = "verification_scope_overreach"
             issues.append(
                 {
                     "id": "IQ-01",
                     "severity": "block",
                     "message": f"verification-oracle not_pass (mode={oracle_mode})",
+                    "failure_code": "verification_scope_overreach" if root_cause == "verification_scope_overreach" else "verification_oracle_failed",
+                    "root_cause": root_cause,
+                }
+            )
+        elif result.get("dem08_implement_warn"):
+            issues.append(
+                {
+                    "id": "IQ-01",
+                    "severity": "warn",
+                    "message": "verification-oracle DEM-08: failing tests outside write_set closure (implement not blocked)",
+                    "failure_code": "verification_scope_overreach",
+                    "root_cause": "verification_scope_overreach",
                 }
             )
     else:
@@ -129,7 +150,34 @@ def run_gate(
             result = core.run_oracle(task_dir, repo_root, tier=tier, oracle_mode=oracle_mode, evidence_dir=evidence_dir)
             executions.extend(result.get("steps", []))
             if result.get("overall") != "pass":
-                issues.append({"id": "IQ-01", "severity": "block", "message": "verification-oracle rerun failed"})
+                root_cause = "implement_qc"
+                pure_dem08 = (
+                    result.get("verification_scope_overreach")
+                    and not result.get("dem08_implement_warn")
+                )
+                if pure_dem08 or (
+                    result.get("out_of_write_set_closure") and not result.get("dem08_implement_warn")
+                ):
+                    root_cause = "verification_scope_overreach"
+                issues.append(
+                    {
+                        "id": "IQ-01",
+                        "severity": "block",
+                        "message": "verification-oracle rerun failed",
+                        "failure_code": "verification_scope_overreach" if root_cause == "verification_scope_overreach" else "verification_oracle_failed",
+                        "root_cause": root_cause,
+                    }
+                )
+            elif result.get("dem08_implement_warn"):
+                issues.append(
+                    {
+                        "id": "IQ-01",
+                        "severity": "warn",
+                        "message": "verification-oracle DEM-08 warn (rerun): out-of-closure test failures",
+                        "failure_code": "verification_scope_overreach",
+                        "root_cause": "verification_scope_overreach",
+                    }
+                )
         else:
             executions.append({"id": "UVO-freshness", "ok": True, "source": oracle_path})
 

@@ -80,7 +80,7 @@
   ],
   "provider": "mock-unified",
   "model": "mock-unified",
-  "packet_hash": "a725b545ad3f1111",
+  "packet_hash": "aeb13c034ffd2a9c",
   "invocation_count": 1,
-  "generated_at": "2026-07-31T18:31:25Z"
+  "generated_at": "2026-08-01T11:47:48Z"
 }

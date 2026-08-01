@@ -27,11 +27,15 @@ python3 ux-auto-fix-audit.py \
   [--strict]   # M/L/XL task_tier (S+)
 ```
 
+**Scope (aligned with implement write_set gate):** `git diff` paths with `core.quotepath=false`; **excludes** `docs/guazi-flow/**` (same as `check_write_set_subset`). Only **narrow UX auto-fix** deltas are policed—not full feature implement in `write_set`.
+
 | Check | Violation id | strict | XS/S |
 |-------|----------------|--------|------|
-| `git diff` paths ⊆ `handoff/plan.json` write_set | `AUTOFIX-WS` | blocker → `write_set_violation` | warn |
-| No `App.tsx` / `pages/index` / `services` / `routes` paths | `AUTOFIX-ROUTE` | blocker | warn |
-| Added lines ⊆ D2/D5 heuristics only | `AUTOFIX-PATTERN` | blocker | warn |
+| D2/D5 change outside `handoff/plan.json` write_set | `AUTOFIX-WS` | blocker → `write_set_violation` | warn |
+| D2/D5-only diff on forbidden path class (`App.tsx`, `pages/index`, `services`, `routes`) | `AUTOFIX-ROUTE` | blocker | warn |
+| In write_set, diff is D2/D5-only but not matching heuristics | `AUTOFIX-PATTERN` | blocker | warn |
+
+Feature-only changes in `write_set` (non–D2/D5-only hunks) **do not** fail this audit.
 
 S+ (`task_tier` M/L/XL): audit failure **blocks** implement post (`AUTOFIX-01`, `root_cause: write_set_violation`).  
 XS/S: violations are **warn**; gate continues; evidence still written when git root present.

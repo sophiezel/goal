@@ -23,6 +23,20 @@ SMOKE_REQUIRED_PATTERNS = (
     "**/router/**",
 )
 
+# G2: default hub sources are not findRelatedTests seeds (hub tests e.g. App.test.tsx still via colocation/write_set).
+HUB_FIND_RELATED_SEED_PATHS = (
+    "src/App.tsx",
+    "src/pages/index.ts",
+)
+
+_FAIL_TEST_LINE_RE = re.compile(
+    r"^\s*FAIL\s+((?:src|test)/[^\s]+\.(?:test|spec)\.(?:tsx?|jsx?))\s*$",
+    re.M,
+)
+_FAIL_TEST_AT_RE = re.compile(
+    r"\(((?:src|test)/[^\s]+\.(?:test|spec)\.(?:tsx?|jsx?)):\d+",
+)
+
 CODE_EXTENSIONS = (".ts", ".tsx", ".js", ".jsx", ".vue", ".scss", ".css")
 
 
@@ -140,6 +154,46 @@ def artifact_diff_hash(repo_root: str, task_dir: str) -> str:
         return "unknown"
 
 
+def _path_in_write_set_tree(path: str, write_set: list[str]) -> bool:
+    normalized = path.replace("\\", "/")
+    if not write_set:
+        return False
+    for w in write_set:
+        prefix = w.rstrip("/").rstrip("/**")
+        if normalized == prefix or normalized.startswith(prefix + "/"):
+            return True
+    return False
+
+
+def _related_union_mode() -> str:
+    """G6: default narrow write_set closure; legacy_wide opt-in via env."""
+    raw = (os.environ.get("GOAL_UVO_RELATED_UNION_MODE") or "write_set_closure").strip().lower()
+    if raw in ("legacy_wide", "wide", "legacy"):
+        return "legacy_wide"
+    return "write_set_closure"
+
+
+def _hub_expansion_enabled(plan: dict[str, Any] | None = None, task_dir: str = "") -> bool:
+    if os.environ.get("GOAL_UVO_HUB_EXPANSION", "0") == "1":
+        return True
+    verification = (plan or {}).get("verification") or {}
+    if verification.get("uvo_hub_expansion") is True:
+        return True
+    index_path = os.path.join(task_dir, "index.md") if task_dir else ""
+    if index_path and os.path.isfile(index_path):
+        text = open(index_path, encoding="utf-8").read()
+        if re.search(r"uvo_hub_expansion\s*:\s*true", text, re.I):
+            return True
+    return False
+
+
+def _is_hub_find_related_seed(path: str, plan: dict[str, Any] | None = None, task_dir: str = "") -> bool:
+    if _hub_expansion_enabled(plan, task_dir):
+        return False
+    normalized = path.replace("\\", "/")
+    return normalized in HUB_FIND_RELATED_SEED_PATHS
+
+
 def _matches_patterns(path: str, patterns: tuple[str, ...] | list[str]) -> bool:
     normalized = path.replace("\\", "/")
     for pattern in patterns:
@@ -182,7 +236,20 @@ def _write_set_from_plan(plan: dict[str, Any], task_dir: str) -> list[str]:
     return paths
 
 
-def _related_source_files(changed_files: list[str], write_set: list[str]) -> list[str]:
+def _changed_files_for_related_union(changed_files: list[str], write_set: list[str]) -> list[str]:
+    """G3: in write_set_closure mode, seeds only from write_set ∩ changed (scope still uses full diff)."""
+    if _related_union_mode() == "legacy_wide" or not write_set:
+        return list(changed_files)
+    return [f for f in changed_files if _path_in_write_set_tree(f, write_set)]
+
+
+def _related_source_files(
+    changed_files: list[str],
+    write_set: list[str],
+    *,
+    plan: dict[str, Any] | None = None,
+    task_dir: str = "",
+) -> list[str]:
     allowed = write_set or changed_files
     out: list[str] = []
     for f in changed_files:
@@ -191,31 +258,170 @@ def _related_source_files(changed_files: list[str], write_set: list[str]) -> lis
             for w in allowed
         ):
             continue
+        if _is_hub_find_related_seed(f, plan, task_dir):
+            continue
         if f.endswith(CODE_EXTENSIONS) and not f.endswith((".test.ts", ".test.tsx", ".test.js", ".spec.ts")):
             out.append(f)
     return out
 
 
-def _test_files_for_write_set(changed_files: list[str], repo_root: str) -> list[str]:
+def _find_related_test_targets(
+    changed_files: list[str],
+    write_set: list[str],
+    repo_root: str,
+    plan: dict[str, Any] | None = None,
+    task_dir: str = "",
+) -> tuple[list[str], list[str]]:
+    """G3: related_source(write_set∩changed) + colocated_tests(write_set); split seeds vs direct test paths."""
+    effective = _changed_files_for_related_union(changed_files, write_set)
+    related_seeds = _related_source_files(
+        effective, write_set, plan=plan, task_dir=task_dir
+    )
+    direct_tests = _test_files_for_write_set(effective, repo_root, write_set)
+    if _related_union_mode() == "write_set_closure":
+        return related_seeds, direct_tests
+    merged = list(dict.fromkeys(related_seeds + direct_tests))
+    return merged, []
+
+
+def _compose_find_related_test_cmd(repo_root: str, related_seeds: list[str], direct_tests: list[str]) -> str | None:
+    parts: list[str] = []
+    if related_seeds:
+        parts.append("--findRelatedTests")
+        parts.extend(f'"{s}"' for s in related_seeds[:40])
+    for t in direct_tests[:40]:
+        if t not in related_seeds:
+            parts.append(f'"{t}"')
+    if not parts:
+        return None
+    if os.path.isfile(os.path.join(repo_root, "yarn.lock")):
+        return f"CI=true yarn test {' '.join(parts)} --watchAll=false"
+    return f"CI=true npm test -- {' '.join(parts)} --watchAll=false"
+
+
+def _colocated_test_paths_for_source(repo_root: str, source_rel: str) -> list[str]:
+    """G1: same-directory test pairing only (no repo-wide basename scan)."""
+    base = os.path.splitext(os.path.basename(source_rel))[0]
+    if base == "index" or len(base) <= 2:
+        return []
+    dir_rel = os.path.dirname(source_rel).replace("\\", "/")
+    dir_abs = os.path.join(repo_root, dir_rel)
+    if not os.path.isdir(dir_abs):
+        return []
+    found: list[str] = []
+    for name in os.listdir(dir_abs):
+        if not re.search(r"\.(test|spec)\.(tsx?|jsx?)$", name):
+            continue
+        stem = re.sub(r"\.(test|spec)\.", ".", name).split(".")[0]
+        if stem == base:
+            rel = f"{dir_rel}/{name}" if dir_rel else name
+            found.append(rel.replace("\\", "/"))
+    return found
+
+
+def _test_files_for_write_set(
+    changed_files: list[str],
+    repo_root: str,
+    write_set: list[str] | None = None,
+) -> list[str]:
+    write_set = write_set or []
     tests: list[str] = []
+    allowed = write_set or changed_files
     code_changed = [
         f for f in changed_files
         if f.startswith("src/") and not f.endswith(".md") and "index.md" not in f
+        and not re.search(r"\.(test|spec)\.(tsx?|jsx?)$", f)
     ]
-    basenames = {os.path.splitext(os.path.basename(f))[0] for f in code_changed}
-    basenames.discard("index")
-    basenames = {b for b in basenames if len(b) > 2}
-    for root, _, files in os.walk(repo_root):
-        if "node_modules" in root.split(os.sep):
+    for f in code_changed:
+        if not any(
+            f == w.rstrip("/") or f.startswith(w.rstrip("/").rstrip("/**") + "/")
+            for w in allowed
+        ):
             continue
-        for name in files:
-            if not re.search(r"\.(test|spec)\.(tsx?|jsx?)$", name):
-                continue
-            stem = re.sub(r"\.(test|spec)\.", ".", name).split(".")[0]
-            if stem in basenames:
-                rel = os.path.relpath(os.path.join(root, name), repo_root).replace("\\", "/")
-                tests.append(rel)
+        tests.extend(_colocated_test_paths_for_source(repo_root, f))
+    for f in changed_files:
+        if not re.search(r"\.(test|spec)\.(tsx?|jsx?)$", f):
+            continue
+        if any(
+            f == w.rstrip("/") or f.startswith(w.rstrip("/").rstrip("/**") + "/")
+            for w in allowed
+        ):
+            tests.append(f.replace("\\", "/"))
     return list(dict.fromkeys(tests))
+
+
+def _extract_failing_test_files(output: str) -> list[str]:
+    paths: list[str] = []
+    for pat in (_FAIL_TEST_LINE_RE, _FAIL_TEST_AT_RE):
+        for m in pat.finditer(output or ""):
+            p = m.group(1).replace("\\", "/")
+            if p not in paths:
+                paths.append(p)
+    return paths
+
+
+def _test_file_in_write_set_closure(test_path: str, write_set: list[str]) -> bool:
+    normalized = test_path.replace("\\", "/")
+    if _path_in_write_set_tree(normalized, write_set):
+        return True
+    dir_rel = os.path.dirname(normalized)
+    stem = re.sub(r"\.(test|spec)\.", ".", os.path.basename(normalized)).split(".")[0]
+    for ext in (".ts", ".tsx", ".js", ".jsx"):
+        src = f"{dir_rel}/{stem}{ext}" if dir_rel else f"{stem}{ext}"
+        if _path_in_write_set_tree(src, write_set):
+            return True
+    return False
+
+
+def _dem08_diagnostics(
+    steps: list[dict[str, Any]],
+    write_set: list[str],
+) -> dict[str, Any]:
+    failing: list[str] = []
+    for step in steps:
+        sid = str(step.get("id") or "")
+        if not sid.startswith("test:") and sid != "test":
+            continue
+        if step.get("ok") is True or step.get("pass") is True:
+            continue
+        tail = str(step.get("output_tail") or step.get("output") or "")
+        failing.extend(_extract_failing_test_files(tail))
+    failing = list(dict.fromkeys(failing))
+    if not write_set:
+        return {
+            "failing_test_files": failing,
+            "out_of_write_set_closure": [],
+            "verification_scope_overreach": False,
+        }
+    out_of_closure = [p for p in failing if not _test_file_in_write_set_closure(p, write_set)]
+    scope_overreach = bool(failing) and len(out_of_closure) == len(failing)
+    return {
+        "failing_test_files": failing,
+        "out_of_write_set_closure": out_of_closure,
+        "verification_scope_overreach": scope_overreach,
+    }
+
+
+def _dem08_implement_warn_pass(
+    test_ok: bool,
+    dem08: dict[str, Any],
+    related_union_mode: str,
+) -> bool:
+    """Pure DEM-08: every failing test file is outside write_set closure — warn, do not block implement."""
+    if test_ok or not dem08.get("verification_scope_overreach"):
+        return False
+    if related_union_mode != "write_set_closure":
+        return False
+    return True
+
+
+def _annotate_dem08_warn_steps(steps: list[dict[str, Any]]) -> None:
+    for step in steps:
+        sid = str(step.get("id") or "")
+        if not sid.startswith("test:") and sid != "test":
+            continue
+        if step.get("ok") is False or step.get("pass") is False:
+            step["dem08_warn"] = True
 
 
 def _is_build_command(cmd: str) -> bool:
@@ -271,28 +477,20 @@ def build_test_commands(
     if has_plan_test:
         return _dedupe_commands(cmds)
 
-    related = _related_source_files(changed_files, write_set)
-    extra_tests = _test_files_for_write_set(changed_files, repo_root)
-    targets = list(dict.fromkeys(related + extra_tests))
+    related_seeds, direct_tests = _find_related_test_targets(
+        changed_files, write_set, repo_root, plan=plan, task_dir=task_dir
+    )
+    related_cmd = _compose_find_related_test_cmd(repo_root, related_seeds, direct_tests)
 
-    if targets and os.path.isfile(os.path.join(repo_root, "package.json")):
-        joined = " ".join(f'"{t}"' for t in targets[:40])
-        if os.path.isfile(os.path.join(repo_root, "yarn.lock")):
-            cmds.append(
-                {
-                    "id": "related-tests",
-                    "cmd": f"CI=true yarn test --findRelatedTests {joined} --watchAll=false",
-                    "source": "findRelatedTests",
-                }
-            )
-        else:
-            cmds.append(
-                {
-                    "id": "related-tests",
-                    "cmd": f"CI=true npm test -- --findRelatedTests {' '.join(targets[:40])} --watchAll=false",
-                    "source": "findRelatedTests",
-                }
-            )
+    if related_cmd and os.path.isfile(os.path.join(repo_root, "package.json")):
+        cmds.append(
+            {
+                "id": "related-tests",
+                "cmd": related_cmd,
+                "source": "findRelatedTests",
+                "related_union_mode": _related_union_mode(),
+            }
+        )
     elif test_pattern and len(str(test_pattern).strip()) >= 2 and str(test_pattern).strip() not in ("=", "-"):
         if os.path.isfile(os.path.join(repo_root, "yarn.lock")):
             cmds.append(
@@ -573,11 +771,27 @@ def run_oracle(
     )
 
     end_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+    dem08 = _dem08_diagnostics(steps, write_set)
+    union_mode = _related_union_mode()
+    dem08_implement_warn = _dem08_implement_warn_pass(test_ok, dem08, union_mode)
+    if dem08_implement_warn:
+        test_ok = True
+        _annotate_dem08_warn_steps(steps)
+        overall = (
+            scope["pass"]
+            and secret["pass"]
+            and lint.get("pass", lint.get("ok", True))
+            and test_ok
+            and typecheck_ok
+            and build_ok
+        )
     result = {
         "schema_version": 1,
         "runner": "verification-oracle.sh",
         "overall": "pass" if overall else "not_pass",
         "oracle_mode": mode,
+        "related_union_mode": union_mode,
+        "dem08_implement_warn": dem08_implement_warn,
         "tier": tier,
         "git_head": gh,
         "candidate_diff_hash": dh,
@@ -585,11 +799,15 @@ def run_oracle(
         "artifact_hash": artifact_h,
         "reference_branch": ref_branch,
         "changed_files": changed,
+        "write_set": write_set,
         "smoke_required": smoke_required(changed, write_set, tier),
         "duration_ms": end_ms - start_ms,
         "steps": steps,
         "commands": [s.get("cmd") for s in steps if s.get("cmd")],
         "passed_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "failing_test_files": dem08["failing_test_files"],
+        "out_of_write_set_closure": dem08["out_of_write_set_closure"],
+        "verification_scope_overreach": dem08["verification_scope_overreach"],
     }
 
     if evidence_dir:

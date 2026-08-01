@@ -21,6 +21,40 @@ def _normalize_write_set_glob(entry: str) -> str:
     return w.rstrip("/")
 
 
+DOCS_GUZI_FLOW_PREFIX = "docs/guazi-flow/"
+
+
+def git_changed_and_untracked(git_root: str) -> list[str]:
+    """Working-tree changed paths (quotepath=false), deduped order-stable."""
+    if not git_root or not os.path.isdir(os.path.join(git_root, ".git")):
+        return []
+    names: list[str] = []
+    for args in (
+        ["git", "-C", git_root, "-c", "core.quotepath=false", "diff", "--name-only", "HEAD"],
+        [
+            "git",
+            "-C",
+            git_root,
+            "-c",
+            "core.quotepath=false",
+            "ls-files",
+            "--others",
+            "--exclude-standard",
+        ],
+    ):
+        try:
+            out = subprocess.check_output(args, text=True, stderr=subprocess.DEVNULL, timeout=30)
+            names.extend(line.strip() for line in out.splitlines() if line.strip())
+        except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired):
+            continue
+    return list(dict.fromkeys(names))
+
+
+def implement_scope_changed_files(git_root: str) -> list[str]:
+    """Paths for implement post scope checks; skips docs/guazi-flow (matches write_set gate)."""
+    return [f for f in git_changed_and_untracked(git_root) if not f.startswith(DOCS_GUZI_FLOW_PREFIX)]
+
+
 def path_allowed(path: str, allowed: list[str]) -> bool:
     for raw in allowed:
         w = _normalize_write_set_glob(raw)
