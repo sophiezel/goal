@@ -21,12 +21,12 @@
 | 标题 | 类型 | URL | Frontier |
 | --- | --- | --- | --- |
 | Task: profile stage_graph + handoff WO 字段（Part J / R1–R4 映射） | task | https://github.com/sophiezel/goal/issues/45 | **closed**（`58de85e`） |
-| Task: review kernel B JSON schemas + 夹具校验（Part L） | task | https://github.com/sophiezel/goal/issues/46 | **closed** |
+| Task: review kernel B JSON schemas + 夹具校验（Part L） | task | https://github.com/sophiezel/goal/issues/46 | **closed**（`1886b23`） |
 | Task: B1 — deprecate smoke advance；quality-only 主轨 | task | https://github.com/sophiezel/goal/issues/47 | **open** |
-| Task: B8 single-track 默认 + review gate/handoff（Part L） | task | https://github.com/sophiezel/goal/issues/48 | blocked by **#46** |
+| Task: B8 single-track 默认 + review gate/handoff（Part L） | task | https://github.com/sophiezel/goal/issues/48 | **open** |
 | Task: engineering_pack 目录桩 + Phase 1 skill_to_load（Part K） | task | https://github.com/sophiezel/goal/issues/49 | **open** |
 | Task: B2 + B3 — 全 stage timing 与契约融入 WARN→BLOCK | task | https://github.com/sophiezel/goal/issues/50 | blocked by **#47** |
-| Task: v1.2 gate fixture sweep（run-all-gate-tests 对齐） | task | https://github.com/sophiezel/goal/issues/51 | blocked by **#46、#47、#48** |
+| Task: v1.2 gate fixture sweep（run-all-gate-tests 对齐） | task | https://github.com/sophiezel/goal/issues/51 | blocked by **#47、#48** |
 
 ## 并发与串行（路由）
 
@@ -34,13 +34,13 @@
 | --- | --- | --- |
 | [#45](https://github.com/sophiezel/goal/issues/45) stage_graph（Part J） | — | **closed** |
 | [#46](https://github.com/sophiezel/goal/issues/46) B schemas（Part L） | #47、#49 | **closed** |
-| [#47](https://github.com/sophiezel/goal/issues/47) B1 smoke 轨 | #46、#49 | — |
-| [#49](https://github.com/sophiezel/goal/issues/49) engineering_pack（Part K） | #46、#47 | — |
-| [#48](https://github.com/sophiezel/goal/issues/48) B8 single-track | — | **#46 closed** — takeable |
-| [#50](https://github.com/sophiezel/goal/issues/50) B2 + B3 | #46（部分） | **#47**（建议） |
+| [#47](https://github.com/sophiezel/goal/issues/47) B1 smoke 轨 | #48、#49 | — |
+| [#49](https://github.com/sophiezel/goal/issues/49) engineering_pack（Part K） | #47、#48 | — |
+| [#48](https://github.com/sophiezel/goal/issues/48) B8 single-track | #47、#49 | — |
+| [#50](https://github.com/sophiezel/goal/issues/50) B2 + B3 | #48（部分） | **#47**（建议） |
 | [#51](https://github.com/sophiezel/goal/issues/51) gate sweep | — | **#47、#48** |
 
-**建议认领顺序：** 首波并行 **#46 / #47 / #49** → **#48**（#46 后）→ **#50**（#47 后）→ **#51** 收口。
+**建议认领顺序：** 并行 **#47 / #48 / #49** → **#50**（#47 后）→ **#51** 收口。
 
 ## Decisions so far（本地镜像）
 
