@@ -1,6 +1,8 @@
 # Wayfinder 本地镜像
 
-**当前活跃地图：** [Wayfinder: goal-pipeline 与 guazi 解耦 + Matt 简体工程化工作流（高保真/效率导向）](https://github.com/sophiezel/goal/issues/53) — 镜像 [maps/goal-pipeline-matt-decouple-workflow.md](maps/goal-pipeline-matt-decouple-workflow.md) · 子票 [#54](https://github.com/sophiezel/goal/issues/54)–[#58](https://github.com/sophiezel/goal/issues/58) · 前置 [PHASE-5-V12-IMPL-CLOSURE.md](PHASE-5-V12-IMPL-CLOSURE.md)
+**当前活跃地图：** _(无 — #53 规划轨已关闭 2026-08-02)_ · 下一图建议见 [#53](https://github.com/sophiezel/goal/issues/53) / [maps/goal-pipeline-matt-decouple-workflow.md](maps/goal-pipeline-matt-decouple-workflow.md)
+
+**Phase-6 规划轨（已关闭 2026-08-02）：** [Wayfinder: goal-pipeline 与 guazi 解耦 + Matt 简体工程化工作流](https://github.com/sophiezel/goal/issues/53) — 镜像 [maps/goal-pipeline-matt-decouple-workflow.md](maps/goal-pipeline-matt-decouple-workflow.md) · 子票 [#54](https://github.com/sophiezel/goal/issues/54)–[#58](https://github.com/sophiezel/goal/issues/58) **closed** · spec **[optimization-spec-outline-v1.3.md](research/optimization-spec-outline-v1.3.md)**
 
 **v1.2 实现图（已关闭）：** [#44](https://github.com/sophiezel/goal/issues/44) — [PHASE-5-V12-IMPL-CLOSURE.md](PHASE-5-V12-IMPL-CLOSURE.md) · 镜像 [maps/goal-pipeline-v1.2-implementation.md](maps/goal-pipeline-v1.2-implementation.md)
 
