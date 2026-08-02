@@ -593,6 +593,16 @@
           "event": "end",
           "timestamp_utc": "2026-08-02T18:40:13Z",
           "substep": "post"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-08-02T18:42:25Z",
+          "substep": "post"
+        },
+        {
+          "event": "end",
+          "timestamp_utc": "2026-08-02T18:42:25Z",
+          "substep": "post"
         }
       ],
       "substeps": {
@@ -797,13 +807,23 @@
               "event": "end",
               "timestamp_utc": "2026-08-02T18:40:13Z",
               "substep": "post"
+            },
+            {
+              "event": "start",
+              "timestamp_utc": "2026-08-02T18:42:25Z",
+              "substep": "post"
+            },
+            {
+              "event": "end",
+              "timestamp_utc": "2026-08-02T18:42:25Z",
+              "substep": "post"
             }
           ],
-          "last_timestamp_utc": "2026-08-02T18:40:13Z"
+          "last_timestamp_utc": "2026-08-02T18:42:25Z"
         }
       },
-      "last_timestamp_utc": "2026-08-02T18:40:13Z"
+      "last_timestamp_utc": "2026-08-02T18:42:25Z"
     }
   },
-  "updated_at_utc": "2026-08-02T18:40:13Z"
+  "updated_at_utc": "2026-08-02T18:42:25Z"
 }
