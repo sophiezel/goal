@@ -19,8 +19,17 @@ def main() -> int:
     errors: list[dict] = []
     flags: dict[str, bool] = {}
 
-    gate = (SCRIPT_DIR / "gate-guazi-flow-stage.sh").read_text(encoding="utf-8")
-    flags["qg_passes_state_file"] = "QG_ARGS+=(--state-file" in gate or '--state-file "$STATE_FILE"' in gate
+    gate_script = SCRIPT_DIR / "gate-goal-stage.sh"
+    if not gate_script.is_file():
+        gate_script = SCRIPT_DIR / "gate-guazi-flow-stage.sh"
+    gate = gate_script.read_text(encoding="utf-8") if gate_script.is_file() else ""
+    quality_lib = SCRIPT_DIR / "gate-lib" / "quality.sh"
+    qg_txt = quality_lib.read_text(encoding="utf-8") if quality_lib.is_file() else ""
+    flags["qg_passes_state_file"] = (
+        "QG_ARGS+=(--state-file" in gate
+        or '--state-file "$STATE_FILE"' in gate
+        or "QG_ARGS+=(--state-file" in qg_txt
+    )
     flags["noop_failfast"] = "noop_fix" in gate and "DO NOT rerun" in gate
     flags["timing_recorder"] = (SCRIPT_DIR / "record-pipeline-timing.py").is_file()
     flags["postmortem"] = (SCRIPT_DIR / "pipeline-postmortem.py").is_file()

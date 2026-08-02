@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "diff": "diff --git a/src/fixture.ts b/src/fixture.ts\n+export const fixture = 1;\n+export const fixture = 1;\n+export const fixture = 1;\n+export const fixture = 1;\n+export const fixture = 1;\n+export const fixture = 1;\n+export const fixture = 1;\n+export const fixture = 1;\n+export const fixture = 1;\n+export const fixture = 1;\n+export const fixture = 1;\n+export const fixture = 1;\n+export const fixture = 1;\n+export const fixture = 1;\n+export const fixture = 1;\n+export const fixture = 1;\n+export const fixture = 1;\n+export const fixture = 1;\n+export const fixture = 1;\n+export const fixture = 1;\n+export const fixture = 1;\n+export const fixture = 1;\n+export const fixture = 1;\n+export const fixture = 1;\n+export const fixture = 1;\n",
+  "diff_source": "reference_branch",
+  "reference_branch": "main...HEAD",
+  "integrity": {
+    "ok": true,
+    "errors": []
+  },
+  "deterministic_checks": {
+    "overall": "pass"
+  },
+  "changed_files": [
+    "src/fixture.ts"
+  ]
+}

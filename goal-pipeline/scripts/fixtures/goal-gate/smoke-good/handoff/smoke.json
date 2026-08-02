@@ -1,0 +1,19 @@
+{
+  "stage": "smoke",
+  "schema_version": 1,
+  "result": "pass",
+  "classification": "none",
+  "dev_cmd": "",
+  "duration_ms": 0,
+  "git_head": "f7853619423335d5",
+  "artifact_paths": [],
+  "runtime_artifact_paths": [
+    "evidence/runtime-smoke.md"
+  ],
+  "gate": {
+    "script": "gate-goal-stage.sh",
+    "version": 1,
+    "passed_at": "2026-08-02T16:11:07Z",
+    "post_exit_code": 0
+  }
+}

@@ -13,7 +13,9 @@ SCRIPT_DIR="$(cd "$(dirname "$_self")" && pwd)"
 GOAL_STATE_HOME="${GOAL_STATE_HOME:-${GOAL_HOME:-$HOME/.goal-pipeline}/state}"
 ADVANCE="$GOAL_STATE_HOME/scripts/goal-advance-stage.sh"
 [[ -x "$ADVANCE" ]] || ADVANCE="$SCRIPT_DIR/goal-advance-stage.sh"
-GATE="$GOAL_STATE_HOME/scripts/gate-guazi-flow-stage.sh"
+GATE="$GOAL_STATE_HOME/scripts/gate-goal-stage.sh"
+[[ -x "$GATE" ]] || GATE="$SCRIPT_DIR/gate-goal-stage.sh"
+[[ -x "$GATE" ]] || GATE="$GOAL_STATE_HOME/scripts/gate-guazi-flow-stage.sh"
 [[ -x "$GATE" ]] || GATE="$SCRIPT_DIR/gate-guazi-flow-stage.sh"
 
 STATE_FILE=""
@@ -120,7 +122,7 @@ def stage_progress_label(stage):
 def gate_cmd(stage, phase):
     return (
         f"{gate} --task-dir {task_dir!r} --stage {stage} --{phase} "
-        f"--mode guazi --state-file {state_file!r} --project-root {project_root!r}"
+        f"--mode {GATE_MODE} --state-file {state_file!r} --project-root {project_root!r}"
     )
 
 def load_pipeline_track():
@@ -133,7 +135,8 @@ def load_pipeline_track():
         return "compatibility"
 
 track = load_pipeline_track()
-STAGE_SKILL = STAGE_SKILL_EVOLUTION if track == "evolution" else STAGE_SKILL_COMPAT
+STAGE_SKILL = STAGE_SKILL_COMPAT if track in ("compatibility", "guazi") else STAGE_SKILL_EVOLUTION
+GATE_MODE = "guazi" if track in ("compatibility", "guazi") else "goal"
 
 # Review single-track (B8): default single — goal-review only; dual opt-in via env/state.
 def load_review_track():

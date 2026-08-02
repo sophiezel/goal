@@ -22,7 +22,8 @@ resolve_bin() {
 }
 
 DRIVER="$(resolve_bin goal-stage-driver.sh)"
-GATE="$(resolve_bin gate-guazi-flow-stage.sh)"
+GATE="$(resolve_bin gate-goal-stage.sh)"
+[[ -f "$GATE" ]] || GATE="$(resolve_bin gate-guazi-flow-stage.sh)"
 ADVANCE="$(resolve_bin goal-advance-stage.sh)"
 DOCTOR="$(resolve_bin goal-pipeline-doctor.sh)"
 ASSERT="$(resolve_bin assert-plan-before-code.sh)"

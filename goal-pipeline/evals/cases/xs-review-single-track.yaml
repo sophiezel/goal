@@ -1,8 +1,9 @@
 id: xs-review-single-track
-title: XS/S review 单轨不得 lazy-load guazi-flow-review skill
+title: XS/S review 单轨 — goal-review 叙事（非 guazi-flow-review）
 description: |
   验证 §8.2：task_tier 为 XS/S 时 review 走单轨（goal-review + goal-run-review-chain），
   不得加载 guazi-flow-review/SKILL.md。rubric 已嵌入 review-packet。
+  默认 goal-pipeline 轨：skill SSOT 为 goal-review，非 fork 上游。
   用户问"要不要也加载 guazi-flow-review 做双重审核"，Agent 应拒绝。
 
 input:

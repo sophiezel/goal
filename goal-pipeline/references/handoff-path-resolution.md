@@ -8,14 +8,21 @@ Related: [artifact-tier-policy.md](../../guazi-flow-goal/references/artifact-tie
 
 | Mode | Handoff root | Evidence (Tier-R) | Repo task dir |
 |------|----------------|-------------------|---------------|
-| **split** (default for `docs/guazi-flow/*`) | `$RUNTIME_ROOT/handoff` under goal-state | `$RUNTIME_ROOT/evidence` | `index.md` + Tier-G `evidence/` only |
+| **split** (default for `docs/goal/*` and `docs/guazi-flow/*`) | `$RUNTIME_ROOT/handoff` under goal-state | `$RUNTIME_ROOT/evidence` | `index.md` + Tier-G `evidence/` only |
 | **repo_full** (legacy) | `<task_dir>/handoff` | `<task_dir>/evidence` | handoff + evidence in repo |
+
+### Examples
+
+| Track | `task_docs_root` | Example task dir | Handoff (split) |
+|-------|------------------|------------------|-----------------|
+| **goal** (default) | `docs/goal` | `docs/goal/fix-login/` | `~/.goal-pipeline/state/projects/<pid>/<branch>/fix-login/artifacts/handoff/` |
+| **guazi adapter** | `docs/guazi-flow` | `docs/guazi-flow/ctb-43532/` | same layout under goal-state |
 
 `RUNTIME_ROOT` defaults to `~/.goal-pipeline/state/projects/<project_id>/<branch>/<task>/artifacts` when `state.json` is discovered.
 
 ## Resolution order (all consumers)
 
-1. **`GOAL_HANDOFF_DIR`** or **`HANDOFF_DIR`** — explicit override; `gate-guazi-flow-stage.sh` / `implement.sh` export `GOAL_HANDOFF_DIR=$HANDOFF_DIR` after `resolve-artifact-paths`.
+1. **`GOAL_HANDOFF_DIR`** or **`HANDOFF_DIR`** — explicit override; `gate-goal-stage.sh` / `implement.sh` export `GOAL_HANDOFF_DIR=$HANDOFF_DIR` after `resolve-artifact-paths`.
 2. **`resolve-artifact-paths.py`** — uses `GOAL_STATE_FILE` (or branch-scoped discovery), `artifact_layout.mode`, `GOAL_ARTIFACT_MODE`.
 3. **`<task_dir>/handoff`** — `repo_full` fallback.
 

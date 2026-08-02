@@ -73,6 +73,30 @@ def is_guazi_flow_task_dir(repo_task_dir: Path, project_root: Path | None) -> bo
     return len(parts) >= 2 and parts[0] == "docs" and parts[1] == "guazi-flow"
 
 
+def is_goal_task_dir(repo_task_dir: Path, project_root: Path | None) -> bool:
+    rel = task_rel_path(repo_task_dir, project_root)
+    if not rel:
+        return False
+    parts = rel.split("/")
+    return len(parts) >= 2 and parts[0] == "docs" and parts[1] == "goal"
+
+
+DEFAULT_TASK_DOCS_ROOT = "docs/goal"
+
+
+def task_docs_root_from_state(state: dict) -> str:
+    """Profile task_docs_root; default docs/goal for goal-pipeline consumers."""
+    profile = state.get("pipeline_profile") or state.get("profile") or {}
+    if isinstance(profile, dict):
+        root = str(profile.get("task_docs_root") or "").strip()
+        if root:
+            return root.rstrip("/")
+    root = str(state.get("task_docs_root") or "").strip()
+    if root:
+        return root.rstrip("/")
+    return DEFAULT_TASK_DOCS_ROOT
+
+
 def current_git_branch(project_root: Path) -> str:
     try:
         r = subprocess.run(
@@ -284,6 +308,8 @@ def default_mode(
         return "split"
     if is_guazi_flow_task_dir(repo_task_dir, project_root):
         return "split"
+    if is_goal_task_dir(repo_task_dir, project_root):
+        return "split"
     return "repo_full"
 
 
@@ -411,6 +437,7 @@ def resolve(
         "goal_evidence_dir": str(goal_evidence_dir),
         "state_file": str(sf) if sf else "",
         "project_root": str(proj) if proj else "",
+        "task_docs_root": task_docs_root_from_state(state) if state else DEFAULT_TASK_DOCS_ROOT,
     }
 
 
@@ -427,6 +454,7 @@ def shell_export(paths: dict) -> str:
         "REPO_EVIDENCE_DIR": paths["repo_evidence_dir"],
         "GOAL_EVIDENCE_DIR": paths["goal_evidence_dir"],
         "GOAL_STATE_FILE": paths.get("state_file", ""),
+        "TASK_DOCS_ROOT": paths.get("task_docs_root", DEFAULT_TASK_DOCS_ROOT),
     }
     lines = [f"export {k}={sh_quote(v)}" for k, v in exports.items()]
     lines.append(f"export TASK_DIR={sh_quote(paths['repo_task_dir'])}")

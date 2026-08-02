@@ -6,6 +6,8 @@
 
 ## Goal Schema（管线推进所需的最小信息集）
 
+默认任务目录：`docs/goal/<task>/`（profile `task_docs_root`，见 `resolve-artifact-paths.py`）。`plan_profile: goal_lite` 时可用轻量 goal brief 替代 guazi index 六段仪式。
+
 | 字段 | 优先级 | 来源 | 缺失时行为 |
 |------|:--:|------|------|
 | objective | P0 | 用户输入 | 无法创建 goal |

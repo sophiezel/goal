@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "source": "guazi-flow-core/unified-doc-contract.md",
+  "frontmatter_required": ["version", "current_stage", "profile", "profile_detail"],
+  "sections_required": [
+    "## 概览",
+    "## 任务目标",
+    "## 范围与非目标",
+    "## 核心事实",
+    "## 完整伪代码",
+    "## 验收与验证矩阵",
+    "## 执行记录"
+  ],
+  "write_set_section_aliases": ["## 范围与写集", "## 写集", "## write_set"],
+  "pseudocode_min_chars": 200,
+  "pseudocode_min_code_blocks": 1,
+  "execution_record_skill": {
+    "plan": "guazi-flow-plan",
+    "implement": "guazi-flow-implement",
+    "complete": "guazi-flow-complete"
+  }
+}

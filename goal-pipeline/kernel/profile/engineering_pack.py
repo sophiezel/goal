@@ -1,4 +1,4 @@
-"""Resolve engineering_pack (optimization-spec v1.2 Part K)."""
+"""Resolve engineering_pack (optimization-spec v1.2 Part K + v1.3 Part P)."""
 
 from __future__ import annotations
 
@@ -6,7 +6,15 @@ from typing import Any
 
 from kernel.profile.stage_graph import DEFAULT_PROFILE_ID, load_profile_document
 
-ENGINEERING_PACK_VALUES = frozenset({"none", "grill", "to_specs", "grill_to_specs"})
+ENGINEERING_PACK_VALUES = frozenset({
+    "none",
+    "grill",
+    "to_specs",
+    "grill_to_specs",
+    "prototype",
+    "handoff",
+    "full_matt",
+})
 
 # Agent skill names (goal-pipeline/skills/goal-engineering/*); not English marketplace SSOT.
 PACK_TO_SKILL_NAMES: dict[str, tuple[str, ...]] = {
@@ -14,11 +22,22 @@ PACK_TO_SKILL_NAMES: dict[str, tuple[str, ...]] = {
     "grill": ("goal-engineering-grill",),
     "to_specs": ("goal-engineering-to-specs",),
     "grill_to_specs": ("goal-engineering-grill", "goal-engineering-to-specs"),
+    "prototype": ("goal-engineering-grill", "goal-engineering-prototype", "goal-engineering-handoff"),
+    "handoff": ("goal-engineering-handoff",),
+    "full_matt": (
+        "goal-engineering-grill",
+        "goal-engineering-to-specs",
+        "goal-engineering-prototype",
+        "goal-engineering-handoff",
+    ),
 }
 
 SKILL_NAME_TO_SUBDIR: dict[str, str] = {
     "goal-engineering-grill": "grill",
     "goal-engineering-to-specs": "to-specs",
+    "goal-engineering-prototype": "prototype",
+    "goal-engineering-handoff": "handoff",
+    "goal-engineering-tdd": "tdd",
 }
 
 SKILL_REPO_ROOT = "goal-pipeline/skills/goal-engineering"

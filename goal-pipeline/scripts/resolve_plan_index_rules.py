@@ -10,6 +10,9 @@ import sys
 
 
 def _schema_dir(script_dir: str) -> str:
+    goal_dir = os.path.join(script_dir, "..", "references", "goal-artifact-schema")
+    if os.path.isdir(goal_dir):
+        return goal_dir
     return os.path.join(script_dir, "..", "references", "guazi-flow-artifact-schema")
 
 

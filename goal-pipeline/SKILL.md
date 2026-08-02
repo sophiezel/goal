@@ -5,7 +5,9 @@ description: 持久化目标执行管线引擎。使用 `/goal-pipeline <目标>
 
 # Goal Pipeline
 
-持久化目标执行管线——与 Claude Code /goal 对齐的 5 阶段管线引擎。零外部依赖，所有平台通用。
+持久化目标执行管线——与 Claude Code /goal 对齐的 5 阶段管线引擎。**goal-pipeline 为一等公民**；guazi-flow 为可选兼容适配层（`pipeline_track=compatibility|guazi`），见文末 **Guazi adapter appendix**。
+
+零外部 skill 硬依赖，所有平台通用。
 
 ## 关键话术速查
 
@@ -132,7 +134,7 @@ Phase 2: Pipeline Execution（Agent 持续执行）
 
 - 从用户输入解析目标（低自由度——三步收敛协议固定流程）、推断范围（中自由度——Agent 自主判断 Out of Scope 边界）、确定验收标准
 - 产出 plan 卡片（含 Allowed Files / Out of Scope / Stop Conditions / 验证清单 V#1..V#N 结构化字段）
-- plan 产物最小质量门槛（纯 goal-pipeline 模式；guazi-flow 模式下由 guazi-flow-plan 保障，跳过此步）：
+- plan 产物最小质量门槛（默认 goal-pipeline 模式；`pipeline_track=guazi` 时由 guazi-flow-plan 保障，跳过此步）：
   1. 验收标准可测性: 每条含 pass/fail 判定方式
      BAD: "功能正常" | GOOD: "GET /api/users 返回 200 + 列表非空"
      不满足 → 要求重写
@@ -162,7 +164,7 @@ Phase 2: Pipeline Execution（Agent 持续执行）
 
 Agent 在确定的范围内修改代码，产出候选 diff。
 
-**After implementing, verify（纯模式执行；guazi-flow 模式下由 diff 合规性审计覆盖）**：
+**After implementing, verify（默认 goal 模式；guazi 适配轨由 diff 合规性审计覆盖）**：
 - diff 文件是否全部在 Allowed Files 范围内？
   超出 → 告警 + 记录超出文件及理由
 - 是否引入新依赖或修改接口协议（Stop Conditions）？
@@ -307,9 +309,9 @@ review not_pass:
 [5/5] complete:  ✅ 目标完成
 ```
 
-guazi-flow-* 可用时，进度输出使用实际 skill 全名：
-`[1/5] guazi-flow-plan:` / `[2/5] guazi-flow-implement:` / `[4/5] review (guazi-flow + pipeline):` / `[5/5] guazi-flow-complete:`
-guazi-flow 不可用时使用通用名: plan / implement / smoke / review / complete
+默认进度输出使用 goal stage skill 名：
+`[1/5] goal-plan:` / `[2/5] goal-implement:` / `[3/5] goal-quality:` / `[4/5] goal-review:` / `[5/5] goal-complete:`
+`pipeline_track=guazi` 时可显示 guazi-flow-* 前缀（兼容轨）
 
 review 未通过时输出 issue 变动追踪（✅已解决 / 🔁持续 / 🆕新增），blocked 时输出决策选项 [A/B/C/D]。implement 阶段修改超出 Allowed Files 白名单时输出 ⚠️ 告警。
 
@@ -327,8 +329,8 @@ review 未通过时输出 issue 变动追踪（✅已解决 / 🔁持续 / 🆕�
 
 ## Evidence 路径
 
-纯 goal-pipeline 模式: `<task_dir>/evidence/`（task_dir = state.json 中的 task 路径）
-guazi-flow 模式: `docs/guazi-flow/<task>/evidence/`（由 guazi-flow-plan 确定）
+默认 goal-pipeline 模式: `docs/goal/<task>/evidence/`（`task_docs_root` 默认 `docs/goal`；task_dir = state.json 中的 task 路径）
+guazi 适配轨: `docs/guazi-flow/<task>/evidence/`（`pipeline_track=guazi` 或 profile 显式 `task_docs_root: docs/guazi-flow`）
 
 evidence 文件清单：
 - runtime-smoke.md — smoke 阶段产出
@@ -397,6 +399,17 @@ evidence 文件清单：
 ## 原生 Goal 集成
 
 当 `platform.native_goal = true` 时（Claude Code / Codex / Pi），goal-pipeline 利用平台原生 /goal 能力作为执行引擎，state.json 作为双保险。详见 `references/platform-detection.md` 的平台能力矩阵。`native_goal = false` 时完全自主管理。
+
+## Guazi adapter appendix（可选）
+
+`pipeline_track=compatibility|guazi` 时：
+
+- Gate：`gate-goal-stage.sh --mode guazi`（或兼容包装 `gate-guazi-flow-stage.sh`）
+- Stage skills：可对照 `guazi-flow-plan` / `guazi-flow-implement` / `guazi-flow-review` / `guazi-flow-complete` 作为附录
+- 任务目录：默认 `docs/guazi-flow/<task>/`；需安装 guazi-flow-* marketplace skills
+- Review：`review_track=dual` 时可加载 `guazi-flow-review` 注入 Step 1.5
+
+**默认 goal 轨不需要** guazi-flow-* marketplace；SSOT 为本仓库 `goal-pipeline/stages/goal-*`。
 
 ## 生命周期管理
 

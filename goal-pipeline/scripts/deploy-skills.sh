@@ -34,6 +34,10 @@ Usage: deploy-skills.sh [options]
 Deploy goal-pipeline / guazi-flow-goal skills from GOAL_PIPELINE_REPO (default: ~/.goal-pipeline/repository).
 Skill symlinks MUST NOT point at a dev checkout.
 
+**Consumers:**
+  - **goal-pipeline (default):** deploys `goal-pipeline` only (`--no-guazi`). Does NOT require guazi-flow-* marketplace.
+  - **guazi adapter:** omit `--no-guazi` to also deploy `guazi-flow-goal` for `pipeline_track=guazi` / `docs/guazi-flow` tasks.
+
 Options:
   --symlink              Symlink skills (default)
   --copy                 Copy skill directories
@@ -47,6 +51,9 @@ Environment:
   GOAL_HOME              Application root (default: ~/.goal-pipeline)
   GOAL_PIPELINE_REPO     Install clone (default: $GOAL_HOME/repository)
   SKILLS_DEPLOY_MODE     universal (default) | platform-native
+
+Note: Pure goal consumers should use `--no-guazi` (or set NO_GUAZI=1). Guazi adapter requires
+guazi-flow-* marketplace skills in addition to guazi-flow-goal.
 USAGE
 }
 

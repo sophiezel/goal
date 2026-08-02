@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "skill": "goal-pipeline-unified-review",
+  "gf_skill_attested": true,
+  "result": "not_pass",
+  "checklist_goal": [
+    {
+      "id": "goal_achieved",
+      "passed": true,
+      "detail": "mock"
+    },
+    {
+      "id": "scope_compliant",
+      "passed": true,
+      "detail": "mock"
+    },
+    {
+      "id": "evidence_sufficient",
+      "passed": true,
+      "detail": "mock"
+    },
+    {
+      "id": "side_effects",
+      "passed": true,
+      "detail": "mock"
+    },
+    {
+      "id": "completeness",
+      "passed": true,
+      "detail": "mock"
+    },
+    {
+      "id": "security",
+      "passed": true,
+      "detail": "mock"
+    },
+    {
+      "id": "scope",
+      "passed": false,
+      "detail": ""
+    },
+    {
+      "id": "secret",
+      "passed": true,
+      "detail": ""
+    },
+    {
+      "id": "test",
+      "passed": true,
+      "detail": "GOAL_SKIP_TEST=1"
+    },
+    {
+      "id": "lint",
+      "passed": true,
+      "detail": "GOAL_SKIP_LINT=1"
+    },
+    {
+      "id": "build",
+      "passed": true,
+      "detail": "GOAL_SKIP_BUILD=1"
+    }
+  ],
+  "checklist_gf": [
+    {
+      "case_id": "C01",
+      "passed": true,
+      "detail": "mock"
+    }
+  ],
+  "issues": [
+    {
+      "id": "CHK-SCOPE",
+      "channel": "goal",
+      "severity": "blocker",
+      "summary": "verify-review scope failed",
+      "file": "",
+      "evidence": "",
+      "root_cause": "implement_error"
+    }
+  ],
+  "provider": "mock-unified",
+  "model": "mock-unified",
+  "packet_hash": "f9e6c87f476d6cf5",
+  "invocation_count": 1,
+  "generated_at": "2026-08-02T16:11:09Z"
+}

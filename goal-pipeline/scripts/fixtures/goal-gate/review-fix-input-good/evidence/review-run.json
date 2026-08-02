@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "run_id": "run1234567890abcd",
+  "provider": "deterministic",
+  "model": "deterministic",
+  "packet_hash": "c01d9ee55537e046",
+  "channels": [
+    "goal"
+  ],
+  "gf_skill_attested": false,
+  "wrapper_profile": "goal-review",
+  "review_track": "single",
+  "latency_ms": 10,
+  "mode": "unified",
+  "invocation_count": 1,
+  "output_hash": "0000000000000000",
+  "started_at": "2026-01-01T00:00:00Z",
+  "finished_at": "2026-01-01T00:00:01Z"
+}

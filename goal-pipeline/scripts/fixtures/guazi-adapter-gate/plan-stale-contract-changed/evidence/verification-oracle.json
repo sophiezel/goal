@@ -1,0 +1,18 @@
+{
+  "schema_version": 1,
+  "overall": "pass",
+  "oracle_mode": "related_union",
+  "git_head": "unknown",
+  "candidate_diff_hash": "unknown",
+  "passed_at": "2026-08-02T16:11:51Z",
+  "steps": [
+    {
+      "id": "scope",
+      "pass": true
+    },
+    {
+      "id": "secret",
+      "pass": true
+    }
+  ]
+}

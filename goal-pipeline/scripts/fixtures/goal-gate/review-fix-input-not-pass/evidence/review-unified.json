@@ -1,0 +1,26 @@
+{
+  "schema_version": 1,
+  "skill": "goal-pipeline-unified-review",
+  "gf_skill_attested": true,
+  "result": "not_pass",
+  "checklist_goal": [
+    {
+      "id": "C01",
+      "passed": false,
+      "detail": "fail"
+    }
+  ],
+  "checklist_gf": [],
+  "issues": [
+    {
+      "id": "G01",
+      "severity": "high",
+      "summary": "scope violation",
+      "root_cause": "implement_error",
+      "channel": "goal"
+    }
+  ],
+  "provider": "deterministic",
+  "packet_hash": "c01d9ee55537e046",
+  "invocation_count": 1
+}

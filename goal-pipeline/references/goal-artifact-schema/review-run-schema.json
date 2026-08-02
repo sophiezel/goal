@@ -1,0 +1,24 @@
+{
+  "schema_version": 1,
+  "description": "Provenance record for independent review execution",
+  "required": [
+    "run_id",
+    "provider",
+    "packet_hash",
+    "latency_ms",
+    "output_hash",
+    "started_at",
+    "finished_at"
+  ],
+  "fields": {
+    "run_id": "16-char hex",
+    "provider": "deterministic | cursor-task | claude-native | openai-api | mock-unified",
+    "model": "model identifier",
+    "mode": "unified | goal",
+    "packet_hash": "sha256[:16] of review-packet.json",
+    "latency_ms": "integer",
+    "invocation_count": "1 for unified mode",
+    "tokens": "object with prompt/completion counts when available",
+    "output_hash": "sha256[:16] of review-unified.json canonical form"
+  }
+}

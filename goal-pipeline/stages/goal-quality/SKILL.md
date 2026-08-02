@@ -35,12 +35,16 @@ runtime-smoke.sh → quality-gate.sh → gate --post quality
 
 完整矩阵与 PQ/IQ/UVO dedupe：[goal-quality-e2e-profile.md](../../references/goal-quality-e2e-profile.md)。
 
+## guazi adapter（可选）
+
+`pipeline_track=compatibility|guazi` 时进度标签可显示 `guazi-flow-*` 前缀；gate 脚本仍为 `gate-goal-stage.sh`。
+
 ## Stage Exit
 
 ```bash
 runtime-smoke.sh --repo-root <root> --task-dir <task>
 bash quality-gate.sh --task-dir <task> --repo-root <root> --tier <tier>
-gate-guazi-flow-stage.sh --stage quality --post
+gate-goal-stage.sh --stage quality --post
 goal-advance-stage.sh
 ```
 

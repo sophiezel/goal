@@ -1,22 +1,26 @@
 ---
 name: goal-complete
-description: 进化轨 complete 阶段。Fork 自 guazi-flow-complete，产出 ready_for_production 候选与质量报告。
+description: goal-pipeline complete 阶段。产出 ready_for_production 候选与质量报告。Use with /goal-pipeline (default track).
 ---
 
 # goal-complete
 
-Fork-and-Own 自 `guazi-flow-complete`。`complete` = 本地候选就绪，**不**自动 commit/push/MR。
+**SSOT** for complete stage. `complete` = 本地候选就绪，**不**自动 commit/push/MR。guazi-flow-complete is optional via `pipeline_track=compatibility|guazi` appendix.
 
 ## 必读
 
-- 上游 `guazi-flow-complete/SKILL.md`
 - `goal-pipeline/scripts/goal-metrics-calibrate.sh`
+- `goal-pipeline/references/lifecycle.md`
 
 ## goal_patches
 
 1. **quality-report**：跑 `goal-metrics-calibrate.sh` 写入 evidence
 2. **ready_for_production**：verify.sh 全链通过 + handoff/complete.json
 3. **人工提交**：提示用户自行 commit/push/MR
+
+## guazi adapter（可选）
+
+`pipeline_track=compatibility|guazi` 时可对照上游 `guazi-flow-complete/SKILL.md` 作为附录。
 
 ## Stage Exit
 
@@ -25,11 +29,11 @@ When `resolve_postmerge_policy` → `required` and `evidence/postmerge.md` is no
 ```bash
 # optional: confirm policy
 python3 goal-pipeline/scripts/resolve_postmerge_policy.py --index <task>/index.md --state-file <state> --handoff-dir <handoff>
-gate-guazi-flow-stage.sh --stage complete --pre
-# guazi-flow-complete 等价收口
+gate-goal-stage.sh --stage complete --pre
+# complete 收口
 bash goal-metrics-calibrate.sh --task-dir <task> --state-file <state>
-gate-guazi-flow-stage.sh --stage complete --post
-gate-guazi-flow-stage.sh --assert-complete
+gate-goal-stage.sh --stage complete --post
+gate-goal-stage.sh --assert-complete
 ```
 
 ## NEVER

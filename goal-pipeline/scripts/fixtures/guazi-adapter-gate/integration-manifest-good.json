@@ -1,0 +1,25 @@
+{
+  "schema_version": 1,
+  "project_roots": [
+    {
+      "id": "app_a",
+      "project_root": "/tmp/fixture-app-a",
+      "guazi_flow_task": "docs/guazi-flow/demo-task"
+    },
+    {
+      "id": "app_b",
+      "project_root": "/tmp/fixture-app-b",
+      "guazi_flow_task": "docs/guazi-flow/demo-task"
+    }
+  ],
+  "cross_app": [
+    {
+      "from_project": "app_a",
+      "to_project": "app_b",
+      "path": "/v2/demo/apply",
+      "query": ["appointId", "mode"],
+      "from_scan_globs": ["src/utils/"],
+      "to_scan_globs": ["src/pages/"]
+    }
+  ]
+}

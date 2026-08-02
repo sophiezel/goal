@@ -1,22 +1,55 @@
-# gate-lib/plan.sh — stage body for gate-guazi-flow-stage.sh (sourced in case)
+# gate-lib/plan.sh — stage body for gate-goal-stage.sh (sourced in case)
 # Relies on parent functions/vars: fail/pass/INDEX/HANDOFF_DIR/PHASE/etc.
     if [[ "$PHASE" == "pre" ]]; then
       # Hard ACL: do not allow code-first while still in plan (must run before pass exits).
       run_plan_before_code_guard 0
       pass "plan pre — no prior handoff required"
     fi
-    [[ -f "$INDEX" ]] || fail "index.md not found"
-    RESULT=$(py_check_index)
-    OK=$(echo "$RESULT" | python3 -c "import json,sys; print(json.load(sys.stdin)['ok'])")
-    if [[ "$OK" != "True" ]]; then
-      ERRS=$(echo "$RESULT" | python3 -c "import json,sys; print(json.dumps(json.load(sys.stdin)['errors']))")
-      IH=$(content_hash "$INDEX")
-      export GATE_ERRORS_JSON="$ERRS"
-      ISSUES=$(errors_to_issues_json)
-      gate_fail_with_issues "plan" "$IH" "fix_and_rerun" "$ISSUES" "plan index schema validation failed"
+    # Resolve plan_profile (goal_lite skips index hard validation)
+    PLAN_PROFILE_EFFECTIVE="full"
+    if [[ -f "$HANDOFF_DIR/plan.json" ]]; then
+      PLAN_PROFILE_EFFECTIVE=$(python3 -c "import json; print(json.load(open('$HANDOFF_DIR/plan.json')).get('plan_profile','full'))" 2>/dev/null || echo "full")
+    elif [[ -f "$INDEX" ]]; then
+      PLAN_PROFILE_EFFECTIVE=$(python3 -c "
+import re
+t=open('$INDEX',encoding='utf-8').read()
+m=re.match(r'^---\s*\n(.*?)\n---', t, re.DOTALL)
+if m:
+  for line in m.group(1).splitlines():
+    if line.strip().lower().startswith('plan_profile:'):
+      print(line.split(':',1)[1].strip().strip('\"').strip(\"'\")); break
+  else:
+    print('full')
+else:
+  print('full')
+" 2>/dev/null || echo "full")
+    elif [[ -n "${STATE_FILE:-}" && -f "${STATE_FILE:-}" ]]; then
+      PLAN_PROFILE_EFFECTIVE=$(python3 -c "import json; print(json.load(open('$STATE_FILE')).get('plan_profile','full'))" 2>/dev/null || echo "full")
+    fi
+    PLAN_PROFILE_EFFECTIVE=$(echo "$PLAN_PROFILE_EFFECTIVE" | tr '[:upper:]' '[:lower:]')
+    GOAL_LITE=false
+    [[ "$PLAN_PROFILE_EFFECTIVE" == "goal_lite" ]] && GOAL_LITE=true
+
+    if [[ "$GOAL_LITE" == "true" ]]; then
+      RESULT='{"ok":true,"errors":[],"frontmatter":{},"write_set":[],"acceptance_matrix_ids":[],"profile":"","profile_detail":"","plan_profile":"goal_lite"}'
+    else
+      [[ -f "$INDEX" ]] || fail "index.md not found"
+      RESULT=$(py_check_index)
+      OK=$(echo "$RESULT" | python3 -c "import json,sys; print(json.load(sys.stdin)['ok'])")
+      if [[ "$OK" != "True" ]]; then
+        ERRS=$(echo "$RESULT" | python3 -c "import json,sys; print(json.dumps(json.load(sys.stdin)['errors']))")
+        IH=$(content_hash "$INDEX")
+        export GATE_ERRORS_JSON="$ERRS"
+        ISSUES=$(errors_to_issues_json)
+        gate_fail_with_issues "plan" "$IH" "fix_and_rerun" "$ISSUES" "plan index schema validation failed"
+      fi
     fi
     if [[ "$PHASE" == "post" ]]; then
-      IH_PRE=$(index_contract_hash "$INDEX")
+      if [[ "$GOAL_LITE" == "true" ]]; then
+        IH_PRE="goal_lite"
+      else
+        IH_PRE=$(index_contract_hash "$INDEX")
+      fi
       if [[ -n "$STATE_FILE" && -f "$STATE_FILE" && -f "$SCRIPT_DIR/quality_policy_tier.py" ]]; then
         python3 "$SCRIPT_DIR/quality_policy_tier.py" \
           --task-dir "$TASK_DIR" \
@@ -25,26 +58,32 @@
           --json >/dev/null 2>&1 || true
       fi
       TIER=$(resolve_quality_tier)
-      PQ_JSON=$(mktemp)
-      if ! python3 "$SCRIPT_DIR/plan-quality-gate.py" --task-dir "$TASK_DIR" --tier "$TIER" --json > "$PQ_JSON" 2>/dev/null; then
-        PQ_ISSUES=$(pq_issues_to_gate_json "$PQ_JSON")
-        gate_fail_with_issues "plan" "$IH_PRE" "fix_and_rerun" "$PQ_ISSUES" "plan-quality-gate failed (PQ firewall)"
+      if [[ "$GOAL_LITE" != "true" ]]; then
+        PQ_JSON=$(mktemp)
+        if ! python3 "$SCRIPT_DIR/plan-quality-gate.py" --task-dir "$TASK_DIR" --tier "$TIER" --json > "$PQ_JSON" 2>/dev/null; then
+          PQ_ISSUES=$(pq_issues_to_gate_json "$PQ_JSON")
+          gate_fail_with_issues "plan" "$IH_PRE" "fix_and_rerun" "$PQ_ISSUES" "plan-quality-gate failed (PQ firewall)"
+        fi
+        rm -f "$PQ_JSON"
       fi
-      rm -f "$PQ_JSON"
       WS=$(echo "$RESULT" | python3 -c "import json,sys; print(json.dumps(json.load(sys.stdin)['write_set']))")
       WS=$(normalize_write_set_json "$WS")
       AM=$(echo "$RESULT" | python3 -c "import json,sys; print(json.dumps(json.load(sys.stdin)['acceptance_matrix_ids']))")
       PROF=$(echo "$RESULT" | python3 -c "import json,sys; print(json.load(sys.stdin).get('profile',''))")
       PD=$(echo "$RESULT" | python3 -c "import json,sys; print(json.load(sys.stdin).get('profile_detail',''))")
       PP=$(echo "$RESULT" | python3 -c "import json,sys; print(json.load(sys.stdin).get('plan_profile','full'))")
-      IH=$(index_contract_hash "$INDEX")
-      EH=$(index_execution_tail_hash "$INDEX")
-      API_MAP_HASH=$(python3 "$SCRIPT_DIR/contract_parser.py" --api-mapping-hash "$INDEX" 2>/dev/null || echo "")
-      # Keep legacy index_schema_hash = contract hash for older consumers
-      GH=$(git_head_short)
-      VERIF="{}"
-      if [[ -f "$INDEX_HASH_PY" ]]; then
-        VERIF=$(python3 - "$INDEX" "$INDEX_HASH_PY" << 'PYVER'
+      if [[ "$GOAL_LITE" == "true" ]]; then
+        IH="goal_lite"
+        EH=""
+        API_MAP_HASH=""
+        VERIF="{}"
+      else
+        IH=$(index_contract_hash "$INDEX")
+        EH=$(index_execution_tail_hash "$INDEX")
+        API_MAP_HASH=$(python3 "$SCRIPT_DIR/contract_parser.py" --api-mapping-hash "$INDEX" 2>/dev/null || echo "")
+        VERIF="{}"
+        if [[ -f "$INDEX_HASH_PY" ]]; then
+          VERIF=$(python3 - "$INDEX" "$INDEX_HASH_PY" << 'PYVER'
 import json, sys, importlib.util
 index_path, helper = sys.argv[1], sys.argv[2]
 spec = importlib.util.spec_from_file_location("index_contract_hash", helper)
@@ -54,13 +93,20 @@ text = open(index_path, encoding="utf-8").read()
 print(json.dumps(mod.extract_verification_hints(text), ensure_ascii=False))
 PYVER
 ) || VERIF="{}"
+        fi
       fi
+      # Keep legacy index_schema_hash = contract hash for older consumers
+      GH=$(git_head_short)
+      PLAN_SKILL_EXPECTED="goal-plan"
+      [[ "${GATE_MODE:-goal}" == "guazi" ]] && PLAN_SKILL_EXPECTED="guazi-flow-plan"
+      ARTIFACT_PATHS='["index.md"]'
+      [[ "$GOAL_LITE" == "true" ]] && ARTIFACT_PATHS='[]'
       TMP=$(mktemp)
       cat > "$TMP" << JSON
 {
   "stage": "plan",
   "schema_version": 1,
-  "skill_expected": "guazi-flow-plan",
+  "skill_expected": "$PLAN_SKILL_EXPECTED",
   "skill_executed": true,
   "task_dir": "$TASK_DIR",
   "profile": "$PROF",
@@ -75,12 +121,13 @@ PYVER
   "index_schema_hash": "$IH",
   "verification": $VERIF,
   "git_head": "$GH",
-  "artifact_paths": ["index.md"],
+  "artifact_paths": $ARTIFACT_PATHS,
   "warnings": []
 }
 JSON
       py_write_handoff plan "$TMP" >/dev/null
       rm -f "$TMP"
+      if [[ "$GOAL_LITE" != "true" ]]; then
       CONTRACT_ENRICH="$SCRIPT_DIR/guazi_flow_contract_enrich.py"
       if [[ -f "$CONTRACT_ENRICH" ]]; then
         CE_ARGS=(--task-dir "$TASK_DIR" --index "$INDEX" --plan-json "$HANDOFF_DIR/plan.json")
@@ -138,6 +185,7 @@ with open(plan_path, "w", encoding="utf-8") as f:
     f.write("\n")
 PYWARN
         fi
+      fi
       fi
       # Stamp task_tier (XS/S/M/L/XL) for SLO + parallel strategy
       if [[ -f "$SCRIPT_DIR/task_tier.py" ]]; then

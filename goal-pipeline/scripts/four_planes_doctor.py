@@ -223,8 +223,18 @@ def main() -> int:
         )
     )
 
-    gate_txt = (SCRIPT_DIR / "gate-guazi-flow-stage.sh").read_text(encoding="utf-8") if (SCRIPT_DIR / "gate-guazi-flow-stage.sh").is_file() else ""
-    checks.append(check("efficiency.qg_state_file", "QG_ARGS+=(--state-file" in gate_txt or "--state-file \"$STATE_FILE\"" in gate_txt))
+    gate_script = SCRIPT_DIR / "gate-goal-stage.sh"
+    if not gate_script.is_file():
+        gate_script = SCRIPT_DIR / "gate-guazi-flow-stage.sh"
+    gate_txt = gate_script.read_text(encoding="utf-8") if gate_script.is_file() else ""
+    quality_lib = SCRIPT_DIR / "gate-lib" / "quality.sh"
+    qg_txt = quality_lib.read_text(encoding="utf-8") if quality_lib.is_file() else ""
+    qg_state_ok = (
+        "QG_ARGS+=(--state-file" in gate_txt
+        or "--state-file \"$STATE_FILE\"" in gate_txt
+        or "QG_ARGS+=(--state-file" in qg_txt
+    )
+    checks.append(check("efficiency.qg_state_file", qg_state_ok))
     checks.append(check("efficiency.pipeline_timing", (SCRIPT_DIR / "record-pipeline-timing.py").is_file()))
     delivery_mod = SCRIPT_DIR.parent / "kernel" / "metrics" / "delivery_report.py"
     checks.append(check("efficiency.delivery_report_kernel", delivery_mod.is_file(), str(delivery_mod)))

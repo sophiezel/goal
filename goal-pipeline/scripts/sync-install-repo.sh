@@ -31,6 +31,10 @@ Usage: sync-install-repo.sh [options]
 
 Keep GOAL_HOME updated: repository git sync + redeploy runtime to GOAL_STATE_HOME.
 
+**Consumers:**
+  - **goal-pipeline (default):** runtime + `goal-pipeline` skill; task docs under `docs/goal/`; no guazi-flow-* required.
+  - **guazi adapter:** also deploy `guazi-flow-goal`; syncs both `goal-artifact-schema` and `guazi-flow-artifact-schema`.
+
 Options:
   --quiet         Minimal output
   --pull-only     Git sync only, skip deploy
@@ -193,11 +197,17 @@ deploy_runtime() {
     cp -R "$schemas_src/." "$GOAL_STATE_HOME/schemas/"
   fi
 
-  SCHEMA_SRC="$source_root/goal-pipeline/references/guazi-flow-artifact-schema"
-  SCHEMA_DST="$GOAL_STATE_HOME/references/guazi-flow-artifact-schema"
+  SCHEMA_SRC="$source_root/goal-pipeline/references/goal-artifact-schema"
+  SCHEMA_DST="$GOAL_STATE_HOME/references/goal-artifact-schema"
   if [[ -d "$SCHEMA_SRC" ]]; then
     mkdir -p "$SCHEMA_DST"
     cp -R "$SCHEMA_SRC/"* "$SCHEMA_DST/" 2>/dev/null || true
+  fi
+  GUAZI_SCHEMA_SRC="$source_root/goal-pipeline/references/guazi-flow-artifact-schema"
+  GUAZI_SCHEMA_DST="$GOAL_STATE_HOME/references/guazi-flow-artifact-schema"
+  if [[ -d "$GUAZI_SCHEMA_SRC" ]]; then
+    mkdir -p "$GUAZI_SCHEMA_DST"
+    cp -R "$GUAZI_SCHEMA_SRC/"* "$GUAZI_SCHEMA_DST/" 2>/dev/null || true
   fi
 
   # Four-plane product refs (Kernel / doctor / failure codes)
@@ -212,7 +222,10 @@ deploy_runtime() {
     cp "$REF_SRC/$ref" "$REF_DST/$ref"
   done
 
-  GATE_SRC="$source_root/goal-pipeline/scripts/gate-guazi-flow-stage.sh"
+  GATE_SRC="$source_root/goal-pipeline/scripts/gate-goal-stage.sh"
+  if [[ ! -f "$GATE_SRC" ]]; then
+    GATE_SRC="$source_root/goal-pipeline/scripts/gate-guazi-flow-stage.sh"
+  fi
   GATE_HASH="$(shasum -a 256 "$GATE_SRC" 2>/dev/null | cut -c1-16 || sha256sum "$GATE_SRC" 2>/dev/null | cut -c1-16 || echo unknown)"
   GIT_REV="$(git -C "$source_root" rev-parse --short HEAD 2>/dev/null || echo unknown)"
   KERNEL_VERSION="$(python3 - "$kernel_src/__init__.py" <<'PY'
