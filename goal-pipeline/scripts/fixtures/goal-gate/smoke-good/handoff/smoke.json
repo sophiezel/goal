@@ -5,7 +5,7 @@
   "classification": "none",
   "dev_cmd": "",
   "duration_ms": 0,
-  "git_head": "f7853619423335d5",
+  "git_head": "9910d799e5076bbc",
   "artifact_paths": [],
   "runtime_artifact_paths": [
     "evidence/runtime-smoke.md"
@@ -13,7 +13,7 @@
   "gate": {
     "script": "gate-goal-stage.sh",
     "version": 1,
-    "passed_at": "2026-08-02T16:11:07Z",
+    "passed_at": "2026-08-02T18:32:25Z",
     "post_exit_code": 0
   }
 }

@@ -1,5 +1,6 @@
 .qoder/
 __pycache__/
+.cache/
 *.pyc
 .DS_Store
 

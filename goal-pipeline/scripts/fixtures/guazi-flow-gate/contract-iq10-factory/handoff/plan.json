@@ -1,9 +1,0 @@
-{
-  "stage": "plan",
-  "schema_version": 1,
-  "write_set": [
-    "src/services/demo.ts"
-  ],
-  "profile": "h5",
-  "api_mapping_table_hash": "15125668ef5e1f95"
-}

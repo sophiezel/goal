@@ -69,28 +69,11 @@ if [[ "$PROJECT_ROOT" != /* ]]; then
 fi
 
 GATE_BIN="$SCRIPT_DIR/gate-goal-stage.sh"
-[[ -x "$GATE_BIN" ]] || GATE_BIN="$SCRIPT_DIR/gate-guazi-flow-stage.sh"
 GATE_SH="$(basename "$GATE_BIN")"
-GUAZI_COMPAT=false
-if [[ -n "$STATE_FILE" && -f "$STATE_FILE" ]]; then
-  GUAZI_COMPAT=$(python3 - "$STATE_FILE" << 'PY' || echo false
-import json, sys
-t = json.load(open(sys.argv[1])).get("pipeline_track", "evolution")
-print("true" if t in ("compatibility", "guazi") else "false")
-PY
-)
-fi
-if [[ "$GUAZI_COMPAT" == "true" ]]; then
-  GATE_MODE="guazi"
-  PLAN_SKILL="guazi-flow-plan"
-  IMPL_SKILL="guazi-flow-implement"
-  COMPLETE_SKILL="guazi-flow-complete"
-else
-  GATE_MODE="goal"
-  PLAN_SKILL="goal-plan"
-  IMPL_SKILL="goal-implement"
-  COMPLETE_SKILL="goal-complete"
-fi
+GATE_MODE="goal"
+PLAN_SKILL="goal-plan"
+IMPL_SKILL="goal-implement"
+COMPLETE_SKILL="goal-complete"
 
 emit_json() {
   python3 - "$@" << 'PY'
@@ -162,7 +145,7 @@ gate_passed_in_state() {
 import json, sys
 state = json.load(open(sys.argv[1]))
 stage = sys.argv[2]
-stages = state.get("guazi_flow_stages") or {}
+stages = state.get("pipeline_stages") or {}
 entry = stages.get(stage) or {}
 gate = entry.get("gate") or {}
 gates = (state.get("gates") or {}).get(stage) or {}
@@ -175,7 +158,7 @@ PY
 }
 
 if [[ -z "$STATE_FILE" || ! -f "$STATE_FILE" ]]; then
-  emit "goal_engineering" "" "false" '["guazi-flow-goal Phase 1: create state.json"]'
+  emit "goal_engineering" "" "false" '["goal-pipeline Phase 1: create state.json"]'
   exit 0
 fi
 
@@ -195,7 +178,7 @@ if [[ "$STATE_STATUS" == "paused" ]]; then
 fi
 
 if [[ -z "$TASK_DIR" ]]; then
-  REL_TASK=$(python3 -c "import json; print(json.load(open('$STATE_FILE')).get('guazi_flow_task',''))" 2>/dev/null || echo "")
+  REL_TASK=$(python3 -c "import json; s=json.load(open('$STATE_FILE')); print(s.get('goal_task') or s.get('artifact_layout',{}).get('repo_task_dir',''))" 2>/dev/null || echo "")
   if [[ -n "$REL_TASK" ]]; then
     TASK_DIR="$(resolve_abs "$REL_TASK" "$PROJECT_ROOT")"
   fi
@@ -268,7 +251,7 @@ fi
 if ! handoff_ok "$HANDOFF/implement.json" && ! gate_passed_in_state "implement"; then
   IMPL_GATE_PENDING=false
   if [[ -f "$INDEX" ]]; then
-    if grep -qE 'implement.*(完成|complete|pass)|guazi-flow-implement|yarn test|pytest|[0-9]+ passed' "$INDEX" 2>/dev/null; then
+    if grep -qE 'implement.*(完成|complete|pass)|goal-implement|yarn test|pytest|[0-9]+ passed' "$INDEX" 2>/dev/null; then
       IMPL_GATE_PENDING=true
     fi
   fi
@@ -285,7 +268,6 @@ SMOKE_SCRIPT="$GOAL_STATE_HOME/scripts/runtime-smoke.sh"
 [[ -x "$SMOKE_SCRIPT" ]] || SMOKE_SCRIPT="$SCRIPT_DIR/runtime-smoke.sh"
 GATE_SCRIPT="$SCRIPT_DIR/gate-goal-stage.sh"
 [[ -x "$GATE_SCRIPT" ]] || GATE_SCRIPT="$GOAL_STATE_HOME/scripts/gate-goal-stage.sh"
-[[ -x "$GATE_SCRIPT" ]] || GATE_SCRIPT="$SCRIPT_DIR/gate-guazi-flow-stage.sh"
 if [[ -x "$SMOKE_SCRIPT" ]]; then
   if [[ ! -f "$GOAL_EVIDENCE/runtime-smoke.md" ]]; then
     emit "quality" "" "false" "[\"runtime-smoke.sh --repo-root PROJECT --task-dir TASK\",\"quality-gate.sh --task-dir TASK\",\"${GATE_SH} --stage quality --post --mode ${GATE_MODE}\"]"
@@ -356,7 +338,7 @@ if [[ -f "$POSTMERGE_RESOLVER" && -n "$INDEX" && -f "$INDEX" ]]; then
     [[ -n "$STATE_FILE" && -f "$STATE_FILE" ]] && _PM_CHK_ARGS+=(--state-file "$STATE_FILE")
     [[ -n "$HANDOFF" ]] && _PM_CHK_ARGS+=(--handoff-dir "$HANDOFF")
     if ! python3 "$POSTMERGE_RESOLVER" "${_PM_CHK_ARGS[@]}" >/dev/null 2>&1; then
-      emit "postmerge" "" "false" '["Load guazi-flow-postmerge/SKILL.md","write docs/guazi-flow/<task>/evidence/postmerge.md result=pass","gate-guazi-flow-stage.sh --stage complete --pre only after postmerge evidence fresh"]'
+      emit "postmerge" "" "false" '["Load goal-postmerge/SKILL.md or project postmerge skill","write docs/goal/<task>/evidence/postmerge.md result=pass","gate-goal-stage.sh --stage complete --pre only after postmerge evidence fresh"]'
       exit 0
     fi
   fi

@@ -10,10 +10,11 @@ import sys
 
 
 def _schema_dir(script_dir: str) -> str:
-    goal_dir = os.path.join(script_dir, "..", "references", "goal-artifact-schema")
-    if os.path.isdir(goal_dir):
-        return goal_dir
-    return os.path.join(script_dir, "..", "references", "guazi-flow-artifact-schema")
+    refs = os.path.join(script_dir, "..", "references")
+    guazi = os.path.join(refs, "guazi-flow-artifact-schema")
+    if os.environ.get("GATE_MODE", "").strip().lower() == "guazi" and os.path.isdir(guazi):
+        return guazi
+    return os.path.join(refs, "goal-artifact-schema")
 
 
 def parse_frontmatter(text: str) -> dict[str, str]:

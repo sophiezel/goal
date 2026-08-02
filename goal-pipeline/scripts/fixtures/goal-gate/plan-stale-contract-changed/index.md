@@ -55,7 +55,7 @@ function DetailPage() {
 
 | Stage | Skill | Result |
 |-------|-------|--------|
-| plan | guazi-flow-plan | pass |
+| plan | goal-plan | pass |
 
 ## write_set
 
@@ -83,4 +83,4 @@ function DetailPage() {
 - 修改超出 Allowed Files 范围时停止
 
 
-- guazi-flow-implement pass
+- goal-implement pass

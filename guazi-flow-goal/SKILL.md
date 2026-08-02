@@ -1,366 +1,172 @@
 ---
 name: guazi-flow-goal
-description: guazi-flow-goal 统一入口。加载 goal-pipeline 管线引擎，检测 guazi-flow-* 可用性，在 plan/implement/review/complete 各阶段 MUST 调度 guazi-flow 增强。Use when project has guazi-flow-* skills installed and user wants structured docs/evidence/contract-driven execution; otherwise use /goal-pipeline directly. 用户通过 `/guazi-flow-goal <目标>` 触发。包含生命周期管理（status/pause/resume/clear/list）。guazi-flow 不可用时 goal-pipeline 独立运行。
+description: guazi-flow 独立管线入口（v1.4）。使用 `/guazi-flow-goal <目标>` 启动；MUST 调度 guazi-flow-plan/implement/review/complete + guazi-gate-stage.sh；review 经 REVIEW_KERNEL_HOME。不加载 goal-pipeline 脚本。Use when executing guazi-flow tasks with index.md contract, split handoff, and JIRA/profile integration. Do NOT use for pure goal-pipeline `/goal-pipeline` goals or when guazi-flow-* skills are unavailable.
 ---
-# Guazi Flow Goal（统一入口）
+# Guazi Flow Goal（v1.4 独立栈）
 
-加载 goal-pipeline 管线引擎，在 5 阶段管线的每个节点植入 guazi-flow-*。guazi-flow 可用时 MUST 调度，不可用时 goal-pipeline 独立运行。
+**不依赖 goal-pipeline。** Pre-flight：`bash guazi-flow-goal/scripts/guazi-install.sh` → `~/.guazi-flow/` + `~/.goal-services/review-kernel/`。
 
-**本 skill 合并了原 guazi-flow-goal（入口）、guazi-flow-goal-auto（执行引擎）、guazi-flow-goal-manage（生命周期）的全部职责。**
+| 组件 | 路径 |
+|------|------|
+| Gate | `$GUAZI_STATE_HOME/scripts/guazi-gate-stage.sh` |
+| Advance | `$GUAZI_STATE_HOME/scripts/guazi-advance-stage.sh` |
+| Review chain | `$REVIEW_KERNEL_HOME/bin/run-review-chain.sh` |
+| State | `$GUAZI_STATE_HOME/projects/<pid>/<branch>/<task>/state.json` |
 
-> **Production（v3 / UVO + preflight + hash-split + task_tier）**：L1 权威裁决为 `verification-oracle.sh` **一次**；review 前 `review_packet_preflight.py` 确定性拦截空 diff；stale 判定用 `code_subject_hash`（src only），evidence 写入不触发 drift。推荐 **commit feature 后再跑 gates**。
->
-> **复杂度分层**：plan post 写入 `task_tier`（XS/S/M/L/XL）与墙钟/并行策略，见 `references/task-tier-matrix.md`。**禁止**把 M/L 硬卡成 20m；按档启用 subagent DAG / multi-unit。UVO 内 typecheck∥jest（`--maxWorkers`）、同 hash 跳过 build；smoke 用 script **名**；stop hook **按当前 branch** 过滤。
+环境变量：`GUAZI_STATE_HOME`（默认 `~/.guazi-flow/state`）、`REVIEW_KERNEL_HOME`（review-kernel 安装路径）。
+
+阶段 SKILL（Lazy Load）：`guazi-flow-plan` / `guazi-flow-implement` / `guazi-flow-review` / `guazi-flow-complete`；`review_track=single` 时可跳过 guazi-flow-review，仅走 review-kernel unified 分支。
+
+**禁止** exec `goal-pipeline/scripts/*` 或读写 `~/.goal-pipeline/`。
+
+> **UVO + preflight + hash-split**：L1 权威为 `verification-oracle.sh` 一次；review 前 `review_packet_preflight.py`；stale 用 `code_subject_hash`。推荐 **commit feature 后再跑 gates**。`task_tier`（XS–XL）见 `references/task-tier-matrix.md`。
 
 ## NEVER
 
-**管线通用 NEVER 以 `goal-pipeline/SKILL.md` 为唯一权威出处**（plan-before-code / noop_fix / review 分流 / complete 门禁等）。本层仅列 guazi 桥接特有红线：
+- **NEVER exec `goal-pipeline/scripts/*` 或读写 `~/.goal-pipeline/`**（v1.4 边界）
+- **NEVER 跳过阶段 Lazy Load**——未读 `guazi-flow-<stage>/SKILL.md` 不得执行该阶段
+- **NEVER 输出 `[N/5] ✅` 而未 `guazi-gate-stage.sh --post` exit 0**
+- **NEVER 在 index.md + gate --post plan 通过前进入 implement**
+- **NEVER 绕过 review-kernel 独立审核**——MUST assemble → run-review-chain → merge → gate --post review
+- **NEVER gate 失败后盲重试**——MUST Read `evidence/<stage>-gate-fix-input.json` 或 `review-fix-input.json`
+- **NEVER 在 [5/5] complete 前交还控制权**——implement 完成 ≠ goal 完成
 
-- **NEVER 在 GATE 检查失败后继续执行 guazi-flow 调度**——GATE 不可读必须设 `guazi_flow_available = false` 并降级为纯 goal-pipeline
-- **NEVER 跳过 Lazy Loading 直接执行阶段**——不加载阶段 SKILL.md → 产物不符合 guazi-flow schema → review 必定 not_pass
-- **NEVER 在 `~/.goal-pipeline/state/` 中写入 guazi-flow 项目配置**——`.guazi-flow/config.local.json` 只存 JIRA_TOKEN/repos 等 guazi-flow 自身字段，goal 产物不混入
-- **NEVER 在 guazi-flow 不可用时强制加载 guazi-flow-* skills**——降级为纯 goal-pipeline 运行，不阻断管线
-- **NEVER 修改 goal-pipeline 的 state.json 基础字段**——guazi-flow 扩展字段（guazi_flow_*）只能追加，不覆盖管线字段
-- **NEVER 在 guazi-flow-plan 产出 index.md 前进入 implement**——MUST 先执行 guazi-flow-plan 完整流程，验证必需章节；否则 blocked（plan_artifact_missing / plan_schema_incomplete）
-- **NEVER 跳过 [1/5] plan 进度输出**——缺少 [1/5] 输出说明 plan 被跳过，必须立即暂停并报告
-- **NEVER 在 blocked(noop_fix) 后原命令盲重试**——只读 fix-input 的 recommended/next_steps，实质改产物后再 gate
-- **NEVER 在 0 可用 review channel 时强跑完整 L2 API cascade**——走 `separation=degraded` / deterministic_scope_only（goal-run-review-chain 已 fail-fast）
-- **NEVER 在 implement Dev Loop 连跑全量 `yarn build:beta`**——本地仅 related-tests；全量验证留给 implement gate 内 UVO 一次（同 `code_subject_hash` 已 pass 则 UVO 跳过 build）
-- **NEVER 把 M/L 任务硬卡成 XS「20 分钟」**——`task_tier` 见 `goal-pipeline/references/task-tier-matrix.md`；档内吃满 CPU/缓存/并行，不偷减阶段
-- **NEVER 在 implement 代码完成后跳过 Stage Exit**——MUST 先 gate --post implement（内含 **verification-oracle 一次** + **acceptance-matrix-ratchet**）→ goal-advance-stage → validate-pipeline-chain（exit 0）再输出 [2/5] ✅
-- **NEVER 在无 src diff 的 review-packet 上调用 LLM**——assemble 末尾 MUST 通过 `review_packet_preflight.py`（PKT-01/02/03）
-- **推荐 commit feature 后再跑 implement/quality/review gates**——保证 `plan.reference_branch`（默认 `main...HEAD`）diff 稳定
-- **NEVER 在 [5/5] complete 前以「如需继续」「需要我跑 review 吗」交还控制权**——implement 完成 ≠ goal 完成，必须自动进入 review → complete
-- **NEVER 跳过 [3/5] quality 或未跑 gate --post quality**——条件 smoke + quality-gate（读 evidence，不重跑 UVO/smoke）后 MUST gate --stage quality --post
-- **NEVER 跳过 [4/5] review 或未跑 run-independent-review.sh**——review-run.json provenance 缺失则 gate --post review 失败
-- **NEVER 自填 review-unified.json 绕过独立审核**——MUST assemble-review-packet → run-independent-review → merge-review-issues
-- **NEVER 手改 review 产物**——修复前 MUST Read `evidence/review-fix-input.json`；禁止直接解析 review-unified.json / review.md 做修复分流
-- **NEVER 在 gate 失败时跳过 fix-input**——plan/implement MUST Read `evidence/<stage>-gate-fix-input.json` 的 `issues` / `next_steps`；首屏输出 Issue 清单（gate 脚本已打印）
-- **NEVER 在 gate 失败会话中直接改产物**——Judge（gate/审核）与 Executor（plan/implement skill）分离；修复轮由 Executor 按 fix-input 执行
-- **NEVER 在 subject_hash 未变时重复 gate**——`blocked(noop_fix)` 表示修复无效，须实质性修改产物后再跑
-- **NEVER 因仅追加 `## 执行记录` 触发 mini-replan**——执行记录变更用 `refresh-handoffs-after-index.sh --cascade implement`；仅当 `index_contract_hash`（契约段）变化时才 `gate --post plan`
-- **NEVER 输出 [N/5] ✅ 而未运行 gate --post（exit 0）**——进度行必须对应机器门禁通过
-- **NEVER 在 ~/.goal-pipeline/state/scripts/ 缺失时进入 Phase 2**——先 Pre-flight 部署或 blocked(infra_missing)
-- **NEVER 因「需求已清晰」跳过 Phase 1 entirely**——Fast-path 仍须创建 state.json 并输出 Goal 摘要
+## 关键话术
 
-## 关键执行协议（Phase 2 必读）
+**用户催促「先写代码」** — MUST 拒绝（含 **不能跳过** + **gate --post plan**）：
 
-guazi_flow_available = true 时，plan 阶段执行方式：
+> **不能**在 plan gate 通过前写代码。`handoff/plan.json` 未就绪时 **不得** implement；Index-Lite 仅精简 index，**不降级** PQ 门禁。
 
-1. **加载**：读取 `guazi-flow-plan/SKILL.md` 全文（MANDATORY，不得跳过）
-2. **执行**：按 guazi-flow-plan/SKILL.md 中的完整流程（9 步）逐步执行，读取其必读 references（unified-doc-contract.md / profile-selection.md 等）
-3. **不得自行编写**：index.md 必须由 guazi-flow-plan 流程产出，不得自行编写简化版替代——缺少核心事实/完整伪代码/验收矩阵等章节的 index.md 视为无效
-4. **完成验证**：产出后检查 index.md 包含必需章节（见 guazi-flow-integration.md 产物质量 GATE）
+**infra 缺失** — `guazi-install.sh` 或 blocked(infra_missing)；**不** fallback 到 goal-pipeline。
 
 ## 必读 references
 
-### 启动时加载（MANDATORY — 控制在 ~18k tokens）
+### 启动时（MANDATORY）
 
 | 文件 | 用途 |
 |------|------|
-| `goal-pipeline/SKILL.md` | 通用管线引擎定义（管线流程、修复循环、审核、进度可见化、NEVER 权威出处） |
-| `references/bridge-contract.md` | 桥接契约（goal-pipeline ↔ guazi-flow 映射规则、扩展字段、降级策略） |
+| `references/guazi-flow-integration.md` | 调度规则与产物 GATE |
+| `references/bridge-contract.md` | v1.4 扩展字段（无 goal 桥接） |
+| `references/guazi-flow-state-schema.md` | state 路径与字段 |
 
-### 阶段内按需加载（进入对应阶段 / Phase 前 MUST）
+### 阶段内按需
 
-| 时机 | 文件 | 用途 |
-|------|------|------|
-| Phase 1 开始前 | `goal-pipeline/references/interview-protocol.md` | 三步收敛访谈协议 |
-| Phase 1 / grill 结束（集成任务） | `guazi-flow-goal/references/decisions-handoff-protocol.md` | `handoff/decisions.json` + 冻结决策 hash |
-| Phase 1 开始前 | `goal-pipeline/references/platform-detection.md` | 平台检测和能力矩阵 |
-| plan 开始前（guazi 可用） | `references/guazi-flow-integration.md` | guazi-flow 调度规则与产物质量 GATE |
-| plan 开始前 | `goal-pipeline/references/task-tier-matrix.md` | task_tier（XS/S/M/L/XL）分层墙钟与并行策略 |
-| review 开始前 | `goal-pipeline/references/separation-strategies.md` | 审核模型多通道探测策略 |
+| 时机 | 文件 |
+|------|------|
+| Phase 1 | `references/interview-protocol.md`、`references/platform-detection.md` |
+| plan | `references/task-tier-matrix.md`、`references/index-lite-protocol.md`（XS/S） |
+| review | `references/separation-strategies.md`、review-kernel 契约 |
+| 集成任务 | `references/decisions-handoff-protocol.md` |
 
-脚本已处理、Agent **无需全文预读**（需要时按路径点查即可）：`references/guazi-flow-state-schema.md`、`references/artifact-tier-policy.md`。
-
-### guazi-flow 可用性检测
-
-```
-加载 goal-pipeline 后：
-if guazi-flow-core/SKILL.md 存在（通过 skill 加载机制）:
-    检查版本兼容性（bridge-contract.md 中的 required_version）
-    ├─ 兼容 → guazi_flow_available = true
-    └─ 不兼容 → 警告 + guazi_flow_available = false（降级为纯 goal-pipeline）
-else:
-    guazi_flow_available = false
-    goal-pipeline 独立运行
-```
-
-### 阶段 SKILL.md——Lazy Loading（进入对应阶段前 MUST 加载）
-
-**guazi_flow_available = true 时，每个管线阶段开始前 MUST 加载：**
-
-| 阶段 | 必须加载 |
-|------|---------|
-| plan 开始前 | `guazi-flow-plan/SKILL.md` |
-| implement 开始前 | `guazi-flow-implement/SKILL.md` |
-| quality 开始前 | `goal-pipeline/stages/goal-quality/SKILL.md` |
-| review 开始前 | `guazi-flow-review/SKILL.md` **或**（`review_track=single` 时）**仅** `goal-pipeline/stages/goal-review/SKILL.md` + `goal-run-review-chain.sh`（单轨，不加载 guazi-flow-review） |
-| complete 开始前 | `guazi-flow-complete/SKILL.md` |
-
-**review 单轨（v3 §8.2）**：`review_track=single` 时跳过 guazi-flow-review Agent turn（Step 1.5）；rubric 经 `assemble-review-packet.sh` 嵌入 packet，`goal-run-review-chain.sh` unified 分支已支持。默认 dual（PR3）；single 经 `GOAL_REVIEW_TRACK=single` 或 `state.review_policy.track=single` 开启。路由见 [`review_track.py`](goal-pipeline/scripts/review_track.py)。
-
-**不加载 → Agent 不知道 guazi-flow 具体指令 → 产物不符合规范。**
-
-**Do NOT Load**: guazi-flow-review/SKILL.md 在 plan/implement 阶段（仅 review 阶段加载；**review_track=single 时也不加载**）；guazi-flow-complete/SKILL.md 在 plan/implement/review 阶段。
-
----
+脚本处理、无需预读：`references/artifact-tier-policy.md`、`references/stage-handoff-contract.md`。
 
 ## Phase 1: Goal Engineering
 
-**Before dispatching, ask yourself**: guazi_flow_available? profile? 有无 active goal?
-
-**Before plan, ask yourself**: 用户真实需求是什么（而非表面诉求）？验收标准是否可量化（避免模糊通过）？范围是否过大（宁可收窄再扩展）？
-
 ```
-Step 1: 环境初始化
-  ├─ 运行 detect-platform → 确定平台
-  ├─ 读取 references/bridge-contract.md (版本检查) → 确定 guazi_flow_available
-  └─ 检查是否已有 active goal
-      ├─ 有 → goal_already_active, 提示用户 [继续/清除/查看]
-      └─ 无 → 继续
+Step 1: Pre-flight
+  ├─ guazi-install.sh（若 $GUAZI_STATE_HOME/scripts 缺失）
+  ├─ 验证 guazi-gate-stage.sh + $REVIEW_KERNEL_HOME/bin/run-review-chain.sh
+  └─ 缺失 → blocked(infra_missing)
 
-Step 1.5: Pre-flight（MANDATORY，Phase 2 前亦须可用）
-  ├─ 检查 goal-pipeline-kernel.sh（安装后 ~/.goal-pipeline/state/scripts/）存在
-  ├─ 检查 gate-guazi-flow-stage.sh / goal-advance-stage.sh / goal-stage-driver.sh 存在（Kernel 内部依赖）
-  ├─ 检查 failure-codes.json / four-planes-checklist.json 存在
-  ├─ 检查 ~/.goal-pipeline/state/references/guazi-flow-artifact-schema/ 存在
-│   任一缺失 → 立即输出 blocked(failure_code: infra_missing)，不得进入 Phase 2；然后运行 `bash <goal-repo>/install.sh --agent <detected>` 修复部署，或提示用户手动部署
-  ├─ 推荐：goal-pipeline-kernel init 创建 canonical state（project_id=sha256(root)）
-  ├─ **MUST** 子进程 gate / `goal-run-review-chain` 前：`GOAL_STATE_HOME` 须指向 `~/.goal-pipeline/state`（脚本内 `goal-env-bootstrap.sh` + `state.json` 的 `runtime_env` 在 Agent 未 export 时兜底）
-  ├─ detect-review-channels --json（guazi_flow_available=true 时）
-  │   若仅 deterministic → warning + 引导配置 API key/Ollama；CI 无配置时可设 GOAL_REVIEW_FORCE_DETERMINISTIC=1
-  │   **已配置 api_keys/review_model 时禁止降级**：run-independent-review / goal-run-review-chain / gate --post review 均会 hard fail
-  └─ 输出: "pre-flight: scripts=OK|MISSING"
+Step 2-3: 访谈（interview-protocol.md）+ profile 推断（guazi-flow-doctor 若可用）
 
-Fast-path（用户已提供 JIRA + 明确验收标准时）:
-  ├─ Step 2-3 缩减为自动推断（跳过 interview 追问）
-  ├─ 仍 MUST 执行 Step 5 创建 state.json
-  ├─ 仍 MUST 输出 Goal 结构摘要（1 屏以内，默认确认，用户可打断）
-  ├─ 可跳过访谈，不可跳过 gate --post plan 与完整 index.md schema
-  ├─ **Index-Lite（XS/S）**：task_tier 为 XS/S 时推荐使用 `plan_profile: lite` 精简 index
-  │   ├─ 启用信号：frontmatter `plan_profile: lite` 或 `task_tier: XS|S`；或 env `GOAL_PLAN_PROFILE=lite`
-  │   ├─ Lite schema：6 段（合并「范围与写集」）、伪代码 ≥80 chars（见 `goal-pipeline/references/index-lite-protocol.md`）
-  │   └─ **仍 MUST** gate --post plan + guazi-flow-plan lazy load；PQ-01/02/05/07 不降级
-  └─ 不得因「需求清晰」跳过 Phase 1 entirely
+Step 4: Goal 结构确认（目标 / 验收 / Allowed Files / Stop Conditions）
 
-Step 2-3: 意图采集 + 自动推断 (interview-protocol.md)
-  ├─ 解析用户输入 → 保留原始文本作为 objective
-  ├─ 调 guazi-flow-doctor（如果可用）→ 检测 profile/profile_detail
-  ├─ scope: git status + 关键词匹配 | constraints: AGENTS.md + profile
-  └─ 缺口检测 + 定向追问 (最多 5 题，每题附带默认选项)
+Step 5: 初始化 state（guazi-flow-state-schema.md）
+  ├─ mkdir -p $GUAZI_STATE_HOME/projects/<pid>/<branch>/<task>/
+  ├─ state.json：project_root、guazi_flow_task、artifact_layout（split）
+  └─ **NEVER** 使用 ~/.goal-pipeline/
 
-Step 4: 生成 + 确认 Goal 结构
-  ├─ 组装: 目标描述 + 验收标准 + 范围 + Allowed Files + Out of Scope + Stop Conditions + 约束 + 验证方式
-  ├─ 展示给用户确认（含结构化字段摘要）→ 确认/编辑/重新讨论/放弃
-  └─ 确认 → 继续 Step 5
-
-Step 5: 初始化 state（路径计算见 goal-pipeline/references/goal-state-schema.md）
-  ├─ mkdir -p ~/.goal-pipeline/state/ → 失败则 blocked（failure_code: state_dir_creation_failed）
-  ├─ 创建 state.json（project_id/branch/task 路径见 goal-state-schema.md）
-  ├─ 写入 project_root: `git rev-parse --show-toplevel` 绝对路径（供 stop hook / advance 匹配工作区）
-  ├─ **MUST** 若 task 路径已知，同步写入：
-  │     guazi_flow_task: docs/guazi-flow/<task>
-  │     artifact_layout.mode: split
-  │     artifact_layout.runtime_root: ~/.goal-pipeline/state/projects/<pid>/<branch>/<task>/artifacts
-  │     artifact_layout.repo_task_dir: <abs path to task dir>
-  ├─ 验证 state.json 可读写 → 失败则 blocked（failure_code: state_json_unwritable）
-  └─ 检测并迁移旧路径 .guazi-flow/goal/ 产物（若存在）
-  **NEVER** 在 Phase 2 任意 gate 之前留空 guazi_flow_task + artifact_layout（否则首屏可能 persist repo_full）
-
-Step 6: GATE Check（全部满足才进入 Phase 2）
-  ├─ [✓] state.json 已创建且 schema 校验通过
-  ├─ [✓] 用户已确认 Goal 内容
-  ├─ [✓] guazi-flow-* SKILL.md 可加载（或 guazi_flow_available = false）
-  ├─ [✓] docs/guazi-flow/ 目录可写（guazi_flow_available=true 时）
-  └─ [✓] 输出进度摘要 → 进入 Phase 2
-
-❗ 任一项不满足 → blocked，不得进入 Phase 2。输出失败项 + 修复建议。
+Step 6: GATE Check → 全部通过才进入 Phase 2
 ```
 
----
+Fast-path：可缩减访谈，**不可**跳过 state.json、index schema、gate --post plan。
 
 ## Phase 2: Pipeline Execution
 
-### Turn Protocol（MANDATORY — 每个 Agent turn）
+### Turn Protocol
 
-权威架构：`docs/architecture/goal-runtime.md`（四平面：控制/数据/质量/效率）。
+每个 Agent turn **第一步**：
 
-**唯一编排入口**：`goal-pipeline-kernel`（内部仍调用 driver/gate/advance；兼容期可直调旧脚本，doctor 会告警）。
+1. Read `state.json` → `current_stage` / `status`
+2. 若 `blocked` → 按 `failure_code` + fix-input 执行，**不得**新功能
+3. 若 `code_writes_allowed=false`（plan 未完成）→ **禁止**写业务代码
 
-**Resume（`/guazi-flow-goal` 无参）**：先 `goal-pipeline-recover.sh`，再 Kernel。
-
-每个 Agent turn **第一步**（MANDATORY）:
-```
-goal-pipeline-kernel next --state-file <state> --task-dir <task> --project-root <repo>
-```
-- 若 `blocked` 或 `wrong_stage` → 按 `mandatory_commands` 执行，**不得**实现新功能
-- **禁止**并列 plan Todo 与写 `src` Todo；仅执行 FrozenWorkOrder
-- `code_writes_allowed=false`（plan）时禁止写业务代码
-- 唯一进度真相：`work_order.next_stage` + handoff 链
-
-每个阶段结束（MANDATORY）:
-```
-goal-pipeline-kernel gate --stage <stage> --post --state-file <state> --task-dir <task> --project-root <repo>
-goal-pipeline-kernel next …   # 立即进入下一阶段
-```
-
-Turn 结束条件（MANDATORY）:
-```
-goal-pipeline-kernel complete --state-file <state> --task-dir <task> --project-root <repo>  # exit 0
-```
-未通过 **禁止** 输出总结性结束语。`host_guard=off` 时会话 Write 仍可能——Core 保证编排/合入路径，非 OS ACL。
-
-**review 阶段**：推荐 `Task` 子 agent `readonly=true`，prompt 仅含 `review-packet.json` + rubric；或 `GOAL_REVIEW_CURSOR_TASK=1` + `platform-review-adapter cursor-task`。
-
-管线流程详见 `goal-pipeline/SKILL.md`。本层在每个阶段注入 GATE 检查和 guazi-flow-* 调度：
-
-| 阶段 | GATE | 降级 | 自由度 |
-|------|------|------|--------|
-| plan | 加载 guazi-flow-plan/SKILL.md | goal-pipeline 通用 plan | 中——结构化产出，内容自主 |
-| implement | guazi-flow-implement/SKILL.md + index.md 非空 | goal-pipeline 通用 implement | 高——实现方式自主 |
-| quality | goal-quality | goal-quality | 低——固定脚本 |
-| review | 加载 guazi-flow-review/SKILL.md | 仅 goal-pipeline 独立审核 | 低——按流程执行 |
-| complete | 加载 guazi-flow-complete/SKILL.md | goal-pipeline 通用 complete | 低——门禁驱动 |
-
-
-### 硬门禁执行顺序（MANDATORY）
-
-每个 guazi-flow 阶段 MUST 按以下顺序执行（脚本：`~/.goal-pipeline/state/scripts/gate-guazi-flow-stage.sh`）：
+每阶段顺序（MANDATORY）：
 
 ```
-gate --pre(<stage>) --mode guazi
-  → Read 完整 guazi-flow-<stage>/SKILL.md（Lazy Loading）
-  → 按 skill 流程执行（Agent 行为）
-  → gate --post(<stage>) --mode guazi   # 校验产物 + 脚本写入 handoff/<stage>.json
-  → goal-advance-stage.sh → 立即进入 next_stage
-  → exit 0 才允许输出 [N/5] guazi-flow-<stage>: ✅
-  → exit 1 → blocked(failure_code=stage_gate_failed)，不得进入下一阶段
+guazi-gate-stage.sh --task-dir <task> --stage <stage> --pre --mode guazi --state-file <state>
+→ Read guazi-flow-<stage>/SKILL.md 全文并执行
+→ guazi-gate-stage.sh --stage <stage> --post --mode guazi --state-file <state> --project-root <repo>
+→ exit 0 才输出 [N/5] guazi-flow-<stage>: ✅
+→ 立即进入 next_stage（**禁止**询问用户是否继续）
 ```
 
-- handoff 由 gate `--post` 从磁盘产物反推，Agent **禁止**手写 `handoff/*.json`
-- `--post` 时传 `--state-file` 更新 `guazi_flow_stages.*.gate`（仅脚本写入 passed_at）
-- `gate.passed_at` 仅由脚本写入 state.json（见 `guazi-flow-state-schema.md`）
-- review 前：`assemble-review-packet.sh` → 独立审核读 `handoff/review-packet.json`
-- review 后：`merge-review-issues.sh` 合并 issues_gf ∪ issues_goal
-- 降级 `--mode degraded` 时跳过 guazi handoff 要求，**禁止混用** guazi/goal 产物
+| 阶段 | Lazy Load | Gate |
+|------|-----------|------|
+| plan | guazi-flow-plan | plan post → index.md + handoff/plan.json |
+| implement | guazi-flow-implement | UVO 一次 + implement post |
+| quality | goal-quality（仓外/profile） | smoke + quality-gate |
+| review | guazi-flow-review 或 review-kernel only | assemble → chain → merge → post |
+| complete | guazi-flow-complete | verify + complete post |
 
-详见 `references/stage-handoff-contract.md`。
+**review 单轨**（`review_track=single`）：不加载 guazi-flow-review；`$REVIEW_KERNEL_HOME/bin/run-review-chain.sh` unified + rubric in packet。
 
-### Stage Exit（MANDATORY — 每阶段结束，不得跳过）
+**handoff** 仅由 gate `--post` 写入；Agent **禁止**手写 `handoff/*.json`。
 
-每个 guazi-flow 阶段结束后 **立即** 执行：
+### implement Stage Exit（重读）
 
-```
-1. gate-guazi-flow-stage.sh --task-dir <task> --stage <stage> --post --mode guazi --state-file <state>
-2. goal-advance-stage.sh --state-file <state> --task-dir <task> --project-root <repo>
-3. 输出: [N/5] guazi-flow-<stage>: ✅（仅 gate exit 0 后）
-4. 读取 stdout.next_stage → 立即加载对应 SKILL.md 开始下一阶段
-```
-
-**禁止**：
-- 询问用户「是否继续 review/complete」
-- 输出「实现完成，如需…」类结束语
-- 在 next_stage != done 且非 blocked 时结束 turn
-
-
-### implement 阶段 Stage Exit（MANDATORY — 结束前重读）
-
-guazi-flow-implement 执行完毕（含测试通过、摘要撰写）**不等于**管线 implement 阶段结束。结束前 **MUST 重读本节**，并按顺序执行：
+implement 代码完成 **≠** 阶段结束。MUST：
 
 ```
-1. validate-pipeline-chain.sh --task-dir <task> --state-file <state>   # 可选预检；post 后 MUST 再跑
-2. gate-guazi-flow-stage.sh --task-dir <task> --stage implement --post --mode guazi --state-file <state> --project-root <repo>
-3. validate-pipeline-chain.sh --task-dir <task> --state-file <state>   # exit 0 才继续
-4. goal-advance-stage.sh --state-file <state> --task-dir <task> --project-root <repo>
-5. 读 stdout.next_stage → 立即进入 smoke/review（禁止询问用户）
+guazi-gate-stage.sh --stage implement --post ...
+→ 读 state next_stage → 立即 quality/review
 ```
 
-**反例（禁止）**：「implement 已完成，需要我继续跑 review 吗？」「实现摘要如下，如需 review 请告知」
+**反例**：「实现完成，需要我继续 review 吗？」
 
+### 修复子循环
 
-Phase 2 每个阶段**开头**亦须运行 `goal-pipeline-kernel next`（内含 advance 语义）：若 `wrong_stage=true` → blocked(wrong_stage)，按 work_order 纠正。
+MUST 只读 `evidence/review-fix-input.json` 的 `action` / `issues` / `next_steps`。`blocked_stagnant` → 停止盲修复，呈现 A/B/C 选项。
 
+## 进度输出
 
-**各阶段调度细节**:
-
-- **plan**: MUST 按关键执行协议 4 步执行（加载 → 执行 9 步流程 → 产物质量 GATE → 交叉验证(write_set vs Allowed Files) → 契约融入）
-- **implement**: MUST profile/contract/write_set 驱动；`write_set` 内 **D2/D5** UX 修复仅在本阶段尝试（无 Goal codemod）。`gate --post implement` 审计见 `goal-pipeline/references/ux-auto-fix-c1.md` → `evidence/ux-autofix.json`
-- **review**: Step 1.5 注入 guazi-flow-review → issues_gf[] 合并到独立审核结果
-- **complete**: MUST guazi-flow 收口检查
-
-### 降级差异（guazi_flow_available = false）
-
-| 维度 | guazi-flow 模式 | 降级为纯 goal-pipeline |
-|------|----------------|----------------------|
-| plan 产物 | index.md + unit.md（9 步流程） | plan 卡片（三步收敛访谈） |
-| 交叉验证 | write_set vs Allowed Files + V# vs 验收矩阵 | 无（plan 质量门槛替代） |
-| implement 审计 | diff 合规性审计 5 步 | After-verify 3 步 |
-| review | 五步（含 guazi-flow-review + 根因分类） | 三步（确定性检查 + 独立审核 + 分流） |
-| evidence 路径 | docs/guazi-flow/<task>/evidence/ | <task_dir>/evidence/ |
-| complete 报告 | guazi-flow-complete 收口摘要 + 质量报告 | 仅质量报告 |
-
-**Before review not_pass → 修复子循环, ask**: 这是同一根因的持续，还是新症状？根因未变 → 换策略；新症状 → 评估方向是否正确。
-
-**条件触发阶段**（不可用时跳过，不提供通用替代）：
-
-| 阶段 | 触发条件 |
-|------|----------|
-| postmerge | resolved_rule_context.postmerge_policy = required |
-| validate | 用户显式开启 / validate_policy = required |
-| e2e | 用户明确选择 + h5 profile |
-
-管线细节（阶段流程、修复循环、进度输出）由 `goal-pipeline/SKILL.md` 定义。本层只负责 guazi-flow-* 调度。
-
----
-
-
-## 生命周期管理
-
-与 goal-pipeline 完全一致，唯一差异是命令前缀为 `guazi-flow-goal-*`（如 `/guazi-flow-goal-status` → `/goal-pipeline-status`）。路径解析同 goal-pipeline（`references/goal-state-schema.md`）。
-
----
+```
+[1/5] guazi-flow-plan: ...
+[2/5] guazi-flow-implement: ...
+[3/5] goal-quality: ...        # quality 阶段 skill 名来自 profile
+[4/5] guazi-flow-review: ... # 或 review-kernel unified
+[5/5] guazi-flow-complete: ✅
+```
 
 ## 写入边界
 
-| 文件 | 操作 |
+| 路径 | 操作 |
 |------|------|
-| `~/.goal-pipeline/state/config.json` | 创建骨架 + 写 api_keys |
-| `~/.goal-pipeline/state/projects/<pid>/<branch>/<task>/state.json` | 读/写（含 `artifact_layout`） |
-| `~/.goal-pipeline/state/projects/<pid>/<branch>/<task>/artifacts/**` | Tier-R：handoff + goal review annex |
-| `~/.goal-pipeline/state/projects/<pid>/<branch>/<task>/.lock` | 读/写 |
-| `~/.goal-pipeline/state/archive/<pid>/goal_<id>.json` | 写入 |
-| `~/.goal-pipeline/state/scripts/` | 首次部署 |
-| `docs/guazi-flow/<task>/index.md` 等 **Tier-G** | 委托 guazi-flow-*；进 git |
-| `docs/guazi-flow/<task>/handoff/**` | ❌ split 模式下不写 repo（Tier-R 在 goal-state） |
-| `docs/guazi-flow/.gitignore` | ❌ 不创建 repo `.gitignore`（Tier-R 防泄漏靠 split 写入路径 + purge） |
-| `docs/guazi-flow/<task>/index.md` | 桥接层追加 Goal 契约字段（allowed_patterns/exclusions/stop_conditions 子 section） |
-| 业务代码 | 委托 guazi-flow-implement 或 goal-pipeline 通用 implement |
-| `<project>/.guazi-flow/` | ❌ 不写入 goal 产物 |
+| `$GUAZI_STATE_HOME/**` | state、handoff（split Tier-R）、lock |
+| `docs/guazi-flow/<task>/index.md` 等 Tier-G | guazi-flow-* 产出，进 git |
+| `docs/guazi-flow/<task>/handoff/**` | split 模式下 **不写** repo |
+| 业务代码 | guazi-flow-implement（write_set 内） |
+| `~/.goal-pipeline/**` | **禁止** |
 
 ## 错误处理
 
-通用错误处理（审核通道不可用、用户中途取消等）同 goal-pipeline。本层特有：
-
 | 场景 | 行为 |
 |------|------|
-| goal_already_active | 展示当前 goal 状态，提供 [继续/清除/查看] 选项 |
-| profile 检测失败 | 询问用户手动指定技术栈 |
-| guazi-flow-core 版本不兼容 | 警告 + 降级为纯 goal-pipeline |
-| state.json 与 docs/guazi-flow/ 不一致 | 运行 check-consistency 修复或归档重建 |
-| guazi-flow-plan 失败 | 输出错误，暂停，让用户修复后重试 |
-| plan_artifact_missing（index.md 不存在） | blocked，不得进入 implement，输出失败原因 + 重新调用 guazi-flow-plan 建议 |
-| plan_schema_incomplete（index.md 缺少必需章节） | blocked，输出缺失章节列表 + "请重新执行 guazi-flow-plan 完整流程（9 步）"，不得自行补齐简化版 |
-| state_dir_creation_failed / state_json_unwritable | blocked，输出权限/路径诊断建议 |
-
-| empty_write_set（index.md 中 write_set 为空数组） | blocked（failure_code: empty_write_set），implement --post gate 必失败；不得进入下一阶段，必须返回 plan 阶段重新生成包含非空 write_set 的 index.md |
+| infra_missing | blocked；运行 guazi-install.sh |
+| guazi-flow-core 版本不兼容 | blocked；升级 guazi-flow marketplace |
+| plan_artifact_missing / plan_schema_incomplete | blocked；重跑 guazi-flow-plan 完整流程 |
+| gate failed | Read fix-input；Judge/Executor 分离 |
+| goal_already_active | [继续/清除/查看] |
 
 ## 完成门禁
 
-- Goal status = complete（goal-pipeline 判定）
-- evidence/complete.md 存在且 pass+fresh
-- evidence/review.md 存在且 pass+fresh
-- guazi-flow 可用时: evidence 符合 guazi-flow schema + index.md 中 allowed_patterns/exclusions/stop_conditions 子 section 存在
+- `state.json` status = complete
+- `evidence/complete.md` + `evidence/review.md` pass+fresh
+- index.md 契约段（allowed_patterns / exclusions / stop_conditions）存在
+- verify.sh → completion_condition_met
 
-- **NEVER 在协议类回答中使用冗长解释**——MUST 首先输出最简洁的行动指令（如「No — 必须先运行 gate --post smoke」「blocked(infra_missing)」），必要时可后续补充细节
+## Eval / fixture
+
+- Gate 夹具：`guazi-flow-goal/fixtures/guazi-gate/run-all-gate-tests.sh`
+- 桥接契约：`references/bridge-contract.md`

@@ -14,5 +14,7 @@
   "invocation_count": 1,
   "output_hash": "0000000000000000",
   "started_at": "2026-01-01T00:00:00Z",
-  "finished_at": "2026-01-01T00:00:01Z"
+  "finished_at": "2026-01-01T00:00:01Z",
+  "review_track": "single",
+  "wrapper_profile": "goal-review"
 }

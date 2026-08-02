@@ -18,7 +18,7 @@ assert_no_repo_tier_r() {
 }
 
 echo "=== plan-good should PASS ==="
-if "$GATE" --task-dir "$SCRIPT_DIR/plan-good" --stage plan --post --mode goal; then
+if "$GATE" --task-dir "$SCRIPT_DIR/plan-good" --stage plan --post; then
   echo "OK plan-good"
 else
   echo "FAIL plan-good expected pass"; exit 1
@@ -26,7 +26,7 @@ fi
 
 echo "=== plan-bad should FAIL ==="
 rm -f "$SCRIPT_DIR/plan-bad/evidence/plan-gate-fix-input.json"
-if "$GATE" --task-dir "$SCRIPT_DIR/plan-bad" --stage plan --post --mode goal; then
+if "$GATE" --task-dir "$SCRIPT_DIR/plan-bad" --stage plan --post; then
   echo "FAIL plan-bad expected fail"; exit 1
 else
   echo "OK plan-bad rejected"
@@ -39,7 +39,7 @@ echo "OK plan-bad wrote plan-gate-fix-input.json"
 echo "=== plan-write-set-xieji (## 写集) should PASS ==="
 rm -f "$SCRIPT_DIR/plan-write-set-xieji/evidence/plan-gate-fix-input.json"
 rm -rf "$SCRIPT_DIR/plan-write-set-xieji/handoff"
-if "$GATE" --task-dir "$SCRIPT_DIR/plan-write-set-xieji" --stage plan --post --mode goal; then
+if "$GATE" --task-dir "$SCRIPT_DIR/plan-write-set-xieji" --stage plan --post; then
   WS=$(python3 -c "import json; print(len(json.load(open('$SCRIPT_DIR/plan-write-set-xieji/handoff/plan.json')).get('write_set',[])))")
   if [[ "$WS" -lt 1 ]]; then
     echo "FAIL plan-write-set-xieji write_set empty"; exit 1
@@ -51,7 +51,7 @@ fi
 
 echo "=== plan-lite-good (Index-Lite) should PASS ==="
 rm -rf "$SCRIPT_DIR/plan-lite-good/handoff"
-if "$GATE" --task-dir "$SCRIPT_DIR/plan-lite-good" --stage plan --post --mode goal; then
+if "$GATE" --task-dir "$SCRIPT_DIR/plan-lite-good" --stage plan --post; then
   PP=$(python3 -c "import json; print(json.load(open('$SCRIPT_DIR/plan-lite-good/handoff/plan.json')).get('plan_profile',''))")
   if [[ "$PP" != "lite" ]]; then
     echo "FAIL plan-lite-good plan_profile expected lite got '$PP'"; exit 1
@@ -96,7 +96,7 @@ python3 "$SCRIPT_DIR/../../leak-rate-panel.py" --json >/dev/null 2>&1 && echo "O
 
 echo "=== ctb-43532-simplified should FAIL ==="
 rm -f "$SCRIPT_DIR/ctb-43532-simplified/evidence/plan-gate-fix-input.json"
-if "$GATE" --task-dir "$SCRIPT_DIR/ctb-43532-simplified" --stage plan --post --mode goal; then
+if "$GATE" --task-dir "$SCRIPT_DIR/ctb-43532-simplified" --stage plan --post; then
   echo "FAIL ctb-43532 expected fail"; exit 1
 else
   echo "OK ctb-43532-simplified rejected"
@@ -105,21 +105,21 @@ fi
 
 
 echo "=== implement-post-without-plan should FAIL ==="
-if "$GATE" --task-dir "$SCRIPT_DIR/implement-post-without-plan" --stage implement --post --mode goal; then
+if "$GATE" --task-dir "$SCRIPT_DIR/implement-post-without-plan" --stage implement --post; then
   echo "FAIL implement-post-without-plan expected fail"; exit 1
 else
   echo "OK implement-post-without-plan rejected"
 fi
 
 echo "=== smoke-good blocked without legacy opt-in (B1) ==="
-if "$GATE" --task-dir "$SCRIPT_DIR/smoke-good" --stage smoke --post --mode goal 2>/dev/null; then
+if "$GATE" --task-dir "$SCRIPT_DIR/smoke-good" --stage smoke --post 2>/dev/null; then
   echo "FAIL smoke-good expected fail (B1 deprecated)"; exit 1
 else
   echo "OK smoke-good rejected (B1)"
 fi
 
 echo "=== smoke-good legacy opt-in (GOAL_ALLOW_LEGACY_SMOKE_STAGE) ==="
-if GOAL_ALLOW_LEGACY_SMOKE_STAGE=1 "$GATE" --task-dir "$SCRIPT_DIR/smoke-good" --stage smoke --post --mode goal; then
+if GOAL_ALLOW_LEGACY_SMOKE_STAGE=1 "$GATE" --task-dir "$SCRIPT_DIR/smoke-good" --stage smoke --post; then
   echo "OK smoke-good legacy"
 else
   echo "FAIL smoke-good legacy expected pass"; exit 1
@@ -129,7 +129,7 @@ echo "=== review-fake (no review-run) should FAIL post ==="
 mkdir -p "$SCRIPT_DIR/review-fake-good/handoff"
 echo '{"stage":"implement","gate":{"passed_at":"2026-01-01T00:00:00Z"}}' > "$SCRIPT_DIR/review-fake-good/handoff/implement.json"
 echo '{}' > "$SCRIPT_DIR/review-fake-good/handoff/review-packet.json"
-if "$GATE" --task-dir "$SCRIPT_DIR/review-fake-good" --stage review --post --mode goal; then
+if "$GATE" --task-dir "$SCRIPT_DIR/review-fake-good" --stage review --post; then
   echo "FAIL review-fake expected fail (no review-run.json)"; exit 1
 else
   echo "OK review-fake rejected"
@@ -167,14 +167,14 @@ fi
 
 
 echo "=== review-fix-input-good should PASS post ==="
-if "$GATE" --task-dir "$SCRIPT_DIR/review-fix-input-good" --stage review --post --mode goal; then
+if "$GATE" --task-dir "$SCRIPT_DIR/review-fix-input-good" --stage review --post; then
   echo "OK review-fix-input-good"
 else
   echo "FAIL review-fix-input-good expected pass"; exit 1
 fi
 
 echo "=== review-fix-input-not-pass should FAIL post ==="
-if "$GATE" --task-dir "$SCRIPT_DIR/review-fix-input-not-pass" --stage review --post --mode goal; then
+if "$GATE" --task-dir "$SCRIPT_DIR/review-fix-input-not-pass" --stage review --post; then
   echo "FAIL review-fix-input-not-pass expected fail"; exit 1
 else
   echo "OK review-fix-input-not-pass rejected"
@@ -208,7 +208,7 @@ state = {
 }
 open("$STATE", "w").write(json.dumps(state, indent=2))
 PY
-if GOAL_ARTIFACT_MODE=split "$GATE" --task-dir "$TASK" --stage review --post --mode goal --state-file "$STATE"; then
+if GOAL_ARTIFACT_MODE=split "$GATE" --task-dir "$TASK" --stage review --post --state-file "$STATE"; then
   echo "OK split mode review post"
 else
   echo "FAIL split mode review expected pass"; rm -rf "$SPLIT_TMP"; exit 1
@@ -233,9 +233,6 @@ bash "$SCRIPT_DIR/test-write-delivery-quality.sh"
 
 echo "=== kernel gate_runtime noop ==="
 python3 "$SCRIPT_DIR/../../../kernel/tests/test_gate_runtime_noop.py"
-
-echo "=== gf-stage-driver native flag ==="
-bash "$SCRIPT_DIR/test-gf-native-driver.sh"
 
 echo "=== delivery-quality complete gate wiring ==="
 bash "$SCRIPT_DIR/test-delivery-quality-complete.sh"

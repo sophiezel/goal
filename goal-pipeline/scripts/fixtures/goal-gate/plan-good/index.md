@@ -53,7 +53,7 @@ function DetailPage() {
 
 | Stage | Skill | Result |
 |-------|-------|--------|
-| plan | guazi-flow-plan | pass |
+| plan | goal-plan | pass |
 
 ## write_set
 

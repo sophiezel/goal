@@ -64,7 +64,7 @@ def index_implies_implement_done(task_dir):
 
 
 def check_state_handoff_consistency(state, handoff_dir, errors):
-    stages = state.get("guazi_flow_stages") or {}
+    stages = state.get("pipeline_stages") or {}
     for stage in ("plan", "implement", "review", "complete"):
         gate = (stages.get(stage) or {}).get("gate") or {}
         if gate.get("passed_at") and not os.path.isfile(os.path.join(handoff_dir, f"{stage}.json")):
@@ -205,7 +205,7 @@ def main():
             warnings.append(f"implement: diff hash check error: {e}")
 
     if not os.path.isfile(plan_handoff):
-        plan_gate = ((state.get("guazi_flow_stages") or {}).get("plan") or {}).get("gate") or {}
+        plan_gate = ((state.get("pipeline_stages") or {}).get("plan") or {}).get("gate") or {}
         if plan_gate.get("passed_at"):
             errors.append("plan: state gate passed but handoff/plan.json missing")
 

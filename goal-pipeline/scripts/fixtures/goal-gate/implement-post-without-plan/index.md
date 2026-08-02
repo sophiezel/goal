@@ -30,4 +30,4 @@ function Page() { return null; }
 
 ## 执行记录
 
-- 2026-07-03：guazi-flow-implement 完成（fixture only）
+- 2026-07-03：goal-implement 完成（fixture only）

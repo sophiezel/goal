@@ -16,18 +16,11 @@
           fail "API mapping table changed since plan post — refresh handoff (gate --post plan) or mini-replan"
         fi
       fi
-      if [[ -f "$SCRIPT_DIR/guazi_flow_contract_enrich.py" && -f "$HANDOFF_DIR/plan.json" ]]; then
-        CE_ARGS=(--task-dir "$REPO_TASK_DIR" --check-implement-pre --plan-json "$HANDOFF_DIR/plan.json" --index "$INDEX")
-        [[ -n "$STATE_FILE" && -f "$STATE_FILE" ]] && CE_ARGS+=(--state-file "$STATE_FILE")
-        if ! python3 "$SCRIPT_DIR/guazi_flow_contract_enrich.py" "${CE_ARGS[@]}" >/dev/null 2>&1; then
-          fail "contract enrich not satisfied (B3) — re-run gate --post plan; guazi_flow_contract_enriched=false blocks implement"
-        fi
-      fi
       pass "implement pre — plan gate passed; write_set non-empty; code changes now allowed within write_set"
     fi
     [[ -f "$HANDOFF_DIR/plan.json" ]] || fail "plan handoff missing — run gate --post plan first"
     [[ -f "$INDEX" ]] || fail "index.md not found"
-    grep -q 'guazi-flow-implement' "$INDEX" || fail "index execution record missing guazi-flow-implement"
+    grep -q 'goal-implement' "$INDEX" || fail "index execution record missing goal-implement"
     PLAN_WS=$(python3 -c "import json; print(json.dumps(json.load(open('$HANDOFF_DIR/plan.json')).get('write_set',[])))" 2>/dev/null || echo '[]')
     if [[ "$PLAN_WS" != "[]" && -n "$GIT_ROOT" ]]; then
       cd "$GIT_ROOT"
@@ -203,7 +196,7 @@ PYAH
 {
   "stage": "implement",
   "schema_version": 1,
-  "skill_expected": "guazi-flow-implement",
+  "skill_expected": "goal-implement",
   "skill_executed": true,
   "write_set": $PLAN_WS,
   "changed_files": $CF,

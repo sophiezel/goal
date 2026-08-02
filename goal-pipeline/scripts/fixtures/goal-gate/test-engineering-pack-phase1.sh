@@ -48,7 +48,7 @@ tmp2=$(mktemp -d)
 export GOAL_STATE_HOME="$tmp2/gs"
 export GOAL_ARTIFACT_MODE=repo_full
 mkdir -p "$GOAL_STATE_HOME/scripts"
-for f in goal-stage-driver.sh gate-guazi-flow-stage.sh goal-advance-stage.sh assert-plan-before-code.sh validate-state-path.sh; do
+for f in goal-stage-driver.sh gate-goal-stage.sh goal-advance-stage.sh assert-plan-before-code.sh validate-state-path.sh; do
   ln -sf "$SCRIPT_DIR/../../$f" "$GOAL_STATE_HOME/scripts/$f" 2>/dev/null || cp "$SCRIPT_DIR/../../$f" "$GOAL_STATE_HOME/scripts/$f"
 done
 for f in assert_plan_before_code.py resolve-artifact-paths.py review_track.py argus_plan_post_policy.py goal_state_paths.py; do
@@ -83,7 +83,7 @@ p
 ## 写集
 - docs/guazi-flow/demo/**
 ## 执行记录
-- guazi-flow-plan
+- goal-plan
 MD
 INIT=$(bash "$KERNEL" init --project-root "$repo" --task-dir "$TASK" --format json)
 STATE=$(echo "$INIT" | python3 -c "import json,sys; print(json.load(sys.stdin)['state_file'])")

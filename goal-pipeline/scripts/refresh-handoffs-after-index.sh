@@ -8,8 +8,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GOAL_STATE_HOME="${GOAL_STATE_HOME:-${GOAL_HOME:-$HOME/.goal-pipeline}/state}"
-GATE="$GOAL_STATE_HOME/scripts/gate-guazi-flow-stage.sh"
-[[ -x "$GATE" ]] || GATE="$SCRIPT_DIR/gate-guazi-flow-stage.sh"
+GATE="$GOAL_STATE_HOME/scripts/gate-goal-stage.sh"
+[[ -x "$GATE" ]] || GATE="$SCRIPT_DIR/gate-goal-stage.sh"
 ASSEMBLE="$GOAL_STATE_HOME/scripts/assemble-review-packet.sh"
 [[ -x "$ASSEMBLE" ]] || ASSEMBLE="$SCRIPT_DIR/assemble-review-packet.sh"
 HASH_PY="$SCRIPT_DIR/index_contract_hash.py"
@@ -92,7 +92,7 @@ else
   fi
 fi
 
-COMMON_GATE=(--task-dir "$REPO_TASK_DIR" --mode guazi --project-root "$PROJECT_ROOT")
+COMMON_GATE=(--task-dir "$REPO_TASK_DIR" --project-root "$PROJECT_ROOT")
 [[ -n "$STATE_FILE" ]] && COMMON_GATE+=(--state-file "$STATE_FILE")
 COMMON_ASM=(--task-dir "$REPO_TASK_DIR" --project-root "$PROJECT_ROOT")
 [[ -n "$STATE_FILE" ]] && COMMON_ASM+=(--state-file "$STATE_FILE")

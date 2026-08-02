@@ -5,7 +5,7 @@ description: 持久化目标执行管线引擎。使用 `/goal-pipeline <目标>
 
 # Goal Pipeline
 
-持久化目标执行管线——与 Claude Code /goal 对齐的 5 阶段管线引擎。**goal-pipeline 为一等公民**；guazi-flow 为可选兼容适配层（`pipeline_track=compatibility|guazi`），见文末 **Guazi adapter appendix**。
+持久化目标执行管线——与 Claude Code /goal 对齐的 5 阶段管线引擎（v1.4 独立栈）。
 
 零外部 skill 硬依赖，所有平台通用。
 
@@ -21,9 +21,9 @@ L2 eval 与 Agent 回复 SSOT：[`references/response-playbook.md`](references/r
 
 > **Index-Lite**（`plan_profile: lite`）仅精简 index 章节与伪代码字数；**仍 MUST** `gate --post plan` + PQ-01/02/05/07 **不降级**。小任务不等于可省略 plan gate。
 
-**review_track=single 时用户要加载 guazi-flow-review 双重审核** — MUST **不加载**（第一句须含 **review-packet** + **unified**）：
+**review_track=single 时用户要双重加载外部 review skill** — MUST **不加载**（第一句须含 **review-packet** + **unified**）：
 
-> **不需要**加载 guazi-flow-review。**单轨** `review_track=single`：**rubric** 已嵌入 **review-packet**；走 **goal-run-review-chain.sh** **unified** 分支 + **goal-review** 即可。
+> **单轨** `review_track=single`：**rubric** 已嵌入 **review-packet**；走 **goal-run-review-chain.sh** **unified** 分支 + **goal-review** 即可。
 
 **review-fix-input.json `action=blocked_stagnant`** — MUST **停止**盲修复（第一句须含 **blocked_stagnant** 或 **熔断**）：
 
@@ -68,7 +68,7 @@ Goal 是一个持久化的工程目标。Agent 接到 goal 后持续执行，不
 
 - State boundary: `~/.goal-pipeline/state/projects/<project_id>/<branch>/<task>/state.json`
 - Forbidden read: `~/.goal-pipeline/state/projects/*/state.json`（非当前 task）、其他项目 `handoff/*.json`
-- 跨管线隔离: 仅读写当前 task_dir；guazi-flow 扩展字段追加写入，不覆盖 goal-pipeline 基础字段
+- 跨 task 隔离: 仅读写当前 task_dir 与 `~/.goal-pipeline/state/projects/<pid>/<branch>/<task>/`
 
 ## 执行模型
 
@@ -134,7 +134,7 @@ Phase 2: Pipeline Execution（Agent 持续执行）
 
 - 从用户输入解析目标（低自由度——三步收敛协议固定流程）、推断范围（中自由度——Agent 自主判断 Out of Scope 边界）、确定验收标准
 - 产出 plan 卡片（含 Allowed Files / Out of Scope / Stop Conditions / 验证清单 V#1..V#N 结构化字段）
-- plan 产物最小质量门槛（默认 goal-pipeline 模式；`pipeline_track=guazi` 时由 guazi-flow-plan 保障，跳过此步）：
+- plan 产物最小质量门槛：
   1. 验收标准可测性: 每条含 pass/fail 判定方式
      BAD: "功能正常" | GOOD: "GET /api/users 返回 200 + 列表非空"
      不满足 → 要求重写
@@ -164,7 +164,7 @@ Phase 2: Pipeline Execution（Agent 持续执行）
 
 Agent 在确定的范围内修改代码，产出候选 diff。
 
-**After implementing, verify（默认 goal 模式；guazi 适配轨由 diff 合规性审计覆盖）**：
+**After implementing, verify**：
 - diff 文件是否全部在 Allowed Files 范围内？
   超出 → 告警 + 记录超出文件及理由
 - 是否引入新依赖或修改接口协议（Stop Conditions）？
@@ -225,8 +225,6 @@ Step 4: gate --post review → handoff/review.json
   pass → advance / not_pass → 修复子循环
 ```
 
-**扩展点**：桥接层可在 Step 0 与 Step 2 之间注入 **Step 1.5**（如 guazi-flow-review），注入的 issues 合并到 Step 3 的结果中。详见桥接层文档。
-
 ### 修复子循环——五种场景分类处理（与 Claude Code /goal 对齐）
 
 **MANDATORY**: 读取 `skill_dir/references/auto-continue-policy.md`（停止条件和空转检测）
@@ -258,7 +256,6 @@ review not_pass:
   │   │   3. 回到 implement（基于补充后的 plan 重新实现）
   │   │   4. replan_count++
   │   │   5. replan_count > 2 → blocked（plan 反复补充说明需求不清晰）
-  │   │   guazi-flow 模式: mini-replan 改为调 guazi-flow-plan 更新 index.md
   │   │
   │   ├─ implement_error 占多数 → 进入下方场景决策树
   │   │
@@ -311,7 +308,6 @@ review not_pass:
 
 默认进度输出使用 goal stage skill 名：
 `[1/5] goal-plan:` / `[2/5] goal-implement:` / `[3/5] goal-quality:` / `[4/5] goal-review:` / `[5/5] goal-complete:`
-`pipeline_track=guazi` 时可显示 guazi-flow-* 前缀（兼容轨）
 
 review 未通过时输出 issue 变动追踪（✅已解决 / 🔁持续 / 🆕新增），blocked 时输出决策选项 [A/B/C/D]。implement 阶段修改超出 Allowed Files 白名单时输出 ⚠️ 告警。
 
@@ -329,14 +325,13 @@ review 未通过时输出 issue 变动追踪（✅已解决 / 🔁持续 / 🆕�
 
 ## Evidence 路径
 
-默认 goal-pipeline 模式: `docs/goal/<task>/evidence/`（`task_docs_root` 默认 `docs/goal`；task_dir = state.json 中的 task 路径）
-guazi 适配轨: `docs/guazi-flow/<task>/evidence/`（`pipeline_track=guazi` 或 profile 显式 `task_docs_root: docs/guazi-flow`）
+默认: `docs/goal/<task>/evidence/`（`task_docs_root` 默认 `docs/goal`；task_dir = state.json 中的 task 路径）
 
 evidence 文件清单：
 - runtime-smoke.md — smoke 阶段产出
 - review.md — review 阶段产出
-- implement.md — implement 阶段产出（guazi-flow 模式）
-- complete.md — complete 阶段产出（guazi-flow 模式）
+- implement.md — implement 阶段产出（可选）
+- complete.md — complete 阶段产出
 
 ### complete 阶段
 
@@ -350,8 +345,6 @@ evidence 文件清单：
 - 验证覆盖率: V# verified / V# gap / V# failed
 - scope 合规: Allowed Files 告警次数 / Stop Conditions 触发次数
 - 效率: 首轮 pass? / 修复子循环次数 / replan 次数 / token 估算
-- guazi-flow 模式: guazi-flow-complete 收口摘要已含 completed_actions/residual_risks/wiki_update/next_action，质量报告不重复这些字段
-
 ## 审核通道自动配置
 
 **MANDATORY**: 读取 `skill_dir/references/review-channel-setup.md`（三路径自动配置 + 用户自定义模型）
@@ -379,7 +372,6 @@ evidence 文件清单：
 | 非 JS 项目 | runtime-smoke 自动跳过（无法推导 dev 命令）|
 | budget ≥100% | 暂停，用户可 extend 或 /goal-pipeline-clear |
 | 审核通道全不可用 | 输出告警 + 安装建议，implement 前仍不可用则 blocked |
-| 契约融入失败 | plan post **BLOCK**（B3）；`guazi_flow_contract_enriched=false` 禁止进入 implement；profile `contract_enrich.policy=waive` 记 W2 |
 
 ## 前置依赖
 
@@ -399,18 +391,6 @@ evidence 文件清单：
 ## 原生 Goal 集成
 
 当 `platform.native_goal = true` 时（Claude Code / Codex / Pi），goal-pipeline 利用平台原生 /goal 能力作为执行引擎，state.json 作为双保险。详见 `references/platform-detection.md` 的平台能力矩阵。`native_goal = false` 时完全自主管理。
-
-## Guazi adapter appendix（可选）
-
-`pipeline_track=compatibility|guazi` 时：
-
-- Gate：`gate-goal-stage.sh --mode guazi`（或兼容包装 `gate-guazi-flow-stage.sh`）
-- Stage skills：可对照 `guazi-flow-plan` / `guazi-flow-implement` / `guazi-flow-review` / `guazi-flow-complete` 作为附录
-- 任务目录：默认 `docs/guazi-flow/<task>/`；需安装 guazi-flow-* marketplace skills
-- Review：`review_track=dual` 时可加载 `guazi-flow-review` 注入 Step 1.5
-
-**默认 goal 轨不需要** guazi-flow-* marketplace；SSOT 为本仓库 `goal-pipeline/stages/goal-*`。
-
 ## 生命周期管理
 
 **MANDATORY**: 读取 `skill_dir/references/lifecycle.md`（命令表 + status 格式 + pause/clear 行为）

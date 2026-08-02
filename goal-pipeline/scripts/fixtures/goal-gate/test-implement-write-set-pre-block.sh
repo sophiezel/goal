@@ -3,7 +3,7 @@
 set -euo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SCRIPTS="$(cd "$DIR/../.." && pwd)"
-GATE="$SCRIPTS/gate-guazi-flow-stage.sh"
+GATE="$SCRIPTS/gate-goal-stage.sh"
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' exit
 
@@ -38,7 +38,7 @@ function f(){ return 1; }
 | C1 | works | yarn test |
 
 ## 执行记录
-- guazi-flow-implement done
+- goal-implement done
 MD
 
 export GOAL_ARTIFACT_MODE=repo_full
@@ -56,14 +56,14 @@ make_plan_json() {
 {
   "stage": "plan",
   "schema_version": 1,
-  "skill_expected": "guazi-flow-plan",
+  "skill_expected": "goal-plan",
   "skill_executed": true,
   "profile": "h5",
   "plan_profile": "full",
   "write_set": $ws_json,
   "acceptance_matrix_ids": ["C01"],
   "verification": {"build_command": "CI= yarn build:beta"},
-  "gate": {"script": "gate-guazi-flow-stage.sh", "version": 1, "passed_at": "$now", "post_exit_code": 0}
+  "gate": {"script": "gate-goal-stage.sh", "version": 1, "passed_at": "$now", "post_exit_code": 0}
 }
 JSON
 }

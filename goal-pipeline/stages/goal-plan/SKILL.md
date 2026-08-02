@@ -38,4 +38,3 @@ validate-pipeline-chain.sh --task-dir <task>
 ## NEVER
 
 - NEVER 跳过 PQ 门禁（goal_lite 除外：index 硬校验由 gate 放宽，PQ 仍按 profile）
-- NEVER 将 guazi-flow-plan 当作默认必读上游

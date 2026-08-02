@@ -15,7 +15,7 @@
       fi
     fi
     [[ -f "$INDEX" ]] || fail "index.md not found"
-    grep -q 'guazi-flow-complete' "$INDEX" || fail "execution record missing guazi-flow-complete"
+    grep -q 'goal-complete' "$INDEX" || fail "execution record missing goal-complete"
     grep -qE 'current_stage:\s*complete|flow\.current_stage.*complete' "$INDEX" || fail "index current_stage not complete"
     # review still fresh
     if [[ -f "$EVIDENCE_DIR/review.md" ]]; then
@@ -70,9 +70,9 @@
 {
   "stage": "complete",
   "schema_version": 1,
-  "skill_expected": "guazi-flow-complete",
+  "skill_expected": "goal-complete",
   "skill_executed": true,
-  "completed_actions": ["guazi-flow-complete"],
+  "completed_actions": ["goal-complete"],
   "residual_risks": [],
   "artifact_paths": ["index.md", "evidence/review.md"]
 }

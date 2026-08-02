@@ -1,32 +1,44 @@
 {
   "schema_version": 1,
-  "run_id": "396dfa6c280ecd07",
+  "run_id": "d24cc3748b8ad0ca",
   "provider": "mock-unified",
   "model": "mock-unified",
   "mode": "unified",
   "channels": [
-    "goal",
-    "guazi-flow-review"
+    "goal"
   ],
-  "review_track": "dual",
-  "wrapper_profile": "guazi-flow-review",
+  "review_track": "single",
+  "wrapper_profile": "goal-review",
   "invocation_count": 1,
-  "gf_skill_attested": true,
+  "gf_skill_attested": false,
   "gf_rubric_source": "51bc43b9ca9e0948",
-  "packet_hash": "f9e6c87f476d6cf5",
+  "packet_hash": "8445514c71fb01b3",
   "packet_path": "handoff/review-packet.json",
-  "latency_ms": 478,
+  "latency_ms": 2219,
   "tokens": {},
-  "output_hash": "38712e3e6da5b82b",
-  "started_at": "2026-08-02T16:11:09Z",
-  "finished_at": "2026-08-02T16:11:09Z",
-  "fallback_layer": "none",
-  "review_depth": "",
-  "attempts": [],
+  "output_hash": "54dcda21c11aa3e4",
+  "started_at": "2026-08-02T18:32:26Z",
+  "finished_at": "2026-08-02T18:32:28Z",
+  "fallback_layer": "packet_vertical",
+  "review_depth": "light",
+  "attempts": [
+    {
+      "layer": "vertical",
+      "fallback_layer": "packet_vertical",
+      "provider": "mock-unified",
+      "model": "",
+      "packet_variant": "scoped",
+      "shard_id": "",
+      "latency_ms": 23,
+      "result": "pass",
+      "error": null,
+      "error_kind": ""
+    }
+  ],
   "channel_guard": {
-    "has_candidates": false,
-    "selected_provider": "",
-    "selected_model": "",
+    "has_candidates": true,
+    "selected_provider": "mock-unified",
+    "selected_model": "mock-unified",
     "downgrade_blocked": false
   }
 }

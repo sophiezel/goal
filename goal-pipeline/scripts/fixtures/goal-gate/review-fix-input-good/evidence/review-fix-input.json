@@ -7,7 +7,7 @@
   "resolved_since_last_round": [],
   "next_steps": [
     "gate --post review",
-    "guazi-flow-complete"
+    "goal-complete"
   ],
   "provenance": {
     "review_run_id": "run1234567890abcd",

@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "round": 71,
+  "round": 85,
   "merged_result": "not_pass",
   "action": "blocked_user_decision",
   "issues": [
@@ -17,17 +17,16 @@
   ],
   "resolved_since_last_round": [],
   "next_steps": [
-    "review fix rounds exhausted (GOAL_REVIEW_MAX_ROUNDS=10, round=71)",
+    "review fix rounds exhausted (GOAL_REVIEW_MAX_ROUNDS=10, round=85)",
     "present user options A/B/C/D — do not continue blind fix loops",
     "optional: raise GOAL_REVIEW_MAX_ROUNDS only with explicit user approval"
   ],
   "provenance": {
-    "review_run_id": "396dfa6c280ecd07",
-    "packet_hash": "f9e6c87f476d6cf5",
-    "gf_skill_attested": true,
+    "review_run_id": "d24cc3748b8ad0ca",
+    "packet_hash": "8445514c71fb01b3",
+    "gf_skill_attested": false,
     "channels": [
-      "goal",
-      "guazi-flow-review"
+      "goal"
     ]
   },
   "classification": "business",
@@ -36,7 +35,7 @@
   "blocker_count": 1,
   "info_gain": 0.0,
   "info_gain_threshold": 0.1,
-  "stagnant_rounds": 43,
+  "stagnant_rounds": 57,
   "stagnant_rounds_limit": 2,
   "stagnant_blocked": false
 }

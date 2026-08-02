@@ -70,7 +70,7 @@ PY
 
 export GOAL_STATE_HOME="$tmp/gs"
 mkdir -p "$GOAL_STATE_HOME/scripts"
-cat > "$GOAL_STATE_HOME/scripts/gate-guazi-flow-stage.sh" <<'SH'
+cat > "$GOAL_STATE_HOME/scripts/gate-goal-stage.sh" <<'SH'
 #!/bin/bash
 echo "stub-gate $*" >&2
 exit 0

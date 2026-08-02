@@ -18,7 +18,7 @@ print("verification_oracle_core smoke_required OK")
 PY
 
 # Benchmark static acceptance
-bash "$SCRIPTS/benchmark-pipeline-replay.sh" --task-dir "$DIR/../guazi-flow-gate/plan-good" --output /tmp/benchmark-test.json
+bash "$SCRIPTS/benchmark-pipeline-replay.sh" --task-dir "$DIR/plan-good" --output /tmp/benchmark-test.json
 python3 - /tmp/benchmark-test.json << 'PY2'
 import json, sys
 d = json.load(open(sys.argv[1]))
@@ -48,7 +48,7 @@ cmds = mod.build_test_commands(os.getcwd(), "/tmp", plan, ["src/a.ts"], "related
 builds = [c for c in cmds if c.get("kind") == "build" or mod._is_build_command(c.get("cmd", ""))]
 tests = [c for c in cmds if c not in builds]
 assert len(builds) == 1, builds
-assert not mod._test_files_for_write_set(["docs/guazi-flow/x/index.md"], os.getcwd(), [])
+assert not mod._test_files_for_write_set(["docs/goal/x/index.md"], os.getcwd(), [])
 print("UVO dedupe + index basename fix OK")
 PY3
 

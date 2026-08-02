@@ -205,10 +205,80 @@
           "event": "start",
           "timestamp_utc": "2026-08-02T16:11:08Z",
           "substep": "post"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-08-02T17:34:27Z",
+          "substep": "post"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-08-02T17:40:28Z",
+          "substep": "post"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-08-02T17:41:10Z",
+          "substep": "post"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-08-02T17:42:19Z",
+          "substep": "post"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-08-02T17:43:13Z",
+          "substep": "post"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-08-02T17:44:15Z",
+          "substep": "post"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-08-02T17:45:33Z",
+          "substep": "post"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-08-02T17:46:28Z",
+          "substep": "post"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-08-02T17:47:19Z",
+          "substep": "post"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-08-02T17:48:19Z",
+          "substep": "post"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-08-02T17:50:05Z",
+          "substep": "post"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-08-02T18:03:35Z",
+          "substep": "post"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-08-02T18:08:26Z",
+          "substep": "post"
+        },
+        {
+          "event": "start",
+          "timestamp_utc": "2026-08-02T18:32:25Z",
+          "substep": "post"
         }
       ],
       "started_at_utc": "2026-08-01T17:10:52Z",
-      "last_timestamp_utc": "2026-08-02T16:11:08Z",
+      "last_timestamp_utc": "2026-08-02T18:32:25Z",
       "substeps": {
         "post": {
           "events": [
@@ -241,12 +311,82 @@
               "event": "start",
               "timestamp_utc": "2026-08-02T16:11:08Z",
               "substep": "post"
+            },
+            {
+              "event": "start",
+              "timestamp_utc": "2026-08-02T17:34:27Z",
+              "substep": "post"
+            },
+            {
+              "event": "start",
+              "timestamp_utc": "2026-08-02T17:40:28Z",
+              "substep": "post"
+            },
+            {
+              "event": "start",
+              "timestamp_utc": "2026-08-02T17:41:10Z",
+              "substep": "post"
+            },
+            {
+              "event": "start",
+              "timestamp_utc": "2026-08-02T17:42:19Z",
+              "substep": "post"
+            },
+            {
+              "event": "start",
+              "timestamp_utc": "2026-08-02T17:43:13Z",
+              "substep": "post"
+            },
+            {
+              "event": "start",
+              "timestamp_utc": "2026-08-02T17:44:15Z",
+              "substep": "post"
+            },
+            {
+              "event": "start",
+              "timestamp_utc": "2026-08-02T17:45:33Z",
+              "substep": "post"
+            },
+            {
+              "event": "start",
+              "timestamp_utc": "2026-08-02T17:46:28Z",
+              "substep": "post"
+            },
+            {
+              "event": "start",
+              "timestamp_utc": "2026-08-02T17:47:19Z",
+              "substep": "post"
+            },
+            {
+              "event": "start",
+              "timestamp_utc": "2026-08-02T17:48:19Z",
+              "substep": "post"
+            },
+            {
+              "event": "start",
+              "timestamp_utc": "2026-08-02T17:50:05Z",
+              "substep": "post"
+            },
+            {
+              "event": "start",
+              "timestamp_utc": "2026-08-02T18:03:35Z",
+              "substep": "post"
+            },
+            {
+              "event": "start",
+              "timestamp_utc": "2026-08-02T18:08:26Z",
+              "substep": "post"
+            },
+            {
+              "event": "start",
+              "timestamp_utc": "2026-08-02T18:32:25Z",
+              "substep": "post"
             }
           ],
-          "last_timestamp_utc": "2026-08-02T16:11:08Z"
+          "last_timestamp_utc": "2026-08-02T18:32:25Z"
         }
       }
     }
   },
-  "updated_at_utc": "2026-08-02T16:11:08Z"
+  "updated_at_utc": "2026-08-02T18:32:25Z"
 }

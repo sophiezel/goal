@@ -1,0 +1,1 @@
+/Users/xuwei/Profession/goal/.cache/guazi-fixture-runtime/guazi/state/scripts/refresh-handoffs-after-index.sh

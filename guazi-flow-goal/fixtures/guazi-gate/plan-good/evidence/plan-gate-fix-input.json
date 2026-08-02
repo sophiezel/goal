@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "stage": "plan",
+  "action": "fix_and_rerun",
+  "issues": [
+    {
+      "id": "G001",
+      "severity": "blocker",
+      "summary": "execution record missing skill marker: goal-plan",
+      "root_cause": "plan_gap",
+      "criterion_ref": "unified-doc-contract §章节顺序"
+    }
+  ],
+  "next_steps": [
+    "修 index.md 必填章节与 write_set 后重跑 gate --post plan"
+  ],
+  "subject_hash": "22e0a07cf8a96ea0",
+  "gate_script": "guazi-gate-stage.sh"
+}

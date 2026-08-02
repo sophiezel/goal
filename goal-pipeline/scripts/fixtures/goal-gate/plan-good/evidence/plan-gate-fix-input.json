@@ -6,7 +6,7 @@
     {
       "id": "G001",
       "severity": "blocker",
-      "summary": "缺少必填章节: ## 范围与写集",
+      "summary": "execution record missing skill marker: guazi-flow-plan",
       "root_cause": "plan_gap",
       "criterion_ref": "unified-doc-contract §章节顺序"
     }
@@ -14,6 +14,6 @@
   "next_steps": [
     "修 index.md 必填章节与 write_set 后重跑 gate --post plan"
   ],
-  "subject_hash": "99edbc8af142938e",
-  "gate_script": "gate-guazi-flow-stage.sh"
+  "subject_hash": "35c04606d5a84297",
+  "gate_script": "gate-goal-stage.sh"
 }

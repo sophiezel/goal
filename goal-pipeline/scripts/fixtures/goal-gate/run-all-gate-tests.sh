@@ -40,7 +40,6 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 "$DIR/test-argus-plan-post-orchestration.sh"
 "$DIR/test-fix-input-issue-order.sh"
 "$DIR/test-verify-review-nonwatch.sh"
-"$DIR/test-adapter-content-fallback.sh"
 "$DIR/test-review-rounds-exhausted.sh"
 "$DIR/test-secret-in-diff.sh"
 "$DIR/test-quality-plane-degraded.sh"
@@ -52,10 +51,7 @@ DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 "$DIR/test-review-strict-ux.sh"
 "$DIR/test-ux-auto-fix-audit.sh"
 "$DIR/test-extract-verification-hints.sh"
-# Optional: guazi-adapter compatibility suite (same fixtures, --mode guazi)
-ADAPTER_SUITE="$(cd "$DIR/../guazi-adapter-gate" && pwd)/run-gate-tests.sh"
-if [[ -x "$ADAPTER_SUITE" ]] && [[ "${GOAL_RUN_GUAZI_ADAPTER_SUITE:-1}" != "0" ]]; then
-  echo "=== guazi-adapter-gate (optional) ==="
-  GOAL_GATE_COMPAT_WARN=0 bash "$ADAPTER_SUITE"
-fi
+# Tier A skill structure lint (writing-great-skills gate)
+bash "$(cd "$DIR/../.." && pwd)/audit-skills.sh" --tier a --repo-root "$(cd "$DIR/../../../.." && pwd)"
+# Optional: guazi-adapter compatibility suite removed in v1.4
 echo "All gate + observability tests passed"

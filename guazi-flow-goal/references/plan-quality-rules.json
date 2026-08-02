@@ -1,0 +1,98 @@
+{
+  "schema_version": 1,
+  "fuzzy_phrases": [
+    "功能正常",
+    "无明显问题",
+    "后续对账",
+    "基本可用",
+    "应该没问题"
+  ],
+  "rules": {
+    "PQ-01": {
+      "id": "PQ-01",
+      "summary": "write_set 非空",
+      "standard": "block",
+      "strict": "block"
+    },
+    "PQ-02": {
+      "id": "PQ-02",
+      "summary": "acceptance_matrix_ids 至少 1 个",
+      "standard": "block",
+      "strict": "block"
+    },
+    "PQ-03": {
+      "id": "PQ-03",
+      "summary": "验收矩阵行含执行方式/验证列",
+      "standard": "warn",
+      "strict": "block"
+    },
+    "PQ-04": {
+      "id": "PQ-04",
+      "summary": "禁止模糊验收措辞",
+      "standard": "warn",
+      "strict": "block"
+    },
+    "PQ-05": {
+      "id": "PQ-05",
+      "summary": "blockers 章节无未解决 P0",
+      "standard": "block",
+      "strict": "block"
+    },
+    "PQ-06": {
+      "id": "PQ-06",
+      "summary": "伪代码最低字数",
+      "standard_min_chars": 200,
+      "strict_min_chars": 500,
+      "lite_min_chars": 80
+    },
+    "PQ-07": {
+      "id": "PQ-07",
+      "summary": "写集含 src/pages 时验收矩阵须声明 build:beta",
+      "standard": "block",
+      "strict": "block"
+    },
+    "PQ-08": {
+      "id": "PQ-08",
+      "summary": "验收矩阵每行须含 verify_command | data-testid | http_assert 之一（lite=warn）",
+      "standard": "warn",
+      "strict": "block",
+      "lite": "warn"
+    },
+    "PQ-09": {
+      "id": "PQ-09",
+      "summary": "Index-Lite 验收行数建议 3-5（lite only, warn）",
+      "lite_min_rows": 3,
+      "lite_max_rows": 5
+    },
+    "PQ-10": {
+      "id": "PQ-10",
+      "summary": "API 映射表自洽（同 path 单义 request_key）",
+      "standard": "warn",
+      "strict": "block"
+    },
+    "PQ-11": {
+      "id": "PQ-11",
+      "summary": "detail/VO 响应字段表",
+      "standard": "warn",
+      "strict": "block"
+    },
+    "PQ-12": {
+      "id": "PQ-12",
+      "summary": "decisions.json 与冻结决策 hash",
+      "standard": "block",
+      "strict": "block"
+    },
+    "PQ-13": {
+      "id": "PQ-13",
+      "summary": "多源文档数字常量冲突",
+      "standard": "warn",
+      "strict": "block"
+    },
+    "PQ-14": {
+      "id": "PQ-14",
+      "summary": "展示契约行（display_assert）",
+      "standard": "warn",
+      "strict": "block"
+    }
+  }
+}

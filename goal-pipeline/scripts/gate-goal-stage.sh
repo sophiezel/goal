@@ -1,8 +1,6 @@
 #!/bin/bash
 # gate-goal-stage.sh — Hard gate for goal-pipeline stages (v1.3 SSOT)
-# Usage: gate-goal-stage.sh --task-dir <path> --stage plan|implement|quality|smoke|review|complete [--pre|--post] [--mode goal|guazi|degraded]
-# Exit 0 = pass, 1 = fail
-# Legacy: gate-guazi-flow-stage.sh wraps this with --mode guazi
+# Usage: gate-goal-stage.sh --task-dir <path> --stage plan|implement|quality|smoke|review|complete [--pre|--post]
 
 set -euo pipefail
 
@@ -15,9 +13,6 @@ done
 SCRIPT_DIR="$(cd "$(dirname "$_self")" && pwd)"
 export GATE_SCRIPT_DIR="$SCRIPT_DIR"
 SCHEMA_DIR="${SCRIPT_DIR}/../references/goal-artifact-schema"
-if [[ ! -d "$SCHEMA_DIR" ]]; then
-  SCHEMA_DIR="${SCRIPT_DIR}/../references/guazi-flow-artifact-schema"
-fi
 GATE_VERSION=1
 
 TASK_DIR=""
@@ -29,7 +24,7 @@ ASSERT_COMPLETE=false
 PROJECT_ROOT=""
 
 usage() {
-  echo "Usage: $0 --task-dir <path> --stage plan|implement|quality|smoke|review|complete [--pre|--post] [--mode goal|guazi|degraded]" >&2
+  echo "Usage: $0 --task-dir <path> --stage plan|implement|quality|smoke|review|complete [--pre|--post]" >&2
   echo "       $0 --assert-complete --state-file <path> [--task-dir <path>] [--project-root <path>]" >&2
   exit 2
 }
@@ -40,7 +35,6 @@ while [[ $# -gt 0 ]]; do
     --stage) STAGE="$2"; shift 2 ;;
     --pre) PHASE="pre"; shift ;;
     --post) PHASE="post"; shift ;;
-    --mode) MODE="$2"; shift 2 ;;
     --state-file) STATE_FILE="$2"; shift 2 ;;
     --assert-complete) ASSERT_COMPLETE=true; shift ;;
     --project-root) PROJECT_ROOT="$2"; shift 2 ;;
@@ -502,7 +496,7 @@ else:
     errors.append("pseudocode section not found")
 
 # execution record skill for plan post
-default_skill = 'goal-plan' if os.environ.get('GATE_MODE', 'goal') != 'guazi' else 'guazi-flow-plan'
+default_skill = 'goal-plan'
 skill = rules['execution_record_skill'].get('plan', default_skill)
 if skill not in text:
     errors.append(f"execution record missing skill marker: {skill}")
@@ -583,35 +577,6 @@ print(json.dumps({
 PY
 }
 
-
-read_gf_issues_count() {
-  local unified_json="$GOAL_EVIDENCE_DIR/review-unified.json"
-  if [[ -f "$unified_json" ]]; then
-    python3 - "$unified_json" << 'PYGF'
-import json, sys
-d = json.load(open(sys.argv[1], encoding="utf-8"))
-issues = d.get("issues", [])
-print(sum(1 for i in issues if i.get("channel") == "guazi-flow-review"))
-PYGF
-    return
-  fi
-  python3 - "$EVIDENCE_DIR/review.md" << 'PYGF2'
-import re, sys, os
-p = sys.argv[1]
-if not os.path.isfile(p):
-    print(0); sys.exit(0)
-t = open(p, encoding="utf-8").read()
-m = re.match(r"^---\s*\n(.*?)\n---", t, re.DOTALL)
-if m:
-    for line in m.group(1).splitlines():
-        if line.strip().startswith("issues_gf_count:"):
-            try:
-                print(int(line.split(":",1)[1].strip())); sys.exit(0)
-            except ValueError:
-                pass
-print(0)
-PYGF2
-}
 
 py_check_review() {
   python3 - "$REPO_EVIDENCE_DIR/review.md" "$SCHEMA_DIR/review-evidence-rules.json" "$GOAL_EVIDENCE_DIR/review-unified.json" << 'PY'
@@ -745,7 +710,7 @@ except Exception:
     all_files = []
 out = []
 for f in all_files:
-    if f.startswith('docs/guazi-flow/') or f.startswith('docs/goal/'):
+    if f.startswith('docs/goal/'):
         continue
     def _allowed(f, w):
         w = w.rstrip('/')
@@ -758,11 +723,6 @@ for f in all_files:
 print(json.dumps({"ok": len(out) == 0, "out_of_scope": out, "changed_files": all_files}))
 PY
 }
-
-# === Degraded mode: skip guazi-specific checks ===
-if [[ "$MODE" == "degraded" ]]; then
-  pass "degraded mode — guazi handoff not required"
-fi
 
 mkdir -p "$HANDOFF_DIR" "$REPO_EVIDENCE_DIR" "$GOAL_EVIDENCE_DIR"
 
@@ -890,13 +850,11 @@ update_state_gate() {
   local handoff_file="$HANDOFF_DIR/${stage}.json"
   record_stage_timing "$stage" "end"
   [[ -n "$STATE_FILE" && -f "$STATE_FILE" && -f "$handoff_file" ]] || return 0
-  export GATE_MODE="$MODE"
   GP_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
   python3 - "$STATE_FILE" "$stage" "$handoff_file" "$GP_ROOT" << 'PYSTATE'
-import json, os, sys, hashlib
+import json, sys, hashlib
 from datetime import datetime, timezone
 state_path, stage, handoff_path, gp_root = sys.argv[1:5]
-gate_mode = os.environ.get('GATE_MODE', 'goal')
 GOAL_SKILLS = {
     'plan': 'goal-plan',
     'implement': 'goal-implement',
@@ -905,10 +863,6 @@ GOAL_SKILLS = {
     'complete': 'goal-complete',
     'smoke': 'goal-quality',
 }
-def default_skill(st):
-    if gate_mode == 'guazi':
-        return f'guazi-flow-{st}' if st not in ('quality',) else 'goal-quality'
-    return GOAL_SKILLS.get(st, f'goal-{st}')
 sys.path.insert(0, gp_root)
 sys.path.insert(0, gp_root + '/scripts')
 from atomic_json import write_state_atomic
@@ -916,10 +870,10 @@ with open(state_path, encoding='utf-8') as f:
     state = json.load(f)
 handoff_hash = hashlib.sha256(open(handoff_path, 'rb').read()).hexdigest()[:16]
 passed_at = datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
-stages = state.setdefault('guazi_flow_stages', {})
-entry = stages.setdefault(stage, {})
+pipeline_stages = state.setdefault('pipeline_stages', {})
+entry = pipeline_stages.setdefault(stage, {})
 entry['used'] = True
-entry['skill'] = entry.get('skill', default_skill(stage))
+entry['skill'] = entry.get('skill', GOAL_SKILLS.get(stage, f'goal-{stage}'))
 entry['gate'] = {
     'script': 'gate-goal-stage.sh',
     'version': 1,

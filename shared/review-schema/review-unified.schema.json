@@ -1,0 +1,93 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "goal-pipeline/schemas/review-unified.schema.json",
+  "title": "Review kernel B — review-unified output",
+  "description": "Unified independent review output (single LLM invocation)",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "result",
+    "checklist_goal",
+    "checklist_gf",
+    "issues"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "skill": { "type": "string" },
+    "gf_skill_attested": { "type": "boolean" },
+    "result": {
+      "type": "string",
+      "enum": ["pass", "not_pass", "review_undetermined"]
+    },
+    "provider": { "type": "string" },
+    "model": { "type": "string" },
+    "packet_hash": { "type": "string" },
+    "invocation_count": { "type": "integer", "minimum": 1 },
+    "generated_at": { "type": "string", "format": "date-time" },
+    "checklist_goal": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "passed"],
+        "properties": {
+          "id": { "type": "string" },
+          "passed": { "type": "boolean" },
+          "detail": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "checklist_gf": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["case_id", "passed"],
+        "properties": {
+          "case_id": { "type": "string" },
+          "passed": { "type": "boolean" },
+          "detail": { "type": "string" }
+        },
+        "additionalProperties": true
+      }
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "channel", "severity", "summary"],
+        "properties": {
+          "id": { "type": "string" },
+          "channel": {
+            "type": "string",
+            "enum": ["goal", "guazi-flow-review"]
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["blocker", "warning", "medium", "high", "critical"]
+          },
+          "summary": { "type": "string" },
+          "file": { "type": "string" },
+          "line_range": { "type": "string" },
+          "evidence": { "type": "string" },
+          "suggestion": { "type": "string" },
+          "root_cause": {
+            "type": "string",
+            "enum": [
+              "implement_error",
+              "plan_gap",
+              "spec_ambiguity",
+              "contract_drift",
+              "integration_gap",
+              "infra_channel",
+              "infra",
+              "review_channel",
+              "network"
+            ]
+          }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

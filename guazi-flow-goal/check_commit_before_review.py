@@ -1,0 +1,1 @@
+/Users/xuwei/Profession/goal/.cache/guazi-fixture-runtime/guazi/state/scripts/check_commit_before_review.py

@@ -1,7 +1,7 @@
 {
   "stage": "plan",
   "schema_version": 1,
-  "skill_expected": "guazi-flow-plan",
+  "skill_expected": "goal-plan",
   "skill_executed": true,
   "task_dir": "/Users/xuwei/Profession/goal/goal-pipeline/scripts/fixtures/guazi-flow-gate/plan-good",
   "profile": "h5",
@@ -23,7 +23,7 @@
   ],
   "warnings": [],
   "gate": {
-    "script": "gate-guazi-flow-stage.sh",
+    "script": "gate-goal-stage.sh",
     "version": 1,
     "passed_at": "2026-06-30T08:52:13Z"
   }

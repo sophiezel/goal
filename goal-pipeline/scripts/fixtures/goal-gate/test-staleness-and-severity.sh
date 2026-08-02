@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 HASH_PY="$ROOT/index_contract_hash.py"
 MERGE_PY="$ROOT/merge_review_core.py"
-GATE="$ROOT/gate-guazi-flow-stage.sh"
+GATE="$ROOT/gate-goal-stage.sh"
 export GOAL_ARTIFACT_MODE=repo_full
 export GOAL_SKIP_BUILD=1
 
@@ -14,7 +14,7 @@ TMP=$(mktemp -d)
 cp -R "$SCRIPT_DIR/plan-good/." "$TMP/task/"
 H1=$(python3 "$HASH_PY" "$TMP/task/index.md")
 # append execution record
-printf '\n- 2026-07-09 [guazi-flow-implement]: done\n' >> "$TMP/task/index.md"
+printf '\n- 2026-07-09 [goal-implement]: done\n' >> "$TMP/task/index.md"
 H2=$(python3 "$HASH_PY" "$TMP/task/index.md")
 if [[ "$H1" != "$H2" ]]; then
   echo "FAIL contract hash changed after execution append: $H1 vs $H2"; exit 1
@@ -48,7 +48,7 @@ mkdir -p "$FIX/handoff" "$FIX/evidence"
 # Build index from plan-good, run plan post, then append execution record
 cp "$SCRIPT_DIR/plan-good/index.md" "$FIX/index.md"
 # Ensure write_set section is before 执行记录 for plan gate — plan-good already has sections
-"$GATE" --task-dir "$FIX" --stage plan --post --mode guazi >/dev/null
+"$GATE" --task-dir "$FIX" --stage plan --post >/dev/null
 # Create minimal implement handoff
 python3 - "$FIX" << 'PY'
 import json, hashlib
@@ -62,14 +62,14 @@ idx.write_text(idx.read_text(encoding="utf-8") + "\n- extra implement note\n", e
 impl = {
   "stage": "implement",
   "schema_version": 1,
-  "skill_expected": "guazi-flow-implement",
+  "skill_expected": "goal-implement",
   "skill_executed": True,
   "write_set": plan.get("write_set", []),
   "changed_files": [],
   "git_head": "deadbeef",
   "candidate_diff_hash": "0"*16,
   "artifact_paths": ["index.md"],
-  "gate": {"script": "gate-guazi-flow-stage.sh", "version": 1, "passed_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")},
+  "gate": {"script": "gate-goal-stage.sh", "version": 1, "passed_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")},
 }
 (fix/"handoff/implement.json").write_text(json.dumps(impl, indent=2))
 MIN_DIFF = "diff --git a/src/fixture.ts b/src/fixture.ts\n" + "+export const fixture = 1;\n" * 25
@@ -96,8 +96,8 @@ uvo = {
 (fix/"evidence/verification-oracle.json").write_text(json.dumps(uvo, indent=2))
 # ensure implement marker in index
 t = idx.read_text(encoding="utf-8")
-if "guazi-flow-implement" not in t:
-    idx.write_text(t + "\n- guazi-flow-implement pass\n", encoding="utf-8")
+if "goal-implement" not in t:
+    idx.write_text(t + "\n- goal-implement pass\n", encoding="utf-8")
 PY
 # review pre: should NOT fail on stale (execution only)
 export GOAL_SKIP_BUILD=1
@@ -106,7 +106,7 @@ export GOAL_SKIP_LINT=1
 export GOAL_SKIP_SCOPE=1
 export GOAL_SKIP_SECRET=1
 
-if "$GATE" --task-dir "$FIX" --stage review --pre --mode guazi; then
+if "$GATE" --task-dir "$FIX" --stage review --pre; then
   echo "OK plan-stale-execution-only review pre PASS"
 else
   echo "FAIL plan-stale-execution-only expected PASS"; exit 1
@@ -117,7 +117,7 @@ FIX2="$SCRIPT_DIR/plan-stale-contract-changed"
 rm -rf "$FIX2/handoff" "$FIX2/evidence"
 mkdir -p "$FIX2/handoff" "$FIX2/evidence"
 cp "$SCRIPT_DIR/plan-good/index.md" "$FIX2/index.md"
-"$GATE" --task-dir "$FIX2" --stage plan --post --mode guazi >/dev/null
+"$GATE" --task-dir "$FIX2" --stage plan --post >/dev/null
 python3 - "$FIX2" << 'PY'
 import json
 from pathlib import Path
@@ -128,8 +128,8 @@ idx = fix/"index.md"
 t = idx.read_text(encoding="utf-8")
 # mutate contract section
 t = t.replace("## 核心事实\n\n", "## 核心事实\n\nCHANGED CONTRACT LINE\n\n", 1)
-if "guazi-flow-implement" not in t:
-    t += "\n- guazi-flow-implement pass\n"
+if "goal-implement" not in t:
+    t += "\n- goal-implement pass\n"
 idx.write_text(t, encoding="utf-8")
 impl = {
   "stage": "implement", "schema_version": 1, "skill_executed": True,
@@ -162,7 +162,7 @@ uvo = {
 }
 (fix/"evidence/verification-oracle.json").write_text(json.dumps(uvo, indent=2))
 PY
-if "$GATE" --task-dir "$FIX2" --stage review --pre --mode guazi; then
+if "$GATE" --task-dir "$FIX2" --stage review --pre; then
   echo "FAIL plan-stale-contract-changed expected FAIL"; exit 1
 else
   echo "OK plan-stale-contract-changed review pre FAIL"

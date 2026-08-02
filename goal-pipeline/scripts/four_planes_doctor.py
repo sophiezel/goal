@@ -140,34 +140,10 @@ def main() -> int:
                 kernel_ver = line.split("=", 1)[-1].strip().strip('"').strip("'")
                 break
     checks.append(check("control.kernel_package", kernel_pkg.is_file(), kernel_ver or str(kernel_pkg)))
-    gf_driver = SCRIPT_DIR / "gf-stage-driver.sh"
     goal_driver = SCRIPT_DIR / "goal-stage-driver.sh"
-    gf_gate = SCRIPT_DIR / "gate-gf-stage.sh"
-    for label, path in (
-        ("control.gf_stage_driver", gf_driver),
-        ("control.gate_gf_stage", gf_gate),
-    ):
-        checks.append(check(label, path.is_file(), str(path)))
-    if kernel_ver and gf_driver.is_file() and goal_driver.is_file():
-        gfd = gf_driver.read_text(encoding="utf-8")
-        gsd = goal_driver.read_text(encoding="utf-8")
-        uses_kernel = "kernel/" in gfd or "kernel." in gfd
-        checks.append(
-            check(
-                "control.gf_driver_kernel_wire",
-                uses_kernel or "GF_USE_NATIVE_DRIVER" in gfd,
-                f"kernel_version={kernel_ver}",
-            )
-        )
-        checks.append(
-            check(
-                "control.kernel_version_goal_driver",
-                "goal-pipeline-kernel" in gsd or "kernel" in gsd,
-                kernel_ver,
-            )
-        )
-    checks.append(check("control.driver", goal_driver.is_file()))
-    checks.append(check("control.gate", (SCRIPT_DIR / "gate-guazi-flow-stage.sh").is_file()))
+    goal_gate = SCRIPT_DIR / "gate-goal-stage.sh"
+    checks.append(check("control.driver", goal_driver.is_file(), str(goal_driver)))
+    checks.append(check("control.gate", goal_gate.is_file(), str(goal_gate)))
     checks.append(check("control.assert_merged", (SCRIPT_DIR / "assert_plan_before_code.py").is_file()))
 
     checks.append(check("data.validate_state", (SCRIPT_DIR / "validate-state-path.sh").is_file()))
@@ -225,7 +201,7 @@ def main() -> int:
 
     gate_script = SCRIPT_DIR / "gate-goal-stage.sh"
     if not gate_script.is_file():
-        gate_script = SCRIPT_DIR / "gate-guazi-flow-stage.sh"
+        gate_script = SCRIPT_DIR / "gate-goal-stage.sh"
     gate_txt = gate_script.read_text(encoding="utf-8") if gate_script.is_file() else ""
     quality_lib = SCRIPT_DIR / "gate-lib" / "quality.sh"
     qg_txt = quality_lib.read_text(encoding="utf-8") if quality_lib.is_file() else ""
@@ -340,7 +316,7 @@ def main() -> int:
     if repo_root and repo_root.is_dir():
         repo_scripts = repo_root / "goal-pipeline" / "scripts"
         drift_files = []
-        for name in ("gate-guazi-flow-stage.sh", "goal-stage-driver.sh", "merge_review_core.py",
+        for name in ("gate-goal-stage.sh", "goal-stage-driver.sh", "merge_review_core.py",
                      "plan-quality-gate.py", "resolve_plan_index_rules.py", "review_track.py",
                      "check_commit_before_review.py", "quality-gate.sh",
                      "acceptance-matrix-ratchet.py", "write-delivery-quality.sh",

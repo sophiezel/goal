@@ -17,7 +17,7 @@ git_head: $GH
 EOF
 done
 
-REL="goal-pipeline/scripts/fixtures/guazi-flow-gate/verify-nested-complete"
+REL="goal-pipeline/scripts/fixtures/goal-gate/verify-nested-complete"
 OUT=$(GIT_ROOT="$GOAL_ROOT" GOAL_STATE_FILE="$FIX/state.json" bash "$VERIFY" "$REL" json)
 python3 - "$OUT" << 'PY'
 import json, sys

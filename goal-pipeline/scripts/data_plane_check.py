@@ -67,7 +67,7 @@ def main() -> int:
             st = json.loads(Path(args.state_file).read_text(encoding="utf-8"))
         except (json.JSONDecodeError, OSError):
             st = {}
-        stages = st.get("guazi_flow_stages") or {}
+        stages = st.get("pipeline_stages") or {}
         # If plan handoff exists with passed_at, state should record plan progress (when tracked)
         plan_ho = handoff_dir / "plan.json"
         if plan_ho.is_file():
@@ -78,7 +78,7 @@ def main() -> int:
             gate = plan.get("gate") or {}
             if gate.get("passed_at") and stages and not (stages.get("plan") or {}).get("gate", {}).get("passed_at"):
                 # soft: warn when state tracks stages but plan gate not mirrored
-                warnings.append("plan handoff gate.passed_at not mirrored in state.guazi_flow_stages")
+                warnings.append("plan handoff gate.passed_at not mirrored in state.pipeline_stages")
         # HashPolicy module present for contract compare
         ich = SCRIPT_DIR / "index_contract_hash.py"
         if not ich.is_file():

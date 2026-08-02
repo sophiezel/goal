@@ -47,7 +47,7 @@ function Page(){ return <button data-testid="btn-save">save</button> }
 | C1 | save btn | yarn test save | btn-save |
 
 ## 执行记录
-- guazi-flow-implement done
+- goal-implement done
 MD
 
 # Fake UVO evidence (so AM-05 skips cleanly)

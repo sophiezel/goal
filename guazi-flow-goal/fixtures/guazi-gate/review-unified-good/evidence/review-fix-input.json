@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "round": 69,
+  "merged_result": "not_pass",
+  "action": "blocked_user_decision",
+  "issues": [
+    {
+      "id": "CHK-SCOPE",
+      "channel": "goal",
+      "severity": "blocker",
+      "file": "",
+      "line_range": "",
+      "summary": "verify-review scope failed",
+      "suggestion": "",
+      "root_cause": "implement_error"
+    }
+  ],
+  "resolved_since_last_round": [],
+  "next_steps": [
+    "review fix rounds exhausted (GOAL_REVIEW_MAX_ROUNDS=10, round=69)",
+    "present user options A/B/C/D — do not continue blind fix loops",
+    "optional: raise GOAL_REVIEW_MAX_ROUNDS only with explicit user approval"
+  ],
+  "provenance": {
+    "review_run_id": "49ce86b37cab3fec",
+    "packet_hash": "6c24019a4bc9ef59",
+    "gf_skill_attested": true,
+    "channels": [
+      "goal",
+      "guazi-flow-review"
+    ]
+  },
+  "classification": "business",
+  "max_rounds": 10,
+  "rounds_exhausted": true,
+  "blocker_count": 1,
+  "info_gain": 0.0,
+  "info_gain_threshold": 0.1,
+  "stagnant_rounds": 41,
+  "stagnant_rounds_limit": 2,
+  "stagnant_blocked": false
+}

@@ -56,7 +56,7 @@ checks = {
     "refresh_cascade_exec_guard": 0,
     "pipeline_timing_utc": 0,
 }
-for name in ("gate-guazi-flow-stage.sh", "goal-stage-driver.sh", "assemble-review-packet.sh", "quality-gate.sh", "run-independent-review.sh", "verify-review.sh", "goal-run-review-chain.sh", "refresh-handoffs-after-index.sh", "resolve-artifact-paths.py"):
+for name in ("gate-goal-stage.sh", "goal-stage-driver.sh", "assemble-review-packet.sh", "quality-gate.sh", "run-independent-review.sh", "verify-review.sh", "goal-run-review-chain.sh", "refresh-handoffs-after-index.sh", "resolve-artifact-paths.py"):
     path = os.path.join(script_dir, name)
     if not os.path.isfile(path):
         continue
@@ -72,12 +72,16 @@ for name in ("gate-guazi-flow-stage.sh", "goal-stage-driver.sh", "assemble-revie
         checks["review_orchestrator_wired"] = 1 if "review_fallback_orchestrator.py" in text else 0
     if name == "verify-review.sh":
         checks["review_uvo_skip_enabled"] = 1 if "verification-oracle.json" in text and "skip" in text.lower() else 0
-    if name == "gate-guazi-flow-stage.sh":
+    if name == "gate-goal-stage.sh":
         checks["quality_tier_auto_upgrade"] = 1 if "quality_policy_tier.py" in text else 0
         checks["quality_gate_receives_state_file"] = 1 if "QG_ARGS+=(--state-file" in text or 'QG_ARGS+=(--state-file "$STATE_FILE")' in text else 0
         checks["plan_before_code_guard"] = 1 if "run_plan_before_code_guard" in text else 0
     if name == "goal-run-review-chain.sh":
-        checks["review_zero_channel_failfast"] = 1 if "zero_usable_review_channels" in text or "separation=degraded" in text else 0
+        chain_text = text
+        rk = os.path.join(os.path.dirname(script_dir), "..", "shared", "review-kernel", "scripts", "run-review-chain.sh")
+        if os.path.isfile(rk):
+            chain_text += open(rk, encoding="utf-8").read()
+        checks["review_zero_channel_failfast"] = 1 if "zero_usable_review_channels" in chain_text or "separation=degraded" in chain_text else 0
     if name == "refresh-handoffs-after-index.sh":
         checks["refresh_cascade_exec_guard"] = 1 if "demote to implement" in text else 0
     if name == "resolve-artifact-paths.py":
@@ -94,7 +98,7 @@ for fname, key in (
     if os.path.isfile(os.path.join(script_dir, fname)):
         checks[key] = 1
 
-adapter = os.path.join(script_dir, "platform_review_adapter_core.py")
+adapter = os.path.join(script_dir, "review_fallback_orchestrator.py")
 if os.path.isfile(adapter):
     t = open(adapter, encoding="utf-8").read()
     checks["adapter_max_tokens_set"] = 1 if "max_tokens" in t and "4096" in t else 0

@@ -3,12 +3,12 @@
 set -euo pipefail
 export GOAL_ARTIFACT_MODE=repo_full
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-GATE="$SCRIPT_DIR/../../gate-guazi-flow-stage.sh"
+GATE="$SCRIPT_DIR/../../gate-goal-stage.sh"
 ADVANCE="$SCRIPT_DIR/../../goal-advance-stage.sh"
 
 echo "=== B1: goal-advance-stage ignores smoke-only handoff ==="
 REPO_ROOT=$(git -C "$SCRIPT_DIR" rev-parse --show-toplevel)
-tmpdir=$(mktemp -d "$REPO_ROOT/goal-pipeline/scripts/fixtures/guazi-flow-gate/.b1-advance-XXXXXX")
+tmpdir=$(mktemp -d "$REPO_ROOT/goal-pipeline/scripts/fixtures/goal-gate/.b1-advance-XXXXXX")
 trap 'rm -rf "$tmpdir"' EXIT
 mkdir -p "$tmpdir/handoff" "$tmpdir/evidence"
 cp "$SCRIPT_DIR/smoke-good/handoff/implement.json" "$tmpdir/handoff/"
@@ -21,8 +21,8 @@ cat > "$STATE" <<'JSON'
 {
   "status": "active",
   "project_root": "REPO_ROOT_PLACEHOLDER",
-  "guazi_flow_task": "REL_TASK_PLACEHOLDER",
-  "guazi_flow_stages": {
+  "goal_task": "REL_TASK_PLACEHOLDER",
+  "pipeline_stages": {
     "plan": {"gate": {"passed_at": "2026-01-01T00:00:00Z", "post_exit_code": 0}},
     "implement": {"gate": {"passed_at": "2026-01-01T00:00:00Z", "post_exit_code": 0}}
   }
@@ -33,7 +33,7 @@ import json, sys
 p, root, rel = sys.argv[1:4]
 d = json.load(open(p))
 d["project_root"] = root
-d["guazi_flow_task"] = rel
+d["goal_task"] = rel
 json.dump(d, open(p, "w"))
 PY
 OUT=$("$ADVANCE" --state-file "$STATE" --task-dir "$tmpdir" --project-root "$REPO_ROOT" --format json)
@@ -60,7 +60,7 @@ else
 fi
 
 echo "=== B1: default profile blocks --stage smoke ==="
-if "$GATE" --task-dir "$SCRIPT_DIR/smoke-good" --stage smoke --post --mode guazi 2>/dev/null; then
+if "$GATE" --task-dir "$SCRIPT_DIR/smoke-good" --stage smoke --post 2>/dev/null; then
   echo "FAIL smoke gate should be blocked"; exit 1
 fi
 echo "OK smoke gate blocked by default"

@@ -8,8 +8,8 @@
 
 ```bash
 cd /path/to/jian-h5
-# 确保 ~/.goal-state 已部署最新 goal-pipeline scripts
-bash /path/to/goal/install.sh --agent cursor
+bash /path/to/goal/guazi-flow-goal/scripts/guazi-install.sh
+bash /path/to/goal/shared/review-kernel/install.sh
 ```
 
 ## 验收表
@@ -19,15 +19,15 @@ bash /path/to/goal/install.sh --agent cursor
 | 1 | 缺 plan 章节 | 故意删掉 index.md 的 `## 任务目标` 后 `gate --post plan` | exit 1；终端 Issue Board；`evidence/plan-gate-fix-input.json` 存在 |
 | 2 | `## 写集` 别名 | 使用 `## 写集`（非 `## 范围与写集`）声明路径后 `gate --post plan` | write_set 非空；handoff/plan.json 含路径 |
 | 3 | 空 write_set | plan 通过但 write_set 为空时 `gate --post implement` | exit 1；`evidence/implement-gate-fix-input.json`；消息指向写集章节 |
-| 4 | 全链路 | `/guazi-flow-goal` 跑完整任务 | 无手动「开始实现」「继续」；driver 自动链 smoke/review |
-| 5 | review | 正常完成后 review | 仍走 `goal-run-review-chain.sh` 双通道；**不**调用 guazi-flow-audit |
+| 4 | 全链路 | `/guazi-flow-goal` 跑完整任务 | 无手动「开始实现」「继续」；`guazi-advance-stage` 自动链 quality/review |
+| 5 | review | 正常完成后 review | 经 `$REVIEW_KERNEL_HOME` review chain；**不**调用 guazi-flow-audit |
 | 6 | noop 修复 | gate 失败后不改 index 重跑同一 gate | `blocked(noop_fix)` 或 subject_hash 未变提示 |
 
 ## 命令示例
 
 ```bash
 TASK=docs/guazi-flow/2026-07-04-检测回捞门店寄售工单
-GATE=~/.goal-state/scripts/gate-guazi-flow-stage.sh
+GATE="${GUAZI_STATE_HOME:-$HOME/.guazi-flow/state}/scripts/guazi-gate-stage.sh"
 
 # 场景 1
 $GATE --task-dir "$TASK" --stage plan --post --mode guazi

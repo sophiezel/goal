@@ -57,7 +57,7 @@ function f(){ return 1; }
 | C1 | works | yarn test |
 
 ## 执行记录
-- guazi-flow-implement done
+- goal-implement done
 MD
 
 export GOAL_EVIDENCE_DIR="$TASK/evidence"

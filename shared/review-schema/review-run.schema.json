@@ -1,0 +1,54 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "goal-pipeline/schemas/review-run.schema.json",
+  "title": "Review kernel B — review-run provenance",
+  "description": "Provenance record for independent review execution (goal-run-review-chain / run-independent-review)",
+  "type": "object",
+  "required": [
+    "run_id",
+    "provider",
+    "packet_hash",
+    "latency_ms",
+    "output_hash",
+    "started_at",
+    "finished_at"
+  ],
+  "properties": {
+    "schema_version": { "type": "integer", "const": 1 },
+    "run_id": { "type": "string", "minLength": 1 },
+    "provider": {
+      "type": "string",
+      "enum": [
+        "deterministic",
+        "cursor-task",
+        "claude-native",
+        "openai-api",
+        "mock-unified",
+        "fixture"
+      ]
+    },
+    "model": { "type": "string" },
+    "mode": { "type": "string", "enum": ["unified", "goal"] },
+    "packet_hash": { "type": "string", "minLength": 1 },
+    "packet_path": { "type": "string" },
+    "latency_ms": { "type": "integer", "minimum": 0 },
+    "invocation_count": { "type": "integer", "minimum": 1 },
+    "tokens": { "type": "object" },
+    "output_hash": { "type": "string", "minLength": 1 },
+    "started_at": { "type": "string", "format": "date-time" },
+    "finished_at": { "type": "string", "format": "date-time" },
+    "channels": { "type": "array", "items": { "type": "string" } },
+    "gf_skill_attested": { "type": "boolean" },
+    "gf_rubric_source": { "type": "string" },
+    "fallback_layer": { "type": "string" },
+    "review_depth": { "type": "string" },
+    "attempts": { "type": "array" },
+    "wrapper_profile": {
+      "type": "string",
+      "enum": ["goal-review", "guazi-flow-review", "adapter"]
+    },
+    "review_track": { "type": "string", "enum": ["single", "dual"] },
+    "channel_guard": { "type": "object" }
+  },
+  "additionalProperties": true
+}

@@ -1,6 +1,10 @@
 # Wayfinder 本地镜像
 
-**当前活跃地图：** _(无 — #59 实现轨已关闭 2026-08-02)_
+**当前活跃地图：** _(无 — #70 规划+实现轨已关闭 2026-08-03)_
+
+**Phase-7 实现轨：** [Wayfinder #70](https://github.com/sophiezel/goal/issues/70) — [PHASE-7-V14-IMPL-CLOSURE.md](PHASE-7-V14-IMPL-CLOSURE.md) · [optimization-spec-outline-v1.4.md](research/optimization-spec-outline-v1.4.md)
+
+**Phase-6 实现轨（已关闭 2026-08-02）：** [#59](https://github.com/sophiezel/goal/issues/59) 已合 `main` @ `9910d79`
 
 **Phase-6 实现轨（已关闭 2026-08-02）：** [Wayfinder: goal-pipeline v1.3 解耦实现](https://github.com/sophiezel/goal/issues/59) — [PHASE-6-V13-IMPL-CLOSURE.md](PHASE-6-V13-IMPL-CLOSURE.md) · 镜像 [maps/goal-pipeline-v1.3-decouple-implementation.md](maps/goal-pipeline-v1.3-decouple-implementation.md)
 

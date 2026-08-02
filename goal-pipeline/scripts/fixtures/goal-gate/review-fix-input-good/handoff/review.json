@@ -3,13 +3,10 @@
   "schema_version": 1,
   "result": "pass",
   "review_subject_hash": "deadbeef",
-  "git_head": "f7853619423335d5",
+  "git_head": "9910d799e5076bbc",
   "review_track": "single",
   "wrapper_profile": "goal-review",
-  "issues_gf_count": 0,
   "issues_goal_count": 0,
-  "gf_execution_mode": "independent_unified_review",
-  "gf_skill_attested": false,
   "review_run_id": "run1234567890abcd",
   "root_cause_summary": {},
   "artifact_paths": [
@@ -23,7 +20,7 @@
   "gate": {
     "script": "gate-goal-stage.sh",
     "version": 1,
-    "passed_at": "2026-08-02T16:11:15Z",
+    "passed_at": "2026-08-02T18:32:34Z",
     "post_exit_code": 0
   }
 }

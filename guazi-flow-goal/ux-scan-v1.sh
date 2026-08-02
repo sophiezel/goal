@@ -1,0 +1,1 @@
+/Users/xuwei/Profession/goal/.cache/guazi-fixture-runtime/guazi/state/scripts/ux-scan-v1.sh

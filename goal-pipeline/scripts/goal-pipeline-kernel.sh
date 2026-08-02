@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# goal-pipeline-kernel — Single public control-plane CLI for guazi-flow-goal
+# goal-pipeline-kernel — Single public control-plane CLI for goal-pipeline
 # Facade over driver / gate / advance / doctor. See docs/architecture/goal-runtime.md
 #
 # Usage:
 #   goal-pipeline-kernel init   --project-root R --task-dir T [--branch B] [--goal-id ID]
 #   goal-pipeline-kernel next   --state-file S --task-dir T --project-root R [--attempt-stage ST] [--format json|text]
-#   goal-pipeline-kernel gate   --state-file S --task-dir T --project-root R --stage ST [--pre|--post] [--mode guazi|degraded]
+#   goal-pipeline-kernel gate   --state-file S --task-dir T --project-root R --stage ST [--pre|--post]
 #   goal-pipeline-kernel status --state-file S --task-dir T --project-root R
 #   goal-pipeline-kernel doctor --project-root R [--task-dir T] [--state-file S]
 #   goal-pipeline-kernel complete --state-file S --task-dir T --project-root R
@@ -23,7 +23,6 @@ resolve_bin() {
 
 DRIVER="$(resolve_bin goal-stage-driver.sh)"
 GATE="$(resolve_bin gate-goal-stage.sh)"
-[[ -f "$GATE" ]] || GATE="$(resolve_bin gate-guazi-flow-stage.sh)"
 ADVANCE="$(resolve_bin goal-advance-stage.sh)"
 DOCTOR="$(resolve_bin goal-pipeline-doctor.sh)"
 ASSERT="$(resolve_bin assert-plan-before-code.sh)"
@@ -40,7 +39,7 @@ ATTEMPT_STAGE=""
 FORMAT="json"
 STAGE=""
 PHASE="post"
-MODE="guazi"
+MODE="goal"
 BRANCH=""
 GOAL_ID=""
 
@@ -54,7 +53,6 @@ while [[ $# -gt 0 ]]; do
     --stage) STAGE="$2"; shift 2 ;;
     --pre) PHASE="pre"; shift ;;
     --post) PHASE="post"; shift ;;
-    --mode) MODE="$2"; shift 2 ;;
     --branch) BRANCH="$2"; shift 2 ;;
     --goal-id) GOAL_ID="$2"; shift 2 ;;
     -h|--help)
@@ -126,10 +124,9 @@ doc = {
   "branch": branch,
   "status": "active",
   "current_stage": "plan",
-  "pipeline_track": "compatibility",
-  "guazi_flow_available": True,
-  "guazi_flow_task": rel,
-  "guazi_flow_stages": {},
+  "pipeline_track": "goal",
+  "goal_task": rel,
+  "pipeline_stages": {},
   "artifact_layout": {
     "mode": "split",
     "runtime_root": str(__import__("pathlib").Path(path).parent / "artifacts"),
@@ -164,12 +161,12 @@ import json, os, subprocess
 wo = json.loads(os.environ["OUT"])
 stage = wo.get("next_stage") or ""
 capability = {
-  "plan": {"allowed_write_globs": ["docs/guazi-flow/**"], "deny_write_globs": ["src/**"], "code_writes_allowed": False},
+  "plan": {"allowed_write_globs": ["docs/goal/**"], "deny_write_globs": ["src/**"], "code_writes_allowed": False},
   "implement": {"allowed_write_globs": ["$write_set"], "deny_write_globs": [], "code_writes_allowed": True},
-  "quality": {"allowed_write_globs": ["docs/guazi-flow/**/evidence/**", "docs/guazi-flow/**/smoke.json"], "code_writes_allowed": False},
-  "runtime_smoke": {"allowed_write_globs": ["docs/guazi-flow/**/evidence/**"], "code_writes_allowed": False},
-  "review": {"allowed_write_globs": ["docs/guazi-flow/**/evidence/**"], "deny_write_globs": ["src/**"], "code_writes_allowed": False},
-  "complete": {"allowed_write_globs": ["docs/guazi-flow/**"], "code_writes_allowed": False},
+  "quality": {"allowed_write_globs": ["docs/goal/**/evidence/**"], "code_writes_allowed": False},
+  "runtime_smoke": {"allowed_write_globs": ["docs/goal/**/evidence/**"], "code_writes_allowed": False},
+  "review": {"allowed_write_globs": ["docs/goal/**/evidence/**"], "deny_write_globs": ["src/**"], "code_writes_allowed": False},
+  "complete": {"allowed_write_globs": ["docs/goal/**"], "code_writes_allowed": False},
 }
 cap = capability.get(stage, {"code_writes_allowed": False})
 # Harden: if plan stage, never claim code writes
@@ -189,7 +186,6 @@ wo["kernel"] = {
   "host_guard": os.environ.get("GOAL_HOST_GUARD", "off"),
   "deprecated_direct_scripts": [
     "goal-stage-driver.sh",
-    "gate-guazi-flow-stage.sh",
     "goal-advance-stage.sh",
   ],
 }
@@ -216,7 +212,7 @@ if stage == "plan" and assert_sh and os.path.isfile(assert_sh):
             wo["failure_code"] = wo["blocked_reason"]
             wo["mandatory_commands"] = [
                 "stash or reset guarded src/write_set diffs",
-                "complete guazi-flow-plan contract only under docs/guazi-flow/**",
+                "complete goal-plan contract only under docs/goal/**",
                 "goal-pipeline-kernel gate --stage plan --post ...",
             ]
     except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
@@ -235,7 +231,6 @@ PY
       --task-dir "$TASK_DIR" \
       --stage "$STAGE" \
       --"$PHASE" \
-      --mode "$MODE" \
       --state-file "$STATE_FILE" \
       --project-root "$PROJECT_ROOT"
     ;;

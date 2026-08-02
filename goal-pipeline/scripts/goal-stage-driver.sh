@@ -1,5 +1,5 @@
 #!/bin/bash
-# goal-stage-driver.sh — Single work order for guazi-flow-goal Agent turns
+# goal-stage-driver.sh — Single work order for goal-pipeline Agent turns
 set -euo pipefail
 
 _gf_script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -15,8 +15,6 @@ ADVANCE="$GOAL_STATE_HOME/scripts/goal-advance-stage.sh"
 [[ -x "$ADVANCE" ]] || ADVANCE="$SCRIPT_DIR/goal-advance-stage.sh"
 GATE="$GOAL_STATE_HOME/scripts/gate-goal-stage.sh"
 [[ -x "$GATE" ]] || GATE="$SCRIPT_DIR/gate-goal-stage.sh"
-[[ -x "$GATE" ]] || GATE="$GOAL_STATE_HOME/scripts/gate-guazi-flow-stage.sh"
-[[ -x "$GATE" ]] || GATE="$SCRIPT_DIR/gate-guazi-flow-stage.sh"
 
 STATE_FILE=""
 TASK_DIR=""
@@ -73,22 +71,13 @@ attempt = os.environ.get("ATTEMPT_STAGE", "")
 gate = os.environ["GATE"]
 script_dir = os.environ["SCRIPT_DIR"]
 
-STAGE_SKILL_COMPAT = {
-    "plan": "guazi-flow-plan",
-    "implement": "guazi-flow-implement",
-    "quality": "goal-quality",
-    "runtime_smoke": "goal-quality",
-    "review": "guazi-flow-review",
-    "postmerge": "guazi-flow-postmerge",
-    "complete": "guazi-flow-complete",
-}
-STAGE_SKILL_EVOLUTION = {
+STAGE_SKILL = {
     "plan": "goal-plan",
     "implement": "goal-implement",
     "quality": "goal-quality",
     "runtime_smoke": "goal-quality",
     "review": "goal-review",
-    "postmerge": "guazi-flow-postmerge",
+    "postmerge": "goal-postmerge",
     "complete": "goal-complete",
 }
 
@@ -122,23 +111,10 @@ def stage_progress_label(stage):
 def gate_cmd(stage, phase):
     return (
         f"{gate} --task-dir {task_dir!r} --stage {stage} --{phase} "
-        f"--mode {GATE_MODE} --state-file {state_file!r} --project-root {project_root!r}"
+        f"--state-file {state_file!r} --project-root {project_root!r}"
     )
 
-def load_pipeline_track():
-    try:
-        import json
-        with open(state_file, encoding="utf-8") as f:
-            st = json.load(f)
-        return st.get("pipeline_track", "compatibility")
-    except Exception:
-        return "compatibility"
-
-track = load_pipeline_track()
-STAGE_SKILL = STAGE_SKILL_COMPAT if track in ("compatibility", "guazi") else STAGE_SKILL_EVOLUTION
-GATE_MODE = "guazi" if track in ("compatibility", "guazi") else "goal"
-
-# Review single-track (B8): default single — goal-review only; dual opt-in via env/state.
+# Review single-track (B8): default single — goal-review only.
 def load_review_track():
     import subprocess, sys as _sys
     try:
@@ -156,8 +132,8 @@ def load_review_track():
 review_track = load_review_track()
 
 def build_mandatory(stage):
-    plan_skill = STAGE_SKILL.get("plan", "guazi-flow-plan")
-    impl_skill = STAGE_SKILL.get("implement", "guazi-flow-implement")
+    plan_skill = STAGE_SKILL.get("plan", "goal-plan")
+    impl_skill = STAGE_SKILL.get("implement", "goal-implement")
     assert_pbc = (
         f"bash {script_dir}/assert-plan-before-code.sh --task-dir {task_dir!r} "
         f"--project-root {project_root!r} --state-file {state_file!r} --mode json"
@@ -201,17 +177,17 @@ def build_mandatory(stage):
             f"{script_dir}/goal-advance-stage.sh --state-file {state_file!r} --task-dir {task_dir!r} --project-root {project_root!r}",
         ]
         if review_track == "single":
-            cmds.insert(2, f"# single-track: load goal-review/SKILL.md only (NO guazi-flow-review Agent turn); rubric embedded in review-packet via assemble-review-packet.sh")
+            cmds.insert(2, "# single-track: load goal-review/SKILL.md; rubric embedded in review-packet via assemble-review-packet.sh")
         return cmds
     if stage == "postmerge":
         return [
-            f"# postmerge_policy=required — review pass → postmerge → complete",
-            f"Load guazi-flow-postmerge/SKILL.md",
-            f"Write evidence/postmerge.md (stage=postmerge, result=pass, review_subject_hash fresh)",
+            "# postmerge_policy=required — review pass → postmerge → complete",
+            "Load project postmerge skill",
+            "Write evidence/postmerge.md (stage=postmerge, result=pass, review_subject_hash fresh)",
             f"{script_dir}/goal-advance-stage.sh --state-file {state_file!r} --task-dir {task_dir!r} --project-root {project_root!r}",
         ]
     if stage == "complete":
-        complete_skill = STAGE_SKILL.get("complete", "guazi-flow-complete")
+        complete_skill = STAGE_SKILL.get("complete", "goal-complete")
         return [
             gate_cmd("complete", "pre"),
             f"Load {complete_skill}/SKILL.md",

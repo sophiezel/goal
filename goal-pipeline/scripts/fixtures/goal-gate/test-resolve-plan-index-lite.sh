@@ -53,7 +53,7 @@ export const CANCEL_LABEL = "取消";
 
 | Stage | Skill | Result |
 |-------|-------|--------|
-| plan | guazi-flow-plan | pass |
+| plan | goal-plan | pass |
 EOF
 
 # Test 1: frontmatter plan_profile: lite → lite
@@ -101,7 +101,7 @@ function Foo() { return <div>hello world this is a full pseudocode section that 
 | C01 | a | b | manual |
 
 ## 执行记录
-| plan | guazi-flow-plan | pass |
+| plan | goal-plan | pass |
 
 ## units
 - src/a.ts

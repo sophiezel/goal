@@ -46,7 +46,7 @@ export const CANCEL_LABEL = "取消";
 
 | Stage | Skill | Result |
 |-------|-------|--------|
-| plan | guazi-flow-plan | pass |
+| plan | goal-plan | pass |
 
 ## Goal 契约
 

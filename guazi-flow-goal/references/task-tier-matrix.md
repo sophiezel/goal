@@ -14,7 +14,7 @@ Plan 结束后由 `task_tier.py` 写入 `state.json` / `plan.json` 的 `task_tie
 | L | 多页 + 契约 + 设计还原 | ≤90m | 120m | multi-unit；unit 内 subagent；review shard | ❌ 强制 full |
 | XL | 多仓 / 大重构 | 按 unit | — | worktree 隔离；禁止单闸门吞全量 | ❌ 强制 full |
 
-**Index-Lite**：XS/S 推荐使用精简 index（6 段、伪代码 ≥80 chars），由 [`resolve_plan_index_rules.py`](../../goal-pipeline/scripts/resolve_plan_index_rules.py) 路由。gate 全保留，PQ-01/02/05/07 不降级。详见 [`index-lite-protocol.md`](../../goal-pipeline/references/index-lite-protocol.md)。
+**Index-Lite**：XS/S 推荐使用精简 index（6 段、伪代码 ≥80 chars），由 `$GUAZI_STATE_HOME/scripts/resolve_plan_index_rules.py` 路由。gate 全保留，PQ-01/02/05/07 不降级。详见 [`index-lite-protocol.md`](index-lite-protocol.md)。
 
 ## 分级信号
 
@@ -40,9 +40,9 @@ Plan 结束后由 `task_tier.py` 写入 `state.json` / `plan.json` 的 `task_tie
 ## CLI
 
 ```bash
-python3 ~/.goal-pipeline/state/scripts/task_tier.py \
+python3 "$GUAZI_STATE_HOME/scripts/task_tier.py" \
   --task-dir docs/guazi-flow/<task> \
   --plan-json <handoff>/plan.json \
-  --state-file ~/.goal-pipeline/state/projects/<pid>/<branch>/<task>/state.json \
+  --state-file "$GUAZI_STATE_HOME/projects/<pid>/<branch>/<task>/state.json" \
   --stamp-state
 ```

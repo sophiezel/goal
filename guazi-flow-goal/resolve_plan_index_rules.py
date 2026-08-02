@@ -1,0 +1,1 @@
+/Users/xuwei/Profession/goal/.cache/guazi-fixture-runtime/guazi/state/scripts/resolve_plan_index_rules.py

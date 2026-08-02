@@ -20,8 +20,6 @@ def main() -> int:
     flags: dict[str, bool] = {}
 
     gate_script = SCRIPT_DIR / "gate-goal-stage.sh"
-    if not gate_script.is_file():
-        gate_script = SCRIPT_DIR / "gate-guazi-flow-stage.sh"
     gate = gate_script.read_text(encoding="utf-8") if gate_script.is_file() else ""
     quality_lib = SCRIPT_DIR / "gate-lib" / "quality.sh"
     qg_txt = quality_lib.read_text(encoding="utf-8") if quality_lib.is_file() else ""
@@ -35,6 +33,10 @@ def main() -> int:
     flags["postmortem"] = (SCRIPT_DIR / "pipeline-postmortem.py").is_file()
     flags["benchmark"] = (SCRIPT_DIR / "benchmark-pipeline-replay.sh").is_file()
     review_chain = (SCRIPT_DIR / "goal-run-review-chain.sh").read_text(encoding="utf-8")
+    if "zero_usable_review_channels" not in review_chain and "separation=degraded" not in review_chain:
+        rk = SCRIPT_DIR.parent.parent / "shared" / "review-kernel" / "scripts" / "run-review-chain.sh"
+        if rk.is_file():
+            review_chain += rk.read_text(encoding="utf-8")
     flags["review_zero_channel"] = "zero_usable_review_channels" in review_chain or "separation=degraded" in review_chain
     driver = (SCRIPT_DIR / "goal-stage-driver.sh").read_text(encoding="utf-8")
     flags["wo_bans_build_beta"] = "DO NOT run yarn build:beta" in driver or "禁止连跑全量 yarn build:beta" in driver

@@ -1,0 +1,87 @@
+{
+  "schema_version": 1,
+  "assembled_at": "2026-08-02T17:35:16Z",
+  "task_dir": "/Users/xuwei/Profession/goal/goal-pipeline/scripts/fixtures/guazi-adapter-gate/review-unified-good",
+  "contract": {
+    "goal": "unified mock fixture",
+    "scope": "",
+    "design": "",
+    "acceptance_matrix": "C01 pass",
+    "pseudocode_summary": "// minimal"
+  },
+  "diff": "",
+  "diff_source": "working_tree",
+  "reference_impl_diff": "",
+  "reference_branch": "main...HEAD",
+  "constraints": {
+    "allowed_files": [
+      "src/"
+    ],
+    "stop_conditions": [],
+    "agents_summary": "# Agent iron rules (guazi-flow-goal / goal-pipeline overlay)\n\nGates and skills own the pipeline; this file only constrains **in-session** behavior.\n\n1. **Done = gate exit 0** — Never claim `[N/5] ✅` or stage complete without `gate --post` exit 0 for that stage.\n2. **Read-before-write** — Read the target file first; verify paths and APIs against the repo (not memory) before edit.\n3. **Patch cap** — Same failure ≤2 local patches → stop; read `evidence/*-fix-input.json` / change approach (do not noop-retry).\n4. **High-Risk HITL** — Ask before: force-push/hard-reset/mass-delete, secrets/authz, prod DB/migrations, public API/schema breaks, deploy/CI/infra, new unaudited deps or major bumps, widening Agent prod credentials.\n5. **Scope** — Unclear requirements or out-of-`write_set` need → return to Phase 1 / plan; do not guess in implement.\n6. **Authority** — Follow existing guazi-flow-goal / goal-pipeline skills and gates; do not invent a parallel pipeline.\n"
+  },
+  "verification_checklist": [
+    "C01"
+  ],
+  "deterministic_checks": {
+    "overall": "not_pass",
+    "error": "verification-oracle.json missing — run gate --post implement"
+  },
+  "acceptance_matrix_ratchet": {},
+  "changed_files": [],
+  "issues_gf": [],
+  "guazi_flow_rubric": {
+    "acceptance_matrix_excerpt": "C01 pass",
+    "pseudocode_excerpt": "// minimal",
+    "skill_summary": "",
+    "rubric_hash": "51bc43b9ca9e0948"
+  },
+  "goal_checklist": [
+    {
+      "id": "goal_achieved",
+      "priority": "P0",
+      "question": "候选 diff 是否达成任务契约验收标准？"
+    },
+    {
+      "id": "scope_compliant",
+      "priority": "P0",
+      "question": "修改是否在 Allowed Files 白名单内？"
+    },
+    {
+      "id": "evidence_sufficient",
+      "priority": "P1",
+      "question": "验证命令是否运行且结论有 diff 支撑？"
+    },
+    {
+      "id": "side_effects",
+      "priority": "P1",
+      "question": "是否新增依赖/配置/权限？"
+    },
+    {
+      "id": "completeness",
+      "priority": "P1",
+      "question": "是否有未验证路径标记完成？"
+    },
+    {
+      "id": "security",
+      "priority": "P0",
+      "question": "是否泄漏 secret/token？"
+    }
+  ],
+  "smoke_diagnostic": {},
+  "hashes": {
+    "candidate_diff_hash": "e3b0c44298fc1c14",
+    "code_subject_hash": "e3b0c44298fc1c14",
+    "artifact_hash": "4c510f760a7543fb",
+    "review_subject_hash": "6ca13d52ca70c883",
+    "git_head": "abc123",
+    "index_schema_hash": "979590212245d766"
+  },
+  "truncated": {},
+  "integrity": {
+    "plan_handoff_present": true,
+    "implement_handoff_present": true,
+    "errors": [],
+    "ok": true
+  }
+}

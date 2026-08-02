@@ -3,7 +3,7 @@
 set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ASSERT="$SCRIPT_DIR/../../assert_plan_before_code.py"
-GATE="$SCRIPT_DIR/../../gate-guazi-flow-stage.sh"
+GATE="$SCRIPT_DIR/../../gate-goal-stage.sh"
 RESOLVE="$SCRIPT_DIR/../../resolve-artifact-paths.py"
 
 tmp=$(mktemp -d)
@@ -101,7 +101,7 @@ echo "=== gate plan --pre fails on dirty src ==="
 # Remove plan handoff for pre guard
 rm -f "$TASK/handoff/plan.json"
 set +e
-bash "$GATE" --task-dir "$TASK" --stage plan --pre --mode guazi --project-root "$repo" >/tmp/gate-pbc.out 2>&1
+bash "$GATE" --task-dir "$TASK" --stage plan --pre --project-root "$repo" >/tmp/gate-pbc.out 2>&1
 GRC=$?
 set -e
 if [[ "$GRC" -eq 0 ]]; then

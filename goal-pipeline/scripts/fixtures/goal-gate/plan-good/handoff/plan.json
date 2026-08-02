@@ -20,13 +20,13 @@
     "V02"
   ],
   "index_contract_hash": "86fb467813efb3dc",
-  "index_execution_tail_hash": "ca264e643e13c730",
+  "index_execution_tail_hash": "8eb651e10d220f51",
   "api_mapping_table_hash": "",
   "index_schema_hash": "86fb467813efb3dc",
   "verification": {
     "build_command": "CI= yarn build:beta"
   },
-  "git_head": "f7853619423335d5",
+  "git_head": "9910d799e5076bbc",
   "artifact_paths": [
     "index.md"
   ],
@@ -34,10 +34,9 @@
   "gate": {
     "script": "gate-goal-stage.sh",
     "version": 1,
-    "passed_at": "2026-08-02T16:10:55Z",
+    "passed_at": "2026-08-02T18:32:12Z",
     "post_exit_code": 0
   },
-  "contract_enriched": true,
   "task_tier": "S",
   "task_tier_meta": {
     "score": 4,
@@ -69,7 +68,7 @@
   },
   "review_policy": {
     "track": "single",
-    "resolved_at": "auto_xs_s",
+    "resolved_at": "goal_v14_single_only",
     "task_tier": "S"
   }
 }

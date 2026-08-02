@@ -60,7 +60,7 @@ function DetailPage() {
 
 | Stage | Skill | Result |
 |-------|-------|--------|
-| plan | guazi-flow-plan | pass |
+| plan | goal-plan | pass |
 
 ## 写集
 

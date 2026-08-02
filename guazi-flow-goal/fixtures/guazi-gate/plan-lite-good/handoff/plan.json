@@ -1,0 +1,69 @@
+{
+  "stage": "plan",
+  "schema_version": 1,
+  "skill_expected": "guazi-flow-plan",
+  "skill_executed": true,
+  "task_dir": "/Users/xuwei/Profession/goal/goal-pipeline/scripts/fixtures/guazi-adapter-gate/plan-lite-good",
+  "profile": "h5",
+  "profile_detail": "react",
+  "plan_profile": "lite",
+  "write_set": [
+    "src/constants/buttons.ts"
+  ],
+  "write_set_normalized": true,
+  "acceptance_matrix_ids": [
+    "C01",
+    "C02",
+    "V01"
+  ],
+  "index_contract_hash": "51852c5909641dfa",
+  "index_execution_tail_hash": "43bb242f12936a8e",
+  "api_mapping_table_hash": "",
+  "index_schema_hash": "51852c5909641dfa",
+  "verification": {
+    "build_command": "CI= yarn build"
+  },
+  "git_head": "9910d799e5076bbc",
+  "artifact_paths": [
+    "index.md"
+  ],
+  "warnings": [],
+  "gate": {
+    "script": "gate-goal-stage.sh",
+    "version": 1,
+    "passed_at": "2026-08-02T17:35:05Z",
+    "post_exit_code": 0
+  },
+  "contract_enriched": true,
+  "task_tier": "XS",
+  "task_tier_meta": {
+    "score": 0,
+    "signals": {
+      "write_set_count": 1,
+      "new_page_dirs": 0,
+      "touches_shared_entry": false,
+      "cross_domain": false,
+      "multi_ui_surfaces": 0,
+      "figma_required": false,
+      "domains": [],
+      "multi_unit_doc": false
+    },
+    "slo": {
+      "p50_wall_min": 15,
+      "p90_wall_min": 25
+    },
+    "parallel": {
+      "strategy": "single_agent",
+      "max_subagents": 0,
+      "multi_unit": false,
+      "review_shard": false,
+      "shared_entry_serial": true,
+      "note": "Shared entry files (App.tsx / pages/index.ts) MUST be merged serially by orchestrator"
+    }
+  },
+  "review_policy": {
+    "track": "single",
+    "resolved_at": "auto_xs_s",
+    "task_tier": "XS"
+  }
+}

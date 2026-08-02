@@ -1,93 +1,109 @@
-# Bridge Contract（集成桥接层契约）
+# Guazi Extension Contract（v1.4 扩展契约）
 
-本文件是 goal-pipeline 内核与 guazi-flow-* 系列之间的桥接契约。goal-pipeline 管线独立运行于所有平台，guazi-flow-* 在可用时按此契约在各阶段被调用。
+本文件定义 **guazi-flow-goal 独立管线** 的扩展字段、产物分层与阶段边界。v1.4 **不是** goal-pipeline 的桥接层；两条管线仅共享 **review-kernel** 公共服务。
+
+**SSOT 配套：** `guazi-flow-goal/SKILL.md`、`references/guazi-flow-state-schema.md`、`references/guazi-flow-integration.md`
 
 ## NEVER
 
-- **NEVER 在桥接层定义管线逻辑**——管线逻辑（5 阶段、修复子循环、budget）由 goal-pipeline 独占，桥接层只定义映射规则
-- **NEVER 修改 goal-pipeline 的 state.json 基础字段**——guazi-flow 扩展字段（guazi_flow_*）只能追加，不覆盖 pipeline/platform/review_config 等管线字段
-- **NEVER 在桥接层引入新的持久化路径**——所有数据通过 `~/.goal-state/` 统一管理，不在项目中创建额外目录
-- **NEVER 让 guazi-flow-review 替代 goal-pipeline 独立审核**——两者都运行，issues 合并去重，guazi-flow-review 仅作为 Step 1.5 注入
-- **NEVER 让契约融入步骤阻断 guazi-flow-plan 或后续阶段的执行**——融入失败时静默跳过，不影响 implement/review/complete
+- **NEVER exec `goal-pipeline/scripts/*` 或读写 `~/.goal-pipeline/`**
+- **NEVER 用 goal skill 标记冒充 guazi**（`goal-plan` / `goal-implement` 等仅属 goal-pipeline）
+- **NEVER 输出 `[N/5] ✅` 而未 `guazi-gate-stage.sh --post` exit 0**
+- **NEVER 在 plan gate 通过前写业务代码**（`plan_code_order` 硬阻断）
+- **NEVER 绕过 review-kernel**——MUST assemble → run-review-chain → merge → gate --post review
+- **NEVER 在 guazi state 中覆盖非 guazi 命名空间字段**——`guazi_flow_*` / `artifact_layout` 为 guazi 扩展；勿写入 goal 专用 `pipeline_track` 语义
 
-## 双轨与质检防火墙（v4）
+## 管线组件（v1.4）
 
-兼容轨（`/guazi-flow-goal`）在 plan/implement 后插入共享脚本：
+| 组件 | 路径 |
+|------|------|
+| Install | `guazi-flow-goal/scripts/guazi-install.sh` → `~/.guazi-flow/` |
+| Gate | `$GUAZI_STATE_HOME/scripts/guazi-gate-stage.sh` |
+| Advance | `$GUAZI_STATE_HOME/scripts/guazi-advance-stage.sh` |
+| Review chain | `$REVIEW_KERNEL_HOME/bin/run-review-chain.sh` |
+| State | `$GUAZI_STATE_HOME/projects/<pid>/<branch>/<task>/state.json` |
+
+环境变量：`GUAZI_HOME`（默认 `~/.guazi-flow`）、`GUAZI_STATE_HOME`（默认 `$GUAZI_HOME/state`）、`REVIEW_KERNEL_HOME`。
+
+运行时脚本内若仍 `source goal-env-bootstrap.sh`，仅为 **兼容 shim**（映射 `GOAL_*` ← `GUAZI_*`），不代表依赖 goal-pipeline 安装。
+
+## 任务目录与产物分层
+
+- **默认 task_dir：** `docs/guazi-flow/<task>/`（相对 `project_root`）
+- **Tier-G（进 git）：** `index.md`、`evidence/review.md`、`evidence/complete.md`、`evidence/cwiki/**` 等
+- **Tier-R（runtime）：** `handoff/*.json`、review annex JSON、fix-input、timing — 由 `artifact_layout.runtime_root` 或 `repo_full` 模式解析
+
+路径解析：`$GUAZI_STATE_HOME/scripts/resolve-artifact-paths.py`（guazi 默认 `docs/guazi-flow/`）。
+
+## 阶段 SKILL 与 gate 映射
+
+| Gate stage | Skill（执行记录标记） | Lazy-load SKILL |
+|------------|----------------------|-----------------|
+| plan | `guazi-flow-plan` | `guazi-flow-plan` |
+| implement | `guazi-flow-implement` | `guazi-flow-implement` |
+| quality | `goal-quality`（质检脚本） | `guazi-flow-implement` / quality 子流程 |
+| review | unified review + 可选 wrapper | `guazi-flow-review`（`review_track=dual`） |
+| complete | `guazi-flow-complete` | `guazi-flow-complete` |
+
+`smoke` 在 default profile 下 **已废弃**为独立 gate stage；runtime smoke 并入 quality 路径。
+
+## 质检防火墙（共享脚本，guazi runtime 调用）
+
+Plan/implement post 经 gate 内嵌调用（脚本位于 `$GUAZI_STATE_HOME/scripts/`）：
 
 - `plan-quality-gate.py`（PQ-01..06）
 - `implement-qc-gate.py`（IQ-01..02）
-- `contract-conformance-check.py`（IQ-10，当 index 含 API 映射表时）
+- `contract-conformance-check.py`（IQ-10，index 含 API 映射表时）
 
-进化轨（`/goal-pipeline` + `pipeline_track=evolution`）加载 `goal-pipeline/stages/goal-*`，调用同一脚本。
+这些脚本与 goal-pipeline **同源拷贝**，但 guazi **通过自有 install bundle 部署**，不依赖 `~/.goal-pipeline/`。
 
-详见 `goal-pipeline/references/dual-track-contract.md`。
+## Review 契约（v1.4）
 
-## 核心桥接规则
+- **主路径：** review-kernel unified 分支（单次 LLM，`review-unified.json`）
+- **`review_track=single`（XS/S 快车道）：** 不加载 `guazi-flow-review` wrapper；packet 内嵌 rubric
+- **`review_track=dual`：** 可加载 `guazi-flow-review`；merge 层可区分 `channel`（guazi fork 的 `merge.py` 保留 gf 段）
+- **统计口径：** `issues_*_count` 来自 `review-unified.json` 按 `channel` 过滤，禁止数 markdown 表格行
 
-1. **review 注入点**：Step 1.5（在 Step 1 确定性检查之后、Step 2 独立审核之前）。注入的 issues 合并到 Step 2 结果中。
-2. **task_dir 映射**：guazi-flow 集成时 `task_dir = docs/guazi-flow/<task>/`，goal-pipeline 通用模式时 `task_dir = <项目根>/`。
-3. **扩展字段**：`guazi_flow_task` / `guazi_flow_profile` / `guazi_flow_stages`——仅在使用 guazi-flow 集成时存在，不可用时全部为空。
-4. **降级规则**：guazi-flow 不可用时，所有扩展字段置空，管线行为与纯 goal-pipeline 完全一致。
-5. **契约融入规则**：plan 阶段 guazi-flow-plan 产出后，桥接层将 Phase 1 Goal 结构的 Allowed Files / Out of Scope / Stop Conditions 追加到 index.md 的 write_set / scope / contract 子 section 中。纯追加，不修改 index.md 已有内容。后向流程（implement/review/complete）通过读取 index.md 自然消费这些增强字段。
-6. **review issue 格式**：goal-pipeline 独立审核输出的 issue 包含 file/line_range/evidence 可选字段（借鉴 Orca diff 级标注）。guazi-flow-review 的 issue 格式不受此约束。合并时保留信息更丰富的版本。
+## 扩展字段（摘要）
 
-## goal-pipeline ↔ guazi-flow 关系
-
-```
-goal-pipeline（通用管线）          guazi-flow-* 系列（可选增强）
-       │                              │
-       └──────── 本层桥接 ─────────────┘
-                    
-  goal-pipeline 始终独立运行。guazi-flow-* 可用时:
-    plan:      替代 goal-pipeline 通用 plan（结构化文档）
-    implement: 替代 goal-pipeline 通用 implement（profile/contract 驱动）
-    review:    增强 goal-pipeline review（补充专业审核）
-    complete:  增强 goal-pipeline complete（补充收口检查）
-```
-
-## 集成规则
-
-**MANDATORY**: 使用桥接层前必须读取 `references/guazi-flow-integration.md`（完整调度规则和条件触发逻辑）
-**MANDATORY**: 修改 state.json 前必须读取 `references/guazi-flow-state-schema.md`（guazi-flow 扩展字段定义和写入边界）
-
-## guazi-flow 扩展字段
-
-Goal 状态文件 `~/.goal-state/projects/<pid>/<branch>/<task>/state.json`
-中 guazi-flow 相关扩展字段：
+完整 schema 见 `guazi-flow-state-schema.md`。`state.json` 最小集：
 
 ```json
 {
-  "guazi_flow_available": true,
+  "status": "active",
+  "project_root": "/abs/path/to/repo",
   "guazi_flow_task": "docs/guazi-flow/<task>",
   "guazi_flow_profile": "h5",
   "guazi_flow_stages": {
-    "plan": {"used": true},
-    "implement": {"used": true},
-    "review": {"used": true},
-    "complete": {"used": true}
+    "plan": {"gate": {"passed_at": "2026-01-01T00:00:00Z", "post_exit_code": 0}},
+    "implement": {"gate": {"passed_at": "2026-01-01T00:00:00Z", "post_exit_code": 0}}
+  },
+  "artifact_layout": {
+    "mode": "split",
+    "repo_task_dir": "docs/guazi-flow/<task>",
+    "runtime_root": "/path/to/runtime/artifacts"
   }
 }
 ```
 
-guazi-flow 不可用时上述字段全部为空，goal-pipeline 完全独立运行。
+`guazi-advance-stage.sh` 读取 `guazi_flow_stages.*.gate` 与 handoff 新鲜度推进阶段。
+
+## v1.4 废止（勿再文档化）
+
+- `--mode guazi` adapter / `gate-guazi-flow-stage.sh` 薄包装
+- `GF_USE_NATIVE_DRIVER` / `gf-stage-driver.sh`
+- dual-track `pipeline_track=evolution` 与 goal 降级表
+- `guazi_flow_contract_enrich.py`（B3 契约融入脚本）
+- goal-pipeline 作为 guazi 运行时 fallback
+
+历史 v1.3 桥接叙述见 `references/archive/v1.3-bridge/bridge-contract.v1.3.md`（若已归档）。
 
 ## 边缘场景
 
 | 场景 | 行为 |
 |------|------|
-| goal-pipeline 未加载 | 拒绝执行，提示先加载 goal-pipeline |
-| 版本不兼容（bridge 与 core） | 警告 + 降级为纯 goal-pipeline |
-| state.json 扩展字段缺失 | 视为 guazi_flow_available=false，纯管线模式 |
-| guazi-flow-review 与独立审核 issue 冲突 | 以独立审核为准，guazi-flow issue 标记为 `discarded` |
-| 契约融入失败（如 index.md 不存在） | 静默跳过，不影响后续阶段，state.json 记录 `guazi_flow_contract_enriched=false` |
-| 桥接层加载失败 | goal-pipeline 正常运行，扩展字段为空 |
-
-
-## Review 统计口径（v2.2）
-
-- `handoff/review.json` 扩展字段（向后兼容）：
-  - `gf_execution_mode`: `independent_unified_review`
-  - `gf_skill_attested`: bool — `review-run.json` / `review-fix-input.json` provenance
-  - `review_run_id`: 与 `evidence/review-run.json` 对齐
-- `issues_gf_count` / `issues_goal_count` MUST 来自 `review-unified.json` 按 `channel` 过滤计数，禁止数 markdown 表格行
-- `review-run.channels` 记录 `["goal","guazi-flow-review"]` 当 unified 模式启用（单次 LLM，`invocation_count=1`）
+| `guazi-install.sh` 未执行 | `blocked(infra_missing)`；**不** fallback goal-pipeline |
+| `REVIEW_KERNEL_HOME` 缺失 | review 阶段 blocked；先 `shared/review-kernel/install.sh` |
+| gate `--post` 失败 | 读 `evidence/<stage>-gate-fix-input.json`；禁止盲重试 |
+| `review_track=single` 且 `gf_skill_attested=true` | gate review post 失败（B8） |
+| handoff hash 与 index 漂移 | `refresh-handoffs-after-index.sh` 按 contract/execution 分流 cascade |

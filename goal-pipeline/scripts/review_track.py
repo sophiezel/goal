@@ -1,12 +1,5 @@
 #!/usr/bin/env python3
-"""Resolve review track (single vs dual) for XS/S fast-track (v3 §8.2).
-
-single: goal-review/SKILL.md only + goal-run-review-chain.sh (no guazi-flow-review Agent turn)
-dual:   guazi-flow-review + chain (current behavior)
-
-B8 (v1.2): goal-pipeline default track is **single** + goal-review wrapper.
-Dual + guazi-flow-review is opt-in (env/state) for guazi-compat only.
-"""
+"""Resolve review track — goal-pipeline is single-track only (v1.4)."""
 from __future__ import annotations
 
 import argparse
@@ -44,37 +37,12 @@ def resolve_review_track(
     state: dict[str, Any] | None = None,
     auto_resolve_xs_s: bool = False,
 ) -> tuple[str, dict[str, Any]]:
-    env = (env_track or os.environ.get("GOAL_REVIEW_TRACK") or "").strip().lower()
-    if env == "single":
-        return "single", {"reason": "env_override"}
-    if env == "dual":
-        return "dual", {"reason": "env_override"}
-
-    # P2 default-flip: GOAL_REVIEW_SINGLE_DEFAULT=1 enables XS/S → single auto-resolve
-    # (gated behind eval ≥95% × 2 rounds; set after P2 eval passes)
-    if not auto_resolve_xs_s and os.environ.get("GOAL_REVIEW_SINGLE_DEFAULT") == "1":
-        auto_resolve_xs_s = True
-
-    state = state or {}
-    state_track = str((state.get("review_policy") or {}).get("track") or "").lower()
-    if state_track == "single":
-        return "single", {"reason": "state_review_policy"}
-    if state_track == "dual":
-        return "dual", {"reason": "state_review_policy"}
-
-    # auto-resolve: XS/S → single when --auto-resolve-xs-s or plan_profile lite (manifest default)
-    plan_profile = str(state.get("plan_profile") or "").lower()
-    if not auto_resolve_xs_s and plan_profile == "lite" and task_tier in ("XS", "S"):
-        auto_resolve_xs_s = True
-    if auto_resolve_xs_s and task_tier in ("XS", "S"):
-        return "single", {"reason": "auto_xs_s", "task_tier": task_tier}
-
-    return "single", {"reason": "default_single"}
+    _ = (task_tier, env_track, state, auto_resolve_xs_s)
+    return "single", {"reason": "goal_v14_single_only"}
 
 
 def wrapper_profile_for_track(track: str) -> str:
-    """B8: goal-pipeline single → goal-review; dual → guazi-flow-review wrapper."""
-    return "guazi-flow-review" if track.strip().lower() == "dual" else "goal-review"
+    return "goal-review"
 
 
 def persist_review_track(state_file: str, track: str, meta: dict[str, Any]) -> None:
@@ -94,29 +62,18 @@ def persist_review_track(state_file: str, track: str, meta: dict[str, Any]) -> N
 
 
 def main() -> int:
-    p = argparse.ArgumentParser(description="Resolve review track (single/dual)")
+    p = argparse.ArgumentParser(description="Resolve review track (goal: single only)")
     p.add_argument("--state-file", default="")
     p.add_argument("--plan-json", default="")
     p.add_argument("--task-tier", default="")
     p.add_argument("--persist", action="store_true")
-    p.add_argument("--auto-resolve-xs-s", action="store_true",
-                   help="Enable XS/S → single auto-resolve (gated; off by default in PR3)")
+    p.add_argument("--auto-resolve-xs-s", action="store_true")
     p.add_argument("--format", choices=("track", "json"), default="track")
     args = p.parse_args()
 
     state = _load_state(args.state_file)
-    if args.plan_json and os.path.isfile(args.plan_json):
-        try:
-            plan_doc = json.load(open(args.plan_json, encoding="utf-8"))
-            state.setdefault("plan_profile", plan_doc.get("plan_profile", ""))
-            if not state.get("task_tier"):
-                state["task_tier"] = plan_doc.get("task_tier", "")
-        except (OSError, json.JSONDecodeError):
-            pass
     task_tier = (args.task_tier or _load_task_tier(state, args.plan_json)).upper()
-    track, meta = resolve_review_track(
-        task_tier, state=state, auto_resolve_xs_s=args.auto_resolve_xs_s
-    )
+    track, meta = resolve_review_track(task_tier, state=state, auto_resolve_xs_s=args.auto_resolve_xs_s)
 
     if args.persist and args.state_file:
         persist_review_track(args.state_file, track, meta)

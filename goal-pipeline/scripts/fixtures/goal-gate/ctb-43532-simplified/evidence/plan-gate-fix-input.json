@@ -41,7 +41,7 @@
     {
       "id": "G006",
       "severity": "blocker",
-      "summary": "execution record missing skill marker: guazi-flow-plan",
+      "summary": "execution record missing skill marker: goal-plan",
       "root_cause": "plan_gap",
       "criterion_ref": "unified-doc-contract §章节顺序"
     }

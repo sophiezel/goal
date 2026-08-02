@@ -101,7 +101,7 @@ def main() -> int:
             # split mode: uvo in goal_ev
             pass
         st = load_json(Path(args.state_file)) if args.state_file else {}
-        stages = st.get("guazi_flow_stages") or {}
+        stages = st.get("pipeline_stages") or {}
         if stages.get("implement", {}).get("gate", {}).get("passed_at") and not uvo.is_file():
             # try artifacts path
             if not list(goal_ev.glob("verification-oracle.json")):

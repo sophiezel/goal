@@ -1,0 +1,28 @@
+{
+  "schema_version": 1,
+  "planes": {
+    "control": ["plan_code_order", "plan_gate_missing", "plan_artifact_missing", "plan_schema_incomplete", "wrong_stage", "infra_missing", "uncommitted_write_set"],
+    "data": ["project_id_mismatch", "state_ambiguous", "handoff_missing", "contract_stale", "execution_cascade_plan_rejected"],
+    "quality": ["write_set_violation", "uvo_not_pass", "verification_oracle_failed", "verification_scope_overreach", "am_ratchet_failed", "packet_preflight_failed", "review_forged", "review_undetermined", "review_degraded_as_pass", "review_channel_missing", "suspected_secret", "protected_branch", "delivery_evidence_missing", "review_stale", "postmerge_required", "noop_fix", "uvo_skipped_illegally", "review_rounds_exhausted", "review_stagnant", "declared_defect_silent_pass", "contract_conformance_open", "matrix_row_unsatisfied"],
+    "efficiency": ["noop_fix", "review_channel_timeout_storm", "duplicate_verify", "missing_state_file_context"]
+  },
+  "codes": {
+    "plan_code_order": {"plane": "control", "summary": "src/write_set dirty before plan gate", "silent_pass_forbidden": true},
+    "plan_gate_missing": {"plane": "control", "summary": "handoff/plan.json gate.passed_at required", "silent_pass_forbidden": true},
+    "noop_fix": {"plane": "quality", "summary": "subject_hash unchanged — do not rerun same gate", "silent_pass_forbidden": true},
+    "review_rounds_exhausted": {"plane": "quality", "summary": "business fix rounds exceeded GOAL_REVIEW_MAX_ROUNDS", "silent_pass_forbidden": true},
+    "review_stagnant": {"plane": "quality", "summary": "info_gain < GOAL_REVIEW_INFO_GAIN_MIN for GOAL_REVIEW_STAGNANT_ROUNDS consecutive rounds", "silent_pass_forbidden": true},
+    "uncommitted_write_set": {"plane": "control", "summary": "write_set paths dirty at review-pre without commit", "silent_pass_forbidden": true},
+    "review_degraded_as_pass": {"plane": "quality", "summary": "degraded separation marked as full independent pass", "silent_pass_forbidden": true},
+    "review_forged": {"plane": "quality", "summary": "review-unified without review-run provenance", "silent_pass_forbidden": true},
+    "uvo_skipped_illegally": {"plane": "quality", "summary": "implement post without UVO attestation", "silent_pass_forbidden": true},
+    "project_id_mismatch": {"plane": "data", "summary": "state.project_id != sha256(project_root)[:12]", "silent_pass_forbidden": true},
+    "execution_cascade_plan_rejected": {"plane": "data", "summary": "execution-only change must not cascade plan", "silent_pass_forbidden": true},
+    "missing_state_file_context": {"plane": "efficiency", "summary": "quality-gate/UVO invoked without --state-file", "silent_pass_forbidden": true},
+    "declared_defect_silent_pass": {"plane": "quality", "summary": "W1 declared L10/UX class passed gate without disposition", "silent_pass_forbidden": true},
+    "contract_conformance_open": {"plane": "quality", "summary": "IQ-10 contract-conformance not passed at complete/review", "silent_pass_forbidden": true},
+    "verification_scope_overreach": {"plane": "quality", "summary": "UVO DEM-08: failing tests outside write_set closure; pure DEM-08 (write_set_closure) records warn + overall pass — does not block implement", "silent_pass_forbidden": true, "implement_block_when_pure_dem08": false},
+    "packet_preflight_failed": {"plane": "quality", "summary": "review-packet PKT-01..04 preflight failed", "silent_pass_forbidden": true},
+    "matrix_row_unsatisfied": {"plane": "quality", "summary": "L9 acceptance matrix row unsatisfied (W2 bookkeeping; host handoff matrix_satisfaction)", "silent_pass_forbidden": false, "w2_note": "Business-semantics L9 — not a deterministic AM ratchet substitute; does not hard-block complete"}
+  }
+}

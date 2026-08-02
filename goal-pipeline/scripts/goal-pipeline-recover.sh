@@ -6,8 +6,8 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GOAL_STATE_HOME="${GOAL_STATE_HOME:-${GOAL_HOME:-$HOME/.goal-pipeline}/state}"
-GATE="$GOAL_STATE_HOME/scripts/gate-guazi-flow-stage.sh"
-[[ -x "$GATE" ]] || GATE="$SCRIPT_DIR/gate-guazi-flow-stage.sh"
+GATE="$GOAL_STATE_HOME/scripts/gate-goal-stage.sh"
+[[ -x "$GATE" ]] || GATE="$SCRIPT_DIR/gate-goal-stage.sh"
 CHAIN="$GOAL_STATE_HOME/scripts/validate-pipeline-chain.sh"
 [[ -x "$CHAIN" ]] || CHAIN="$SCRIPT_DIR/validate-pipeline-chain.sh"
 CHECK="$GOAL_STATE_HOME/scripts/check-consistency"
@@ -83,11 +83,11 @@ if Path(state_file).is_file():
     st = json.loads(Path(state_file).read_text(encoding="utf-8"))
 
 # Missing plan.json but index looks complete
-if not has_handoff("plan.json") and "guazi-flow-plan" in index_text:
+if not has_handoff("plan.json") and "goal-plan" in index_text:
     issues.append("plan_handoff_missing")
     fixes.append({
         "action": "gate_post_plan",
-        "command": f"{gate} --task-dir {task_dir} --stage plan --post --mode guazi --state-file {state_file} --project-root {project_root}",
+        "command": f"{gate} --task-dir {task_dir} --stage plan --post --state-file {state_file} --project-root {project_root}",
         "note": "Retrofit plan handoff from index.md artifacts (do not hand-write plan.json)",
     })
 
@@ -133,7 +133,7 @@ if has_handoff("implement.json") and not has_handoff("plan.json"):
     issues.append("implement_without_plan")
     fixes.insert(0, fixes[-1] if fixes else {
         "action": "gate_post_plan",
-        "command": f"{gate} --task-dir {task_dir} --stage plan --post --mode guazi --state-file {state_file} --project-root {project_root}",
+        "command": f"{gate} --task-dir {task_dir} --stage plan --post --state-file {state_file} --project-root {project_root}",
     })
 
 # index current_stage ahead of handoff
@@ -152,13 +152,13 @@ if idx_stage and idx_stage not in ("complete", "done"):
         })
 
 # implement gate pending
-impl_gate = (st.get("guazi_flow_stages") or {}).get("implement", {}).get("gate", {})
+impl_gate = (st.get("pipeline_stages") or {}).get("implement", {}).get("gate", {})
 if has_handoff("implement.json") and not impl_gate.get("passed_at"):
     issues.append("implement_gate_pending")
     fixes.append({
         "action": "implement_post_chain",
         "commands": [
-            f"{gate} --task-dir {task_dir} --stage implement --post --mode guazi --state-file {state_file} --project-root {project_root}",
+            f"{gate} --task-dir {task_dir} --stage implement --post --state-file {state_file} --project-root {project_root}",
             f"{chain} --task-dir {task_dir} --state-file {state_file}",
             f"{os.path.dirname(gate)}/goal-advance-stage.sh --state-file {state_file} --task-dir {task_dir} --project-root {project_root}",
         ],
@@ -197,7 +197,7 @@ elif has_handoff("implement.json") and not Path(os.environ.get("GOAL_EVIDENCE", 
 elif Path(os.environ.get("GOAL_EVIDENCE", str(task_dir / "evidence")) + "/runtime-smoke.md").is_file() and not has_handoff("review.json"):
     resume_path.append("goal-run-review-chain.sh + gate --post review")
 elif has_handoff("review.json") and not has_handoff("complete.json"):
-    resume_path.append("guazi-flow-complete + gate --post complete")
+    resume_path.append("goal-complete + gate --post complete")
 
 work_order = None
 if Path(driver).is_file():

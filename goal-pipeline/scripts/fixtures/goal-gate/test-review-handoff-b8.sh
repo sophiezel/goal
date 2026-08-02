@@ -2,12 +2,12 @@
 # test-review-handoff-b8.sh — review post handoff carries single-track + goal-review (B8)
 set -euo pipefail
 DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-GATE="$DIR/../../gate-guazi-flow-stage.sh"
+GATE="$DIR/../../gate-goal-stage.sh"
 FIX="$DIR/review-fix-input-good"
 export GOAL_ARTIFACT_MODE=repo_full
 
 rm -f "$FIX/handoff/review.json"
-if ! "$GATE" --task-dir "$FIX" --stage review --post --mode guazi; then
+if ! "$GATE" --task-dir "$FIX" --stage review --post; then
   echo "FAIL: review-fix-input-good gate post expected pass"; exit 1
 fi
 

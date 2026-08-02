@@ -138,21 +138,16 @@ PYSHRINK
 import json, sys
 d = json.load(open(sys.argv[1], encoding="utf-8"))
 issues = d.get("issues", [])
-print(sum(1 for i in issues if i.get("channel", "goal") != "guazi-flow-review"))
+print(len(issues))
 PYGC
 )
       fi
-      GF_COUNT=$(read_gf_issues_count)
-      GF_ATTESTED=$(python3 -c "import json; d=json.load(open('$GOAL_EVIDENCE_DIR/review-fix-input.json')); print(str(d.get('provenance',{}).get('gf_skill_attested',False)).lower())" 2>/dev/null || echo "false")
       REVIEW_TRACK=$(python3 "$SCRIPT_DIR/review_track.py" \
         --state-file "${STATE_FILE:-}" \
         --plan-json "$HANDOFF_DIR/plan.json" \
         --auto-resolve-xs-s \
         --format track 2>/dev/null || echo "single")
       WRAPPER_PROFILE=$(REVIEW_TRACK="$REVIEW_TRACK" python3 -c "import os,sys; sys.path.insert(0,sys.argv[1]); from review_track import wrapper_profile_for_track; print(wrapper_profile_for_track(os.environ['REVIEW_TRACK']))" "$SCRIPT_DIR")
-      if [[ "$REVIEW_TRACK" == "single" && "$GF_ATTESTED" == "true" ]]; then
-        fail "single-track review (B8): gf_skill_attested must be false — use GOAL_REVIEW_TRACK=dual for guazi-flow-review wrapper"
-      fi
       RUN_ID=$(python3 -c "import json; print(json.load(open('$GOAL_EVIDENCE_DIR/review-run.json')).get('run_id',''))" 2>/dev/null || echo "")
       TMP=$(mktemp)
       cat > "$TMP" << JSON
@@ -164,10 +159,7 @@ PYGC
   "git_head": "$GH",
   "review_track": "$REVIEW_TRACK",
   "wrapper_profile": "$WRAPPER_PROFILE",
-  "issues_gf_count": $GF_COUNT,
   "issues_goal_count": $GOAL_COUNT,
-  "gf_execution_mode": "independent_unified_review",
-  "gf_skill_attested": $GF_ATTESTED,
   "review_run_id": "$RUN_ID",
   "root_cause_summary": {},
   "artifact_paths": ["evidence/review.md"],

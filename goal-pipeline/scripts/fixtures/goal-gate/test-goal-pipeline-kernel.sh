@@ -15,7 +15,7 @@ export GOAL_STATE_HOME="$tmp/gs"
 export GOAL_ARTIFACT_MODE=repo_full
 mkdir -p "$GOAL_STATE_HOME/scripts"
 # Point internal bins to repo scripts
-for f in goal-stage-driver.sh gate-guazi-flow-stage.sh goal-advance-stage.sh assert-plan-before-code.sh validate-state-path.sh; do
+for f in goal-stage-driver.sh gate-goal-stage.sh goal-advance-stage.sh assert-plan-before-code.sh validate-state-path.sh; do
   ln -sf "$SCRIPT_DIR/../../$f" "$GOAL_STATE_HOME/scripts/$f" 2>/dev/null || cp "$SCRIPT_DIR/../../$f" "$GOAL_STATE_HOME/scripts/$f"
 done
 # py helpers
@@ -57,7 +57,7 @@ p
 ## 写集
 - docs/guazi-flow/demo-task/**
 ## 执行记录
-- guazi-flow-plan
+- goal-plan
 MD
 
 echo "=== kernel init ==="

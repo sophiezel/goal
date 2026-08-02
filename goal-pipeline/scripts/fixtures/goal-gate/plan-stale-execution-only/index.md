@@ -53,7 +53,7 @@ function DetailPage() {
 
 | Stage | Skill | Result |
 |-------|-------|--------|
-| plan | guazi-flow-plan | pass |
+| plan | goal-plan | pass |
 
 ## write_set
 
@@ -83,4 +83,4 @@ function DetailPage() {
 
 - extra implement note
 
-- guazi-flow-implement pass
+- goal-implement pass

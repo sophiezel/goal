@@ -1,7 +1,7 @@
 {
   "stage": "implement",
   "schema_version": 1,
-  "skill_expected": "guazi-flow-implement",
+  "skill_expected": "goal-implement",
   "skill_executed": true,
   "write_set": [
     "routes.ts",
@@ -15,8 +15,8 @@
     "index.md"
   ],
   "gate": {
-    "script": "gate-guazi-flow-stage.sh",
+    "script": "gate-goal-stage.sh",
     "version": 1,
-    "passed_at": "2026-08-02T16:11:11Z"
+    "passed_at": "2026-08-02T18:32:30Z"
   }
 }

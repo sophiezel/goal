@@ -98,7 +98,6 @@ PYVER
       # Keep legacy index_schema_hash = contract hash for older consumers
       GH=$(git_head_short)
       PLAN_SKILL_EXPECTED="goal-plan"
-      [[ "${GATE_MODE:-goal}" == "guazi" ]] && PLAN_SKILL_EXPECTED="guazi-flow-plan"
       ARTIFACT_PATHS='["index.md"]'
       [[ "$GOAL_LITE" == "true" ]] && ARTIFACT_PATHS='[]'
       TMP=$(mktemp)
@@ -128,28 +127,6 @@ JSON
       py_write_handoff plan "$TMP" >/dev/null
       rm -f "$TMP"
       if [[ "$GOAL_LITE" != "true" ]]; then
-      CONTRACT_ENRICH="$SCRIPT_DIR/guazi_flow_contract_enrich.py"
-      if [[ -f "$CONTRACT_ENRICH" ]]; then
-        CE_ARGS=(--task-dir "$TASK_DIR" --index "$INDEX" --plan-json "$HANDOFF_DIR/plan.json")
-        [[ -n "$STATE_FILE" && -f "$STATE_FILE" ]] && CE_ARGS+=(--state-file "$STATE_FILE")
-        CE_OUT=$(python3 "$CONTRACT_ENRICH" "${CE_ARGS[@]}" 2>&1) || CE_RC=$?
-        CE_RC=${CE_RC:-0}
-        if [[ "$CE_RC" -ne 0 ]]; then
-          fail "contract enrich failed (B3) — ${CE_OUT:-see guazi_flow_contract_enrich.py}"
-        fi
-        CE_OK=$(echo "$CE_OUT" | python3 -c "import json,sys; print(json.load(sys.stdin).get('ok'))" 2>/dev/null || echo "False")
-        [[ "$CE_OK" == "True" ]] || fail "contract enrich returned not ok (B3)"
-        python3 - "$HANDOFF_DIR/plan.json" << 'PYCE'
-import json, sys
-plan_path = sys.argv[1]
-with open(plan_path, encoding="utf-8") as f:
-    plan = json.load(f)
-plan["contract_enriched"] = True
-with open(plan_path, "w", encoding="utf-8") as f:
-    json.dump(plan, f, indent=2, ensure_ascii=False)
-    f.write("\n")
-PYCE
-      fi
       ARGUS="$SCRIPT_DIR/argus-enrich-plan.sh"
       if [[ -x "$ARGUS" ]]; then
         if ! bash "$ARGUS" --task-dir "$TASK_DIR" --handoff-dir "$HANDOFF_DIR"; then
