@@ -1,6 +1,8 @@
 # Wayfinder 本地镜像
 
-**当前活跃地图：** _无_ — v1.2 实现图 [#44](https://github.com/sophiezel/goal/issues/44) **已关闭**（[PHASE-5-V12-IMPL-CLOSURE.md](PHASE-5-V12-IMPL-CLOSURE.md) · 镜像 [maps/goal-pipeline-v1.2-implementation.md](maps/goal-pipeline-v1.2-implementation.md) · 分支 `feat/goal-pipeline-v1.2-breaking-impl`）
+**当前活跃地图：** [Wayfinder: goal-pipeline 与 guazi 解耦 + Matt 简体工程化工作流（高保真/效率导向）](https://github.com/sophiezel/goal/issues/53) — 镜像 [maps/goal-pipeline-matt-decouple-workflow.md](maps/goal-pipeline-matt-decouple-workflow.md) · 子票 [#54](https://github.com/sophiezel/goal/issues/54)–[#58](https://github.com/sophiezel/goal/issues/58) · 前置 [PHASE-5-V12-IMPL-CLOSURE.md](PHASE-5-V12-IMPL-CLOSURE.md)
+
+**v1.2 实现图（已关闭）：** [#44](https://github.com/sophiezel/goal/issues/44) — [PHASE-5-V12-IMPL-CLOSURE.md](PHASE-5-V12-IMPL-CLOSURE.md) · 镜像 [maps/goal-pipeline-v1.2-implementation.md](maps/goal-pipeline-v1.2-implementation.md)
 
 **Phase-5 地图（已关闭 2026-08-02）：** [Wayfinder: Goal 全链路质量与效率 — 系统分析与优化规格（Phase-5）](https://github.com/sophiezel/goal/issues/36) — [PHASE-5-CLOSURE.md](PHASE-5-CLOSURE.md)（`4c27640`…[`ebb28fb`](https://github.com/sophiezel/goal/commit/ebb28fb)）· 镜像 [maps/goal-full-chain-phase5-analysis.md](maps/goal-full-chain-phase5-analysis.md) · 子票 [#37](https://github.com/sophiezel/goal/issues/37)–[#42](https://github.com/sophiezel/goal/issues/42) **closed** · grilling [#40](https://github.com/sophiezel/goal/issues/40) · spec [#42](https://github.com/sophiezel/goal/issues/42) → **v1.2**
 
